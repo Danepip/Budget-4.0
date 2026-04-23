@@ -351,6 +351,36 @@ function hasLocalBudgetData() {
   );
 }
 
+function hasStoredBudgetDraft() {
+  const draft = readStoredDraft();
+  return Boolean(
+    draft &&
+    draft.mode === "budget" &&
+    (
+      (Array.isArray(draft.rows) && draft.rows.length > 0) ||
+      (Array.isArray(draft.categories) && draft.categories.length > 0) ||
+      (Array.isArray(draft.recap?.planTemplate) && draft.recap.planTemplate.length > 0)
+    )
+  );
+}
+
+function ensureLocalBudgetDataReady() {
+  if (hasLocalBudgetData()) {
+    return true;
+  }
+
+  if (!hasStoredBudgetDraft()) {
+    return false;
+  }
+
+  const restored = restoreDraft();
+  if (restored) {
+    renderAll();
+  }
+
+  return hasLocalBudgetData();
+}
+
 function buildSupabaseRedirectUrl() {
   return `${window.location.origin}${window.location.pathname}`;
 }
@@ -737,11 +767,11 @@ async function onCloudCreateSpaceRequested() {
       preserveLastAction: true,
     });
 
-    if (hasLocalBudgetData()) {
-      const publishNow = window.confirm("Publier vos donnees locales actuelles vers ce nouvel espace partage ?");
-      if (publishNow) {
-        await publishLocalBudgetToSupabase();
-      }
+    if (ensureLocalBudgetDataReady()) {
+      await publishLocalBudgetToSupabase();
+    } else {
+      setCloudStatus(`Espace partage cree: ${state.cloud.space.name}. Chargez ou restaurez un budget local, puis cliquez sur Publier local.`);
+      setLastAction(`Espace cloud cree: ${state.cloud.space.name} - aucune donnee locale detectee`);
     }
   } catch (error) {
     console.error(error);
@@ -816,8 +846,9 @@ async function onCloudPublishRequested() {
     return;
   }
 
-  if (!hasLocalBudgetData()) {
+  if (!ensureLocalBudgetDataReady()) {
     setLastAction("Aucune donnee locale a publier vers Supabase.");
+    setCloudStatus("Aucune donnee locale detectee. Chargez un budget ou restaurez le brouillon local avant la publication.");
     renderAll();
     return;
   }
@@ -2544,7 +2575,8 @@ function renderCloudPanel() {
   const signedIn = hasSupabaseSession();
   const spaceSelected = hasCloudSpaceSelected();
   const busy = state.cloud.syncBusy;
-  const canPublish = canUseSupabaseCloud() && hasLocalBudgetData();
+  const canPublish = canUseSupabaseCloud() && (hasLocalBudgetData() || hasStoredBudgetDraft());
+  const publishNeedsRestore = canUseSupabaseCloud() && !hasLocalBudgetData() && hasStoredBudgetDraft();
 
   refs.cloudStatus.textContent = state.cloud.status;
   refs.cloudEmailInput.value = refs.cloudEmailInput.matches(":focus")
@@ -2565,6 +2597,7 @@ function renderCloudPanel() {
 
   refs.cloudMagicLinkButton.textContent = busy && !signedIn ? "Connexion..." : "Lien magique";
   refs.cloudSignOutButton.textContent = busy && signedIn ? "Patientez..." : "Deconnexion";
+  refs.cloudPushButton.textContent = publishNeedsRestore ? "Restaurer et publier" : "Publier local";
 
   const identityLabel = signedIn
     ? `Compte: ${state.cloud.user?.email || state.cloud.email || "connecte"}`
