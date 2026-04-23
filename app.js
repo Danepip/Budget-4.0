@@ -427,6 +427,38 @@ function clearSupabaseAuthParamsFromLocation() {
   window.history.replaceState({}, document.title, nextLocation);
 }
 
+function describeSupabaseError(error, fallbackMessage) {
+  const rawMessage = String(
+    error?.message ||
+    error?.error_description ||
+    error?.description ||
+    ""
+  ).trim();
+  const rawCode = String(error?.code || error?.error_code || "").trim();
+  const statusCode = Number(error?.status || error?.statusCode || 0);
+  const haystack = `${rawMessage} ${rawCode}`.toLowerCase();
+
+  if (
+    statusCode === 429 ||
+    haystack.includes("rate limit") ||
+    haystack.includes("too many requests") ||
+    haystack.includes("over_email_send_rate_limit") ||
+    haystack.includes("over_request_rate_limit")
+  ) {
+    return `${fallbackMessage} Supabase limite les renvois: attendez 60 secondes avant une nouvelle demande sur le meme email. Avec le fournisseur email integre, le projet est aussi limite a 2 emails par heure.`;
+  }
+
+  if (haystack.includes("redirect") || haystack.includes("site url")) {
+    return `${fallbackMessage} Verifiez aussi Site URL et Redirect URLs dans Supabase Auth.`;
+  }
+
+  if (rawMessage) {
+    return `${fallbackMessage} ${rawMessage}`;
+  }
+
+  return fallbackMessage;
+}
+
 async function consumeSupabaseAuthCallback() {
   if (!supabaseClient) {
     return false;
@@ -489,8 +521,9 @@ async function consumeSupabaseAuthCallback() {
     }
   } catch (error) {
     console.error(error);
-    setCloudStatus("Le retour du lien magique Supabase a echoue.");
-    setLastAction("Confirmation Supabase impossible");
+    const message = describeSupabaseError(error, "Le retour du lien magique Supabase a echoue.");
+    setCloudStatus(message);
+    setLastAction(message);
     clearSupabaseAuthParamsFromLocation();
     renderAll();
     return false;
@@ -689,8 +722,9 @@ async function onCloudMagicLinkRequested() {
     setLastAction(`Lien magique Supabase envoye a ${email}`);
   } catch (error) {
     console.error(error);
-    setCloudStatus("Le lien magique n'a pas pu etre envoye.");
-    setLastAction("Connexion Supabase impossible");
+    const message = describeSupabaseError(error, "Le lien magique n'a pas pu etre envoye.");
+    setCloudStatus(message);
+    setLastAction(message);
   } finally {
     setCloudBusy(false);
     renderAll();
