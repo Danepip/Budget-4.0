@@ -355,6 +355,120 @@ function buildSupabaseRedirectUrl() {
   return `${window.location.origin}${window.location.pathname}`;
 }
 
+function buildUrlWithoutSupabaseAuthParams(url) {
+  const nextUrl = new URL(url.toString());
+  const removableQueryParams = [
+    "code",
+    "token_hash",
+    "type",
+    "error",
+    "error_code",
+    "error_description",
+  ];
+
+  for (const paramName of removableQueryParams) {
+    nextUrl.searchParams.delete(paramName);
+  }
+
+  const hashParams = new URLSearchParams(nextUrl.hash.startsWith("#") ? nextUrl.hash.slice(1) : "");
+  const removableHashParams = [
+    "access_token",
+    "refresh_token",
+    "expires_at",
+    "expires_in",
+    "token_type",
+    "type",
+    "provider_token",
+    "provider_refresh_token",
+  ];
+
+  for (const paramName of removableHashParams) {
+    hashParams.delete(paramName);
+  }
+
+  const remainingHash = hashParams.toString();
+  nextUrl.hash = remainingHash ? `#${remainingHash}` : "";
+  return nextUrl;
+}
+
+function clearSupabaseAuthParamsFromLocation() {
+  const cleanedUrl = buildUrlWithoutSupabaseAuthParams(new URL(window.location.href));
+  const nextLocation = `${cleanedUrl.pathname}${cleanedUrl.search}${cleanedUrl.hash}`;
+  window.history.replaceState({}, document.title, nextLocation);
+}
+
+async function consumeSupabaseAuthCallback() {
+  if (!supabaseClient) {
+    return false;
+  }
+
+  const currentUrl = new URL(window.location.href);
+  const queryParams = currentUrl.searchParams;
+  const hashParams = new URLSearchParams(currentUrl.hash.startsWith("#") ? currentUrl.hash.slice(1) : "");
+  const authCode = String(queryParams.get("code") || "").trim();
+  const tokenHash = String(queryParams.get("token_hash") || "").trim();
+  const otpType = String(queryParams.get("type") || hashParams.get("type") || "email").trim() || "email";
+  const accessToken = String(hashParams.get("access_token") || "").trim();
+  const refreshToken = String(hashParams.get("refresh_token") || "").trim();
+
+  try {
+    if (authCode && typeof supabaseClient.auth.exchangeCodeForSession === "function") {
+      const { error } = await supabaseClient.auth.exchangeCodeForSession(authCode);
+      if (error) {
+        throw error;
+      }
+
+      clearSupabaseAuthParamsFromLocation();
+      setCloudStatus("Connexion Supabase confirmee.");
+      setLastAction("Lien magique Supabase confirme");
+      return true;
+    }
+
+    if (tokenHash && typeof supabaseClient.auth.verifyOtp === "function") {
+      const { error } = await supabaseClient.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: otpType,
+      });
+      if (error) {
+        throw error;
+      }
+
+      clearSupabaseAuthParamsFromLocation();
+      setCloudStatus("Connexion Supabase confirmee.");
+      setLastAction("Lien magique Supabase confirme");
+      return true;
+    }
+
+    if (
+      accessToken &&
+      refreshToken &&
+      typeof supabaseClient.auth.setSession === "function"
+    ) {
+      const { error } = await supabaseClient.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) {
+        throw error;
+      }
+
+      clearSupabaseAuthParamsFromLocation();
+      setCloudStatus("Connexion Supabase confirmee.");
+      setLastAction("Session Supabase restauree");
+      return true;
+    }
+  } catch (error) {
+    console.error(error);
+    setCloudStatus("Le retour du lien magique Supabase a echoue.");
+    setLastAction("Confirmation Supabase impossible");
+    clearSupabaseAuthParamsFromLocation();
+    renderAll();
+    return false;
+  }
+
+  return false;
+}
+
 function setCloudStatus(message) {
   state.cloud.status = message;
 }
@@ -442,6 +556,7 @@ async function initSupabaseIntegration() {
       }
     });
 
+    await consumeSupabaseAuthCallback();
     await syncSupabaseSession();
   } catch (error) {
     console.error(error);
