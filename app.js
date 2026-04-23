@@ -351,8 +351,152 @@ function hasLocalBudgetData() {
   );
 }
 
+function hasStoredBudgetDraft() {
+  const draft = readStoredDraft();
+  return Boolean(
+    draft &&
+    draft.mode === "budget" &&
+    (
+      (Array.isArray(draft.rows) && draft.rows.length > 0) ||
+      (Array.isArray(draft.categories) && draft.categories.length > 0) ||
+      (Array.isArray(draft.recap?.planTemplate) && draft.recap.planTemplate.length > 0)
+    )
+  );
+}
+
+function ensureLocalBudgetDataReady() {
+  if (hasLocalBudgetData()) {
+    return true;
+  }
+
+  if (!hasStoredBudgetDraft()) {
+    return false;
+  }
+
+  const restored = restoreDraft();
+  if (restored) {
+    renderAll();
+  }
+
+  return hasLocalBudgetData();
+}
+
 function buildSupabaseRedirectUrl() {
   return `${window.location.origin}${window.location.pathname}`;
+}
+
+function buildUrlWithoutSupabaseAuthParams(url) {
+  const nextUrl = new URL(url.toString());
+  const removableQueryParams = [
+    "code",
+    "token_hash",
+    "type",
+    "error",
+    "error_code",
+    "error_description",
+  ];
+
+  for (const paramName of removableQueryParams) {
+    nextUrl.searchParams.delete(paramName);
+  }
+
+  const hashParams = new URLSearchParams(nextUrl.hash.startsWith("#") ? nextUrl.hash.slice(1) : "");
+  const removableHashParams = [
+    "access_token",
+    "refresh_token",
+    "expires_at",
+    "expires_in",
+    "token_type",
+    "type",
+    "provider_token",
+    "provider_refresh_token",
+  ];
+
+  for (const paramName of removableHashParams) {
+    hashParams.delete(paramName);
+  }
+
+  const remainingHash = hashParams.toString();
+  nextUrl.hash = remainingHash ? `#${remainingHash}` : "";
+  return nextUrl;
+}
+
+function clearSupabaseAuthParamsFromLocation() {
+  const cleanedUrl = buildUrlWithoutSupabaseAuthParams(new URL(window.location.href));
+  const nextLocation = `${cleanedUrl.pathname}${cleanedUrl.search}${cleanedUrl.hash}`;
+  window.history.replaceState({}, document.title, nextLocation);
+}
+
+async function consumeSupabaseAuthCallback() {
+  if (!supabaseClient) {
+    return false;
+  }
+
+  const currentUrl = new URL(window.location.href);
+  const queryParams = currentUrl.searchParams;
+  const hashParams = new URLSearchParams(currentUrl.hash.startsWith("#") ? currentUrl.hash.slice(1) : "");
+  const authCode = String(queryParams.get("code") || "").trim();
+  const tokenHash = String(queryParams.get("token_hash") || "").trim();
+  const otpType = String(queryParams.get("type") || hashParams.get("type") || "email").trim() || "email";
+  const accessToken = String(hashParams.get("access_token") || "").trim();
+  const refreshToken = String(hashParams.get("refresh_token") || "").trim();
+
+  try {
+    if (authCode && typeof supabaseClient.auth.exchangeCodeForSession === "function") {
+      const { error } = await supabaseClient.auth.exchangeCodeForSession(authCode);
+      if (error) {
+        throw error;
+      }
+
+      clearSupabaseAuthParamsFromLocation();
+      setCloudStatus("Connexion Supabase confirmee.");
+      setLastAction("Lien magique Supabase confirme");
+      return true;
+    }
+
+    if (tokenHash && typeof supabaseClient.auth.verifyOtp === "function") {
+      const { error } = await supabaseClient.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: otpType,
+      });
+      if (error) {
+        throw error;
+      }
+
+      clearSupabaseAuthParamsFromLocation();
+      setCloudStatus("Connexion Supabase confirmee.");
+      setLastAction("Lien magique Supabase confirme");
+      return true;
+    }
+
+    if (
+      accessToken &&
+      refreshToken &&
+      typeof supabaseClient.auth.setSession === "function"
+    ) {
+      const { error } = await supabaseClient.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) {
+        throw error;
+      }
+
+      clearSupabaseAuthParamsFromLocation();
+      setCloudStatus("Connexion Supabase confirmee.");
+      setLastAction("Session Supabase restauree");
+      return true;
+    }
+  } catch (error) {
+    console.error(error);
+    setCloudStatus("Le retour du lien magique Supabase a echoue.");
+    setLastAction("Confirmation Supabase impossible");
+    clearSupabaseAuthParamsFromLocation();
+    renderAll();
+    return false;
+  }
+
+  return false;
 }
 
 function setCloudStatus(message) {
@@ -442,6 +586,7 @@ async function initSupabaseIntegration() {
       }
     });
 
+    await consumeSupabaseAuthCallback();
     await syncSupabaseSession();
   } catch (error) {
     console.error(error);
@@ -622,11 +767,11 @@ async function onCloudCreateSpaceRequested() {
       preserveLastAction: true,
     });
 
-    if (hasLocalBudgetData()) {
-      const publishNow = window.confirm("Publier vos donnees locales actuelles vers ce nouvel espace partage ?");
-      if (publishNow) {
-        await publishLocalBudgetToSupabase();
-      }
+    if (ensureLocalBudgetDataReady()) {
+      await publishLocalBudgetToSupabase();
+    } else {
+      setCloudStatus(`Espace partage cree: ${state.cloud.space.name}. Chargez ou restaurez un budget local, puis cliquez sur Publier local.`);
+      setLastAction(`Espace cloud cree: ${state.cloud.space.name} - aucune donnee locale detectee`);
     }
   } catch (error) {
     console.error(error);
@@ -701,8 +846,9 @@ async function onCloudPublishRequested() {
     return;
   }
 
-  if (!hasLocalBudgetData()) {
+  if (!ensureLocalBudgetDataReady()) {
     setLastAction("Aucune donnee locale a publier vers Supabase.");
+    setCloudStatus("Aucune donnee locale detectee. Chargez un budget ou restaurez le brouillon local avant la publication.");
     renderAll();
     return;
   }
@@ -2429,7 +2575,8 @@ function renderCloudPanel() {
   const signedIn = hasSupabaseSession();
   const spaceSelected = hasCloudSpaceSelected();
   const busy = state.cloud.syncBusy;
-  const canPublish = canUseSupabaseCloud() && hasLocalBudgetData();
+  const canPublish = canUseSupabaseCloud() && (hasLocalBudgetData() || hasStoredBudgetDraft());
+  const publishNeedsRestore = canUseSupabaseCloud() && !hasLocalBudgetData() && hasStoredBudgetDraft();
 
   refs.cloudStatus.textContent = state.cloud.status;
   refs.cloudEmailInput.value = refs.cloudEmailInput.matches(":focus")
@@ -2450,6 +2597,7 @@ function renderCloudPanel() {
 
   refs.cloudMagicLinkButton.textContent = busy && !signedIn ? "Connexion..." : "Lien magique";
   refs.cloudSignOutButton.textContent = busy && signedIn ? "Patientez..." : "Deconnexion";
+  refs.cloudPushButton.textContent = publishNeedsRestore ? "Restaurer et publier" : "Publier local";
 
   const identityLabel = signedIn
     ? `Compte: ${state.cloud.user?.email || state.cloud.email || "connecte"}`

@@ -1,4 +1,4 @@
-const VERSION = "budget-card-view-v3";
+const VERSION = "budget-card-view-v6";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
@@ -7,12 +7,12 @@ const APP_SHELL = [
   "./styles.css",
   "./app.js",
   "./supabase.config.js",
-  "./vendor/capacitor.js",
-  "./vendor/synapse.js",
-  "./vendor/capacitor-filesystem.js",
-  "./vendor/capacitor-share.js",
-  "./vendor/xlsx.full.min.js",
-  "./vendor/supabase.js",
+  "./capacitor.js",
+  "./synapse.js",
+  "./capacitor-filesystem.js",
+  "./capacitor-share.js",
+  "./xlsx.full.min.js",
+  "./supabase.js",
   "./manifest.json",
   "./offline.html",
   "./apple-touch-icon.png",
@@ -27,7 +27,13 @@ const RUNTIME_ASSETS = [];
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    await cache.addAll(APP_SHELL);
+    for (const assetPath of APP_SHELL) {
+      try {
+        await cache.add(assetPath);
+      } catch (error) {
+        console.error("Shell cache warmup failed:", assetPath, error);
+      }
+    }
 
     for (const url of RUNTIME_ASSETS) {
       try {
