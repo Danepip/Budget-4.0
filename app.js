@@ -452,6 +452,14 @@ function describeSupabaseError(error, fallbackMessage) {
     return `${fallbackMessage} Verifiez aussi Site URL et Redirect URLs dans Supabase Auth.`;
   }
 
+  if (haystack.includes("auth_required") || haystack.includes("jwt")) {
+    return `${fallbackMessage} La session Supabase n'est pas reconnue. Deconnectez-vous puis reconnectez-vous avec le lien magique.`;
+  }
+
+  if (haystack.includes("function") && haystack.includes("create_budget_space")) {
+    return `${fallbackMessage} La fonction create_budget_space n'est pas disponible ou pas a jour dans Supabase. Relancez le script schema.sql complet dans SQL Editor.`;
+  }
+
   if (rawMessage) {
     return `${fallbackMessage} ${rawMessage}`;
   }
@@ -809,8 +817,9 @@ async function onCloudCreateSpaceRequested() {
     }
   } catch (error) {
     console.error(error);
-    setCloudStatus("L'espace partage n'a pas pu etre cree.");
-    setLastAction("Creation de l'espace cloud impossible");
+    const message = describeSupabaseError(error, "L'espace partage n'a pas pu etre cree.");
+    setCloudStatus(message);
+    setLastAction(message);
   } finally {
     setCloudBusy(false);
     renderAll();
@@ -865,8 +874,9 @@ async function onCloudJoinSpaceRequested() {
     }
   } catch (error) {
     console.error(error);
-    setCloudStatus("Impossible de rejoindre cet espace partage.");
-    setLastAction("Rejointure cloud impossible");
+    const message = describeSupabaseError(error, "Impossible de rejoindre cet espace partage.");
+    setCloudStatus(message);
+    setLastAction(message);
   } finally {
     setCloudBusy(false);
     renderAll();
@@ -1056,8 +1066,9 @@ async function publishLocalBudgetToSupabase() {
     persistDraftIfPossible();
   } catch (error) {
     console.error(error);
-    setCloudStatus("La publication vers Supabase a echoue.");
-    setLastAction("Publication Supabase impossible");
+    const message = describeSupabaseError(error, "La publication vers Supabase a echoue.");
+    setCloudStatus(message);
+    setLastAction(message);
   } finally {
     setCloudBusy(false);
     renderAll();
