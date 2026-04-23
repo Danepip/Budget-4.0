@@ -784,7 +784,7 @@ async function onCloudCreateSpaceRequested() {
     renderAll();
 
     const { data, error } = await supabaseClient.rpc("create_budget_space", {
-      space_name: desiredName,
+      input_space_name: desiredName,
     });
 
     if (error) {
