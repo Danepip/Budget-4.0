@@ -27,50 +27,84 @@
 <body>
   <div class="page-shell">
     <header class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Budget 2025</p>
-        <h1>Pilotez votre classeur en card view</h1>
-        <p class="hero-text">
-          Cette app est configuree pour <strong>Budget_2025 Final.xlsx</strong>.
-          Elle lit la feuille <strong>Journalier</strong>, utilise la liste de categories
-          de la colonne <strong>B</strong>, puis affiche la saisie <strong>Date / Categories / Value</strong>
-          de la zone <strong>D:F</strong> sous forme de fiches.
-        </p>
-      </div>
-
-      <div class="hero-panel">
-        <div class="hero-metric">
-          <span class="metric-label">Mode de travail</span>
-          <strong id="metric-mode">Pret pour l'import</strong>
-        </div>
-        <div class="hero-metric">
-          <span class="metric-label">Fichier actif</span>
-          <strong id="metric-file">Aucun fichier</strong>
-        </div>
-        <div class="hero-metric">
-          <span class="metric-label">Sauvegarde</span>
-          <strong id="metric-save">Chargez le fichier</strong>
-        </div>
-
-        <div class="hero-mobile-actions">
+      <div class="hero-copy panel">
+        <div class="hero-topline">
+          <span class="hero-badge">Budget 2025</span>
           <button id="install-app" class="button secondary hidden" type="button">Installer l'app</button>
-          <p id="app-shell-status" class="shell-status">
-            Version locale ouverte dans le navigateur.
-          </p>
+        </div>
+
+        <div class="hero-main">
+          <div class="hero-intro">
+            <p class="hero-kicker">Vue simple</p>
+            <h1>Budget</h1>
+            <p class="hero-text">
+              Suivez votre mois, ajoutez vos transactions et gardez une lecture claire de votre argent.
+            </p>
+            <p id="app-shell-status" class="shell-status">
+              Version locale sur cet appareil.
+            </p>
+          </div>
+
+          <div class="hero-summary">
+            <article class="hero-pill">
+              <span class="hero-pill-label">Periode active</span>
+              <strong id="metric-mode">Pret pour l'import</strong>
+            </article>
+            <article class="hero-pill">
+              <span class="hero-pill-label">Fichier actif</span>
+              <strong id="metric-file">Aucun fichier</strong>
+            </article>
+            <article class="hero-pill">
+              <span class="hero-pill-label">Mode</span>
+              <strong id="metric-save">Chargez le fichier</strong>
+            </article>
+          </div>
         </div>
       </div>
     </header>
 
     <main class="workspace">
-      <section class="toolbar panel">
-        <div class="toolbar-primary">
-          <label class="file-picker" for="excel-file">
+      <section class="app-nav panel">
+        <div class="app-nav-copy">
+          <p class="section-kicker">Navigation simple</p>
+          <h2 id="app-tab-title">Tableau de bord</h2>
+          <p id="app-tab-description" class="section-caption">
+            Une lecture rapide de votre budget pour voir les soldes, les tendances et la periode active.
+          </p>
+        </div>
+        <div class="app-tab-list" role="tablist" aria-label="Sections principales du budget">
+          <button id="app-tab-dashboard" class="app-tab is-active" type="button" data-app-tab="dashboard" role="tab" aria-selected="true">
+            <span class="app-tab-label">Accueil</span>
+            <span class="app-tab-meta">Vue budget</span>
+          </button>
+          <button id="app-tab-transactions" class="app-tab" type="button" data-app-tab="transactions" role="tab" aria-selected="false">
+            <span class="app-tab-label">Transactions</span>
+            <span class="app-tab-meta">Liste des ecritures</span>
+          </button>
+          <button id="app-tab-form" class="app-tab" type="button" data-app-tab="form" role="tab" aria-selected="false">
+            <span class="app-tab-label">Formulaire</span>
+            <span class="app-tab-meta">Nouvelle transaction</span>
+          </button>
+          <button id="app-tab-analysis" class="app-tab" type="button" data-app-tab="analysis" role="tab" aria-selected="false">
+            <span class="app-tab-label">Analyse</span>
+            <span class="app-tab-meta">Comparaisons</span>
+          </button>
+          <button id="app-tab-share" class="app-tab" type="button" data-app-tab="share" role="tab" aria-selected="false">
+            <span class="app-tab-label">Partage</span>
+            <span class="app-tab-meta">Cloud et export</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="workspace-toolbar" class="toolbar panel">
+        <div class="toolbar-primary" id="toolbar-primary">
+          <label id="file-picker-field" class="file-picker" for="excel-file">
             <span class="file-picker-label">Charger Budget_2025 Final</span>
             <span class="file-picker-hint">.xlsx recommande</span>
           </label>
           <input id="excel-file" type="file" accept=".xlsx,.xls,.csv">
 
-          <label class="control-field">
+          <label id="sheet-select-field" class="control-field legacy-view-field">
             <span>Vue</span>
             <select id="sheet-select" disabled>
               <option value="">Aucune feuille</option>
@@ -91,14 +125,14 @@
             </select>
           </label>
 
-          <label class="control-field search-field">
+          <label id="search-field" class="control-field search-field">
             <span>Recherche</span>
             <input id="search-input" type="search" placeholder="Categorie, date, valeur..." disabled>
           </label>
         </div>
 
-        <div class="toolbar-side">
-          <div class="toolbar-actions">
+        <div id="toolbar-side" class="toolbar-side">
+          <div id="toolbar-actions" class="toolbar-actions">
             <button id="open-source" class="button ghost" type="button" disabled>Lier la source</button>
             <button id="save-source" class="button secondary" type="button" disabled>Enregistrer la source</button>
             <button id="save-draft" class="button ghost" type="button" disabled>Sauvegarde locale</button>
@@ -112,7 +146,7 @@
         </div>
       </section>
 
-      <section class="cloud-panel panel">
+      <section id="workspace-cloud" class="cloud-panel panel">
         <div class="section-heading cloud-heading">
           <div>
             <p class="section-kicker">Supabase Beta</p>
@@ -149,7 +183,7 @@
         </p>
       </section>
 
-      <section class="status-strip">
+      <section id="workspace-status" class="status-strip">
         <article class="status-card panel">
           <span class="status-label" id="records-label">Transactions</span>
           <strong id="records-count">0</strong>
@@ -172,8 +206,8 @@
         La bibliotheque Excel n'est pas chargee. Verifiez que les fichiers du dossier <code>vendor</code> sont bien presents puis rechargez la page.
       </p>
 
-      <div class="layout">
-        <aside class="editor-area panel">
+      <div id="workspace-layout" class="layout">
+        <aside id="editor-area" class="editor-area panel">
           <div class="section-heading editor-heading">
             <div>
               <p class="section-kicker">Formulaire</p>
@@ -198,7 +232,7 @@
           </form>
         </aside>
 
-        <section class="cards-area panel">
+        <section id="cards-area" class="cards-area panel">
           <div class="section-heading">
             <div>
               <p class="section-kicker" id="cards-kicker">Journalier</p>

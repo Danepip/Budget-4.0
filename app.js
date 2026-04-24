@@ -3,7 +3,26 @@ const STORAGE_KEY = "budget-2025-card-view-v2";
 const JOURNAL_SHEET_NAME = "Journalier";
 const RECAP_SHEET_NAME = "Recapitulatif";
 const ANALYSIS_VIEW_NAME = "Comparaisons";
+const ANALYSIS_CATEGORY_COLORS = [
+  "#78be20",
+  "#f59f00",
+  "#ffe066",
+  "#1f6a8a",
+  "#5f6fd5",
+  "#13b0a5",
+  "#1b84d6",
+  "#d856d9",
+  "#ff8c42",
+  "#7d59d1",
+  "#3fbf8b",
+  "#9fb640",
+];
 const TCD_SHEET_NAME = "TCD";
+const APP_TAB_DASHBOARD = "dashboard";
+const APP_TAB_TRANSACTIONS = "transactions";
+const APP_TAB_FORM = "form";
+const APP_TAB_ANALYSIS = "analysis";
+const APP_TAB_SHARE = "share";
 
 const DATE_COL = "D";
 const CATEGORY_COL = "E";
@@ -19,6 +38,7 @@ const state = {
   sourceSafety: createEmptySourceSafety(),
   cloud: createEmptyCloudState(),
   draftSavedAt: "",
+  appTab: APP_TAB_DASHBOARD,
   mode: "idle",
   activeView: JOURNAL_SHEET_NAME,
   search: "",
@@ -110,14 +130,91 @@ function normalizeActiveView(value) {
   return JOURNAL_SHEET_NAME;
 }
 
+function normalizeAppTab(value) {
+  if (
+    value === APP_TAB_DASHBOARD ||
+    value === APP_TAB_TRANSACTIONS ||
+    value === APP_TAB_FORM ||
+    value === APP_TAB_ANALYSIS ||
+    value === APP_TAB_SHARE
+  ) {
+    return value;
+  }
+
+  return APP_TAB_DASHBOARD;
+}
+
+function getAppTabForActiveView(activeView) {
+  if (activeView === RECAP_SHEET_NAME) {
+    return APP_TAB_DASHBOARD;
+  }
+
+  if (activeView === ANALYSIS_VIEW_NAME) {
+    return APP_TAB_ANALYSIS;
+  }
+
+  return APP_TAB_TRANSACTIONS;
+}
+
+function syncActiveViewForCurrentTab() {
+  if (state.appTab === APP_TAB_DASHBOARD) {
+    state.activeView = RECAP_SHEET_NAME;
+    return;
+  }
+
+  if (state.appTab === APP_TAB_TRANSACTIONS || state.appTab === APP_TAB_FORM) {
+    state.activeView = JOURNAL_SHEET_NAME;
+    return;
+  }
+
+  if (state.appTab === APP_TAB_ANALYSIS) {
+    state.activeView = ANALYSIS_VIEW_NAME;
+  }
+}
+
+function setAppTab(nextTab) {
+  const normalizedTab = normalizeAppTab(nextTab);
+  state.appTab = normalizedTab;
+
+  if (normalizedTab !== APP_TAB_SHARE) {
+    syncActiveViewForCurrentTab();
+    state.search = "";
+    if (normalizedTab === APP_TAB_FORM) {
+      if (state.editorMode !== "edit") {
+        state.editorMode = "create";
+        state.editingIndex = null;
+      }
+    } else {
+      state.editorMode = "create";
+      state.editingIndex = null;
+    }
+    if (refs.searchInput) {
+      refs.searchInput.value = "";
+    }
+  }
+
+  persistDraftIfPossible();
+  renderAll();
+}
+
 function cacheDom() {
   refs.fileInput = document.getElementById("excel-file");
+  refs.toolbar = document.getElementById("workspace-toolbar");
+  refs.toolbarPrimary = document.getElementById("toolbar-primary");
+  refs.toolbarSide = document.getElementById("toolbar-side");
+  refs.toolbarActions = document.getElementById("toolbar-actions");
+  refs.filePickerField = document.getElementById("file-picker-field");
+  refs.sheetSelectField = document.getElementById("sheet-select-field");
   refs.sheetSelect = document.getElementById("sheet-select");
   refs.recapYearField = document.getElementById("recap-year-field");
   refs.recapYearSelect = document.getElementById("recap-year-select");
   refs.recapMonthField = document.getElementById("recap-month-field");
   refs.recapMonthSelect = document.getElementById("recap-month-select");
+  refs.searchField = document.getElementById("search-field");
   refs.searchInput = document.getElementById("search-input");
+  refs.appTabTitle = document.getElementById("app-tab-title");
+  refs.appTabDescription = document.getElementById("app-tab-description");
+  refs.appTabButtons = Array.from(document.querySelectorAll("[data-app-tab]"));
   refs.cloudStatus = document.getElementById("cloud-status");
   refs.cloudEmailInput = document.getElementById("cloud-email");
   refs.cloudCodeInput = document.getElementById("cloud-code");
@@ -128,15 +225,20 @@ function cacheDom() {
   refs.cloudPushButton = document.getElementById("cloud-push");
   refs.cloudPullButton = document.getElementById("cloud-pull");
   refs.cloudSpaceHint = document.getElementById("cloud-space-hint");
+  refs.cloudPanel = document.getElementById("workspace-cloud");
   refs.openSourceButton = document.getElementById("open-source");
   refs.saveSourceButton = document.getElementById("save-source");
   refs.saveDraftButton = document.getElementById("save-draft");
   refs.restoreDraftButton = document.getElementById("restore-draft");
   refs.addButton = document.getElementById("add-record");
   refs.exportButton = document.getElementById("export-workbook");
+  refs.statusStrip = document.getElementById("workspace-status");
   refs.cardsGrid = document.getElementById("cards-grid");
   refs.cardsEmpty = document.getElementById("cards-empty");
   refs.recapView = document.getElementById("recap-view");
+  refs.layout = document.getElementById("workspace-layout");
+  refs.editorArea = document.getElementById("editor-area");
+  refs.cardsArea = document.getElementById("cards-area");
   refs.form = document.getElementById("record-form");
   refs.formFields = document.getElementById("form-fields");
   refs.formTitle = document.getElementById("form-title");
@@ -164,6 +266,11 @@ function cacheDom() {
 
 function bindEvents() {
   refs.fileInput.addEventListener("change", onFileSelected);
+  refs.appTabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setAppTab(button.dataset.appTab);
+    });
+  });
   refs.cloudMagicLinkButton.addEventListener("click", () => {
     void onCloudMagicLinkRequested();
   });
@@ -1328,6 +1435,7 @@ function persistDraft() {
   const payload = {
     mode: state.mode,
     workbookName: state.workbookName,
+    appTab: state.appTab,
     activeView: state.activeView,
     categories: state.budget.categories,
     rows: state.budget.rows,
@@ -1356,6 +1464,7 @@ function applyStoredDraft(draft) {
   state.workbookName = draft.workbookName || "";
   state.workbook = null;
   state.sourceLink = null;
+  state.appTab = normalizeAppTab(draft.appTab || getAppTabForActiveView(draft.activeView));
   state.activeView = normalizeActiveView(draft.activeView);
   state.search = "";
   state.editingIndex = null;
@@ -1782,6 +1891,7 @@ function isIgnoredRecapLabel(label) {
 
 function onViewChanged(event) {
   state.activeView = normalizeActiveView(event.target.value);
+  state.appTab = getAppTabForActiveView(state.activeView);
   state.search = "";
   refs.searchInput.value = "";
   state.editorMode = "create";
@@ -1817,13 +1927,13 @@ function onSearchChanged(event) {
 function startCreateMode() {
   state.editorMode = "create";
   state.editingIndex = null;
-  renderAll();
+  setAppTab(APP_TAB_FORM);
 }
 
 function resetEditor() {
   state.editorMode = "create";
   state.editingIndex = null;
-  renderAll();
+  setAppTab(APP_TAB_TRANSACTIONS);
 }
 
 function onCardAction(event) {
@@ -1861,7 +1971,7 @@ function openEditor(index) {
 
   state.editorMode = "edit";
   state.editingIndex = index;
-  renderAll();
+  setAppTab(APP_TAB_FORM);
 }
 
 async function deleteRecord(index) {
@@ -1937,11 +2047,9 @@ async function onSaveRecord(event) {
   }
 
   sortBudgetRowsInPlace(state.budget.rows);
-  state.editingIndex = state.budget.rows.findIndex((row) => row.__id === nextRecord.__id);
-  state.editorMode = "edit";
-
-  persistDraft();
-  renderAll();
+  state.editingIndex = null;
+  state.editorMode = "create";
+  setAppTab(APP_TAB_TRANSACTIONS);
   try {
     await enqueueCloudSync(() => syncSingleTransactionToSupabase(nextRecord));
   } catch (error) {
@@ -2470,6 +2578,8 @@ function applyBudgetRowsToWorkbook(workbook, budgetModel) {
 }
 
 function renderAll() {
+  syncActiveViewForCurrentTab();
+  renderAppTabs();
   renderSheetOptions();
   syncRecapFilters();
   renderSectionHeading();
@@ -2480,6 +2590,51 @@ function renderAll() {
   renderCloudPanel();
   renderDraftStatus();
   renderAppShellState();
+}
+
+function renderAppTabs() {
+  const tabMeta = {
+    [APP_TAB_DASHBOARD]: {
+      title: "Tableau de bord",
+      description: "Une lecture rapide de votre budget pour voir les soldes, les tendances et la periode active.",
+    },
+    [APP_TAB_TRANSACTIONS]: {
+      title: "Transactions",
+      description: "Une liste claire de vos ecritures pour filtrer, relire et choisir rapidement ce que vous voulez corriger.",
+    },
+    [APP_TAB_FORM]: {
+      title: "Formulaire",
+      description: "Un espace dedie a la creation et a la modification d'une transaction, sans distraction autour.",
+    },
+    [APP_TAB_ANALYSIS]: {
+      title: "Analyse",
+      description: "Des comparaisons claires entre income, expenses, savings et cash pour comprendre votre rythme.",
+    },
+    [APP_TAB_SHARE]: {
+      title: "Partage et sauvegarde",
+      description: "Tout ce qui touche au cloud, a la sauvegarde locale, a la source et aux exports se trouve ici.",
+    },
+  };
+  const currentMeta = tabMeta[state.appTab] || tabMeta[APP_TAB_DASHBOARD];
+  const showShare = state.appTab === APP_TAB_SHARE;
+  const showTransactions = state.appTab === APP_TAB_TRANSACTIONS;
+  const showForm = state.appTab === APP_TAB_FORM;
+  const showWideContent = !showShare;
+
+  refs.appTabTitle.textContent = currentMeta.title;
+  refs.appTabDescription.textContent = currentMeta.description;
+  refs.appTabButtons.forEach((button) => {
+    const active = button.dataset.appTab === state.appTab;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+  });
+
+  refs.cloudPanel.classList.toggle("hidden", !showShare);
+  refs.statusStrip.classList.toggle("hidden", showShare);
+  refs.layout.classList.toggle("hidden", showShare);
+  refs.layout.classList.toggle("layout-wide", showWideContent);
+  refs.editorArea.classList.toggle("hidden", !showForm);
+  refs.cardsArea.classList.toggle("hidden", showShare || showForm);
 }
 
 function syncRecapFilters() {
@@ -2573,13 +2728,16 @@ function renderControls() {
   const journalActive = hasBudget && state.activeView === JOURNAL_SHEET_NAME;
   const recapActive = hasBudget && state.activeView === RECAP_SHEET_NAME;
   const analysisActive = hasBudget && state.activeView === ANALYSIS_VIEW_NAME;
+  const shareTab = state.appTab === APP_TAB_SHARE;
+  const formTab = state.appTab === APP_TAB_FORM;
+  const transactionTab = state.appTab === APP_TAB_TRANSACTIONS;
   const draft = readStoredDraft();
   const hasStoredDraft = Boolean(draft && draft.mode === "budget" && Array.isArray(draft.rows));
   const availableYears = getAvailableRecapYears();
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
 
   refs.sheetSelect.disabled = !hasBudget;
-  refs.searchInput.disabled = !hasBudget;
+  refs.searchInput.disabled = !hasBudget || shareTab || formTab;
   refs.searchInput.placeholder = recapActive
     ? "Chercher un poste ou une categorie du recap..."
     : analysisActive
@@ -2605,14 +2763,22 @@ function renderControls() {
   refs.restoreDraftButton.title = hasStoredDraft
     ? "Recharge le dernier brouillon local memorise dans l'app"
     : "Aucun brouillon local disponible pour le moment";
-  refs.recapYearField.classList.toggle("hidden", !hasBudget);
-  refs.recapMonthField.classList.toggle("hidden", !hasBudget);
+  refs.searchField.classList.toggle("hidden", shareTab || formTab);
+  refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab);
+  refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab);
   refs.recapYearSelect.disabled = !hasBudget || !availableYears.length;
   refs.recapMonthSelect.disabled = !hasBudget || !availableMonths.length;
-  refs.addButton.disabled = !journalActive;
+  refs.openSourceButton.classList.toggle("hidden", !shareTab);
+  refs.saveSourceButton.classList.toggle("hidden", !shareTab);
+  refs.saveDraftButton.classList.toggle("hidden", !shareTab);
+  refs.restoreDraftButton.classList.toggle("hidden", !shareTab);
+  refs.exportButton.classList.toggle("hidden", !shareTab);
+  refs.addButton.classList.toggle("hidden", !transactionTab);
+  refs.addButton.textContent = "Nouvelle transaction";
+  refs.addButton.disabled = !journalActive || !transactionTab;
   refs.exportButton.disabled = !hasBudget || !window.XLSX;
-  refs.saveButton.disabled = !journalActive;
-  refs.cancelButton.disabled = !journalActive;
+  refs.saveButton.disabled = !journalActive || !formTab;
+  refs.cancelButton.disabled = !journalActive || !formTab;
 }
 
 function renderCloudPanel() {
@@ -3022,6 +3188,9 @@ function buildLiveAnalysisView() {
       metricCards: [],
       comparisonRows: [],
       seriesRows: [],
+      cashFlow: null,
+      expenseBreakdown: null,
+      categoryBenchmark: null,
       snapshotDate: "",
       transactionCount: 0,
       trendTitle: "",
@@ -3033,14 +3202,25 @@ function buildLiveAnalysisView() {
   const snapshot = computeMetricSnapshot(buildActualAmountMap(filteredRows));
   const allSeriesRows = buildAnalysisSeriesRows();
   const seriesRows = filterAnalysisSeriesRows(allSeriesRows);
+  const cashFlow = buildAnalysisCashFlow(snapshot);
+  const expenseBreakdown = buildAnalysisExpenseBreakdown(filteredRows);
+  const categoryBenchmark = buildAnalysisCategoryBenchmark();
+  const chartCount =
+    2 +
+    (cashFlow ? 1 : 0) +
+    (expenseBreakdown?.available ? 1 : 0) +
+    (categoryBenchmark?.available ? 1 : 0);
 
   return {
     available: true,
     periodLabel: buildRecapPeriodLabel(),
-    chartCount: 2,
+    chartCount,
     metricCards: buildAnalysisMetricCards(snapshot),
     comparisonRows: buildAnalysisComparisonRows(snapshot),
     seriesRows,
+    cashFlow,
+    expenseBreakdown,
+    categoryBenchmark,
     snapshotDate: state.recap.snapshotDate,
     transactionCount: filteredRows.length,
     trendTitle: buildAnalysisTrendTitle(),
@@ -3276,6 +3456,262 @@ function buildAnalysisComparisonRows(snapshot) {
   }));
 }
 
+function buildAnalysisCashFlow(snapshot) {
+  if (!snapshot) {
+    return null;
+  }
+
+  const usageTotal = snapshot.expenses + snapshot.totalSavings + Math.max(snapshot.cash, 0);
+  const scaleMax = Math.max(snapshot.income, usageTotal, snapshot.expenses + snapshot.totalSavings, 1);
+
+  return {
+    income: snapshot.income,
+    expenses: snapshot.expenses,
+    savings: snapshot.totalSavings,
+    cash: snapshot.cash,
+    scaleMax,
+    usageTotal,
+    overflow: Math.max(-snapshot.cash, 0),
+  };
+}
+
+function buildAnalysisExpenseBreakdown(rows) {
+  const { rows: categoryRows, total } = buildExpenseCategoryRowsFromMap(
+    buildExpenseCategoryMap(rows),
+    8
+  );
+
+  if (!categoryRows.length || total <= 0) {
+    return {
+      available: false,
+      total: 0,
+      rows: [],
+      gradient: "",
+    };
+  }
+
+  return {
+    available: true,
+    total,
+    rows: categoryRows,
+    gradient: buildExpenseDonutGradient(categoryRows),
+  };
+}
+
+function buildAnalysisCategoryBenchmark() {
+  const monthlyProfiles = buildMonthlyExpenseProfiles();
+  if (!monthlyProfiles.length) {
+    return {
+      available: false,
+      rows: [],
+      currentLabel: "",
+      subtitle: "",
+      monthCount: 0,
+    };
+  }
+
+  const referenceProfile = resolveReferenceExpenseProfile(monthlyProfiles);
+  if (!referenceProfile) {
+    return {
+      available: false,
+      rows: [],
+      currentLabel: "",
+      subtitle: "",
+      monthCount: monthlyProfiles.length,
+    };
+  }
+
+  const averageMap = buildAverageExpenseMap(monthlyProfiles);
+  const allKeys = new Set([
+    ...Array.from(referenceProfile.categoryMap.keys()),
+    ...Array.from(averageMap.keys()),
+  ]);
+
+  const rows = Array.from(allKeys)
+    .map((key) => {
+      const current = referenceProfile.categoryMap.get(key)?.value || 0;
+      const average = averageMap.get(key)?.value || 0;
+      const label =
+        referenceProfile.categoryMap.get(key)?.label ||
+        averageMap.get(key)?.label ||
+        findOriginalCategoryLabel(key);
+
+      return {
+        key,
+        label,
+        current,
+        average,
+        tone: current > average * 1.08 ? "above" : current < average * 0.92 ? "below" : "steady",
+      };
+    })
+    .filter((row) => row.current > 0 || row.average > 0)
+    .sort((left, right) => Math.max(right.current, right.average) - Math.max(left.current, left.average));
+
+  const limitedRows = rows.slice(0, 8);
+  const maxValue = Math.max(
+    ...limitedRows.flatMap((row) => [row.current, row.average]),
+    1
+  );
+
+  return {
+    available: limitedRows.length > 0,
+    rows: limitedRows.map((row) => ({
+      ...row,
+      currentDisplayValue: formatCurrency(row.current),
+      averageDisplayValue: formatCurrency(row.average),
+      currentPercent: buildChartScale(row.current, maxValue, 10),
+      averagePercent: buildChartScale(row.average, maxValue, 10),
+    })),
+    currentLabel: referenceProfile.label,
+    subtitle: `Reference: ${referenceProfile.label}. Comparee a votre moyenne sur ${monthlyProfiles.length} mois date(s).`,
+    monthCount: monthlyProfiles.length,
+  };
+}
+
+function buildExpenseCategoryMap(rows) {
+  const categories = new Map();
+
+  rows.forEach((row) => {
+    const label = String(row.Categories || "").trim();
+    const amount = parseAmount(row.Value);
+
+    if (!label || !Number.isFinite(amount)) {
+      return;
+    }
+
+    const key = normalizeHeaderName(label);
+    if (isIncomeOrSavingsKey(key) || amount >= 0) {
+      return;
+    }
+
+    const existing = categories.get(key) || { label, value: 0 };
+    existing.value += Math.abs(amount);
+    categories.set(key, existing);
+  });
+
+  return categories;
+}
+
+function buildExpenseCategoryRowsFromMap(categoryMap, limit = 8) {
+  const entries = Array.from(categoryMap.values()).sort((left, right) => right.value - left.value);
+  const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+
+  if (!entries.length || total <= 0) {
+    return {
+      rows: [],
+      total: 0,
+    };
+  }
+
+  let visibleEntries = entries.slice(0, limit);
+
+  if (entries.length > limit) {
+    const kept = entries.slice(0, Math.max(1, limit - 1));
+    const othersValue = entries.slice(Math.max(1, limit - 1)).reduce((sum, entry) => sum + entry.value, 0);
+    visibleEntries = [
+      ...kept,
+      { label: "Autres", value: othersValue },
+    ];
+  }
+
+  return {
+    total,
+    rows: visibleEntries.map((entry, index) => {
+      const share = total > 0 ? (entry.value / total) * 100 : 0;
+      return {
+        ...entry,
+        share,
+        shareLabel: `${share.toFixed(share >= 10 ? 0 : 1)} %`,
+        displayValue: formatCurrency(entry.value),
+        color: ANALYSIS_CATEGORY_COLORS[index % ANALYSIS_CATEGORY_COLORS.length],
+      };
+    }),
+  };
+}
+
+function buildExpenseDonutGradient(rows) {
+  let cursor = 0;
+  const segments = rows.map((row) => {
+    const start = cursor;
+    const end = Math.min(100, cursor + row.share);
+    cursor = end;
+    return `${row.color} ${start}% ${end}%`;
+  });
+
+  if (cursor < 100) {
+    segments.push(`rgba(24, 51, 59, 0.08) ${cursor}% 100%`);
+  }
+
+  return `conic-gradient(${segments.join(", ")})`;
+}
+
+function buildMonthlyExpenseProfiles() {
+  const buckets = new Map();
+
+  state.budget.rows.forEach((row) => {
+    const dateParts = getBudgetRowDateParts(row);
+    if (!dateParts) {
+      return;
+    }
+
+    const key = buildYearMonthKey(dateParts.year, dateParts.month);
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        key,
+        year: dateParts.year,
+        month: dateParts.month,
+        label: formatMonthYearLabel(dateParts.year, dateParts.month),
+        rows: [],
+      });
+    }
+
+    buckets.get(key).rows.push(row);
+  });
+
+  return Array.from(buckets.values())
+    .sort((left, right) => String(left.key).localeCompare(String(right.key)))
+    .map((bucket) => ({
+      ...bucket,
+      categoryMap: buildExpenseCategoryMap(bucket.rows),
+    }));
+}
+
+function resolveReferenceExpenseProfile(monthlyProfiles) {
+  let candidates = monthlyProfiles.slice();
+
+  if (state.recapFilters.year !== "all") {
+    candidates = candidates.filter((profile) => profile.year === state.recapFilters.year);
+  }
+
+  if (state.recapFilters.month !== "all") {
+    candidates = candidates.filter((profile) => profile.month === state.recapFilters.month);
+  }
+
+  return candidates.at(-1) || monthlyProfiles.at(-1) || null;
+}
+
+function buildAverageExpenseMap(monthlyProfiles) {
+  const averages = new Map();
+  const monthCount = monthlyProfiles.length || 1;
+
+  monthlyProfiles.forEach((profile) => {
+    profile.categoryMap.forEach((entry, key) => {
+      const existing = averages.get(key) || { label: entry.label, value: 0 };
+      existing.value += entry.value;
+      averages.set(key, existing);
+    });
+  });
+
+  averages.forEach((entry, key) => {
+    averages.set(key, {
+      ...entry,
+      value: entry.value / monthCount,
+    });
+  });
+
+  return averages;
+}
+
 function buildAnalysisSeriesRows() {
   const mode = getAnalysisSeriesMode();
   const buckets = new Map();
@@ -3448,6 +3884,16 @@ function formatMonthShortLabel(year, month, includeYear) {
   const label = new Intl.DateTimeFormat("fr-CA", {
     month: "short",
     ...(includeYear ? { year: "numeric" } : {}),
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(Number(year), Number(month) - 1, 1, 12)));
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatMonthYearLabel(year, month) {
+  const label = new Intl.DateTimeFormat("fr-CA", {
+    month: "long",
+    year: "numeric",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(Number(year), Number(month) - 1, 1, 12)));
 
@@ -3679,6 +4125,18 @@ function createAnalysisMarkup(analysisView) {
 
       <section class="recap-section">
         <div class="recap-section-head">
+          <h3>Graphiques budgetaires</h3>
+          <p>Une lecture plus visuelle de vos flux, de vos categories de depenses et de vos habitudes mensuelles.</p>
+        </div>
+        <div class="analysis-visual-grid">
+          ${createAnalysisCashFlowMarkup(analysisView.cashFlow)}
+          ${createAnalysisExpenseDonutMarkup(analysisView.expenseBreakdown)}
+          ${createAnalysisBenchmarkMarkup(analysisView.categoryBenchmark)}
+        </div>
+      </section>
+
+      <section class="recap-section">
+        <div class="recap-section-head">
           <h3>Comparaison des indicateurs</h3>
           <p>Lecture rapide des masses budgetaires sur la periode filtree.</p>
         </div>
@@ -3741,6 +4199,138 @@ function createAnalysisMetricBarMarkup(row, maxValue) {
         ></span>
       </div>
       <p class="analysis-bar-caption">${escapeHtml(row.caption)}</p>
+    </article>
+  `;
+}
+
+function createAnalysisCashFlowMarkup(cashFlow) {
+  if (!cashFlow) {
+    return "";
+  }
+
+  const incomeHeight = buildChartScale(cashFlow.income, cashFlow.scaleMax, 18);
+  const expensesHeight = buildChartScale(cashFlow.expenses, cashFlow.scaleMax, 10);
+  const savingsHeight = buildChartScale(cashFlow.savings, cashFlow.scaleMax, 10);
+  const cashHeight = buildChartScale(Math.max(cashFlow.cash, 0), cashFlow.scaleMax, 10);
+
+  return `
+    <article class="analysis-visual-card">
+      <div class="analysis-visual-head">
+        <h4>Entrees et sorties d'argent</h4>
+        <p>Income en face de l'utilisation reelle: expenses, savings et cash restant.</p>
+      </div>
+      <div class="analysis-cash-chart">
+        <div class="analysis-cash-column">
+          <div class="analysis-cash-track">
+            <span class="analysis-cash-fill income" style="height: ${incomeHeight}%;"></span>
+          </div>
+          <strong>Income</strong>
+          <span>${escapeHtml(formatCurrency(cashFlow.income))}</span>
+        </div>
+        <div class="analysis-cash-column">
+          <div class="analysis-cash-track stacked">
+            <span class="analysis-cash-fill cash" style="height: ${cashHeight}%;"></span>
+            <span class="analysis-cash-fill savings" style="height: ${savingsHeight}%;"></span>
+            <span class="analysis-cash-fill expenses" style="height: ${expensesHeight}%;"></span>
+          </div>
+          <strong>Utilisation</strong>
+          <span>${escapeHtml(formatCurrency(cashFlow.usageTotal))}</span>
+        </div>
+      </div>
+      <div class="analysis-cash-legend">
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Income</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Expenses</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Savings</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch cash"></span>Cash</span>
+      </div>
+      <p class="analysis-visual-note">
+        ${cashFlow.overflow > 0
+          ? `Deficit observe: ${escapeHtml(formatCurrency(cashFlow.overflow))} au-dela de l'income.`
+          : `Cash disponible apres arbitrage: ${escapeHtml(formatSignedCurrency(cashFlow.cash))}.`}
+      </p>
+    </article>
+  `;
+}
+
+function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
+  if (!expenseBreakdown?.available) {
+    return `
+      <article class="analysis-visual-card">
+        <div class="analysis-visual-head">
+          <h4>Ou va votre argent</h4>
+          <p>Repartition des depenses par categorie.</p>
+        </div>
+        <div class="empty-form">Aucune depense datee n'est disponible pour construire ce graphique.</div>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="analysis-visual-card">
+      <div class="analysis-visual-head">
+        <h4>Ou va votre argent</h4>
+        <p>Les categories les plus lourdes prennent visuellement plus de place.</p>
+      </div>
+      <div class="analysis-donut-layout">
+        <div class="analysis-donut-chart" style="--analysis-donut:${expenseBreakdown.gradient};">
+          <div class="analysis-donut-center">
+            <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
+            <span>Expenses</span>
+          </div>
+        </div>
+        <div class="analysis-donut-legend">
+          ${expenseBreakdown.rows.map((row) => `
+            <div class="analysis-donut-item">
+              <span class="analysis-donut-swatch" style="background:${row.color};"></span>
+              <div>
+                <strong>${escapeHtml(row.label)}</strong>
+                <span>${escapeHtml(row.displayValue)} · ${escapeHtml(row.shareLabel)}</span>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function createAnalysisBenchmarkMarkup(categoryBenchmark) {
+  if (!categoryBenchmark?.available) {
+    return `
+      <article class="analysis-visual-card">
+        <div class="analysis-visual-head">
+          <h4>Comparaison avec votre moyenne</h4>
+          <p>Lecture categorie par categorie sur une base mensuelle.</p>
+        </div>
+        <div class="empty-form">Pas assez de mois dates pour calculer une moyenne de comparaison.</div>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="analysis-visual-card">
+      <div class="analysis-visual-head">
+        <h4>Comparaison avec votre moyenne mensuelle</h4>
+        <p>${escapeHtml(categoryBenchmark.subtitle)}</p>
+      </div>
+      <div class="analysis-benchmark-list">
+        ${categoryBenchmark.rows.map((row) => `
+          <article class="analysis-benchmark-row">
+            <div class="analysis-benchmark-head">
+              <strong>${escapeHtml(row.label)}</strong>
+              <span>${escapeHtml(row.currentDisplayValue)} / ${escapeHtml(row.averageDisplayValue)}</span>
+            </div>
+            <div class="analysis-benchmark-track">
+              <span class="analysis-benchmark-bar average" style="width:${row.averagePercent}%;"></span>
+              <span class="analysis-benchmark-bar current ${row.tone}" style="width:${row.currentPercent}%;"></span>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+      <div class="analysis-benchmark-legend">
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch average"></span>Moyenne mensuelle</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch current"></span>Periode de reference</span>
+      </div>
     </article>
   `;
 }
