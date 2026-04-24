@@ -55,11 +55,13 @@ let deferredInstallPrompt = null;
 let appShellReady = false;
 let sourceSaveQueue = Promise.resolve();
 let budgetSourcePlugin = null;
+let budgetAuthPlugin = null;
 let supabaseClient = null;
 let supabaseAuthSubscription = null;
 let supabaseRealtimeChannel = null;
 let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
+let nativeSupabaseRedirectListenerBound = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -232,6 +234,7 @@ function cacheDom() {
   refs.restoreDraftButton = document.getElementById("restore-draft");
   refs.addButton = document.getElementById("add-record");
   refs.exportButton = document.getElementById("export-workbook");
+  refs.mobileFab = document.getElementById("mobile-fab");
   refs.statusStrip = document.getElementById("workspace-status");
   refs.cardsGrid = document.getElementById("cards-grid");
   refs.cardsEmpty = document.getElementById("cards-empty");
@@ -274,6 +277,8 @@ function bindEvents() {
   refs.cloudMagicLinkButton.addEventListener("click", () => {
     void onCloudMagicLinkRequested();
   });
+  refs.cloudEmailInput.addEventListener("input", onCloudEmailChanged);
+  refs.cloudCodeInput.addEventListener("input", onCloudCodeChanged);
   refs.cloudSignOutButton.addEventListener("click", () => {
     void onCloudSignOutRequested();
   });
@@ -300,6 +305,7 @@ function bindEvents() {
   refs.recapMonthSelect.addEventListener("change", onRecapMonthChanged);
   refs.searchInput.addEventListener("input", onSearchChanged);
   refs.addButton.addEventListener("click", startCreateMode);
+  refs.mobileFab?.addEventListener("click", startCreateMode);
   refs.exportButton.addEventListener("click", exportWorkbook);
   refs.installButton.addEventListener("click", onInstallApp);
   refs.form.addEventListener("submit", onSaveRecord);
@@ -391,6 +397,9 @@ function renderAppShellState() {
   const standalone = isStandaloneMode();
   const onlineLabel = navigator.onLine ? "En ligne" : "Hors ligne";
   const installVisible = standalone || Boolean(deferredInstallPrompt);
+  document.body.classList.toggle("native-app", isNativeAppRuntime());
+  document.body.classList.toggle("native-android", isAndroidNativeRuntime());
+  document.body.classList.toggle("standalone-shell", standalone);
 
   refs.installButton.classList.toggle("hidden", !installVisible);
   refs.installButton.disabled = !deferredInstallPrompt;
@@ -436,6 +445,16 @@ function getSupabaseConfig() {
     anonKey: String(rawConfig.anonKey || "").trim(),
     defaultSpaceName: String(rawConfig.defaultSpaceName || "Budget partage 2025").trim() || "Budget partage 2025",
   };
+}
+
+function onCloudEmailChanged(event) {
+  state.cloud.email = String(event.target.value || "").trim();
+  persistDraftIfPossible();
+}
+
+function onCloudCodeChanged(event) {
+  state.cloud.space.joinCode = String(event.target.value || "").trim().toLowerCase();
+  persistDraftIfPossible();
 }
 
 function hasSupabaseSession() {
@@ -489,6 +508,10 @@ function ensureLocalBudgetDataReady() {
 }
 
 function buildSupabaseRedirectUrl() {
+  if (canUseAndroidAuthRedirect()) {
+    return "io.danepip.budget3://auth";
+  }
+
   return `${window.location.origin}${window.location.pathname}`;
 }
 
@@ -528,10 +551,18 @@ function buildUrlWithoutSupabaseAuthParams(url) {
   return nextUrl;
 }
 
-function clearSupabaseAuthParamsFromLocation() {
-  const cleanedUrl = buildUrlWithoutSupabaseAuthParams(new URL(window.location.href));
+function clearSupabaseAuthParamsFromLocation(urlValue = window.location.href) {
+  const cleanedUrl = buildUrlWithoutSupabaseAuthParams(new URL(urlValue.toString()));
+  const currentLocation = String(window.location.href);
+  const targetLocation = String(urlValue || "");
+
+  if (targetLocation !== currentLocation) {
+    return cleanedUrl;
+  }
+
   const nextLocation = `${cleanedUrl.pathname}${cleanedUrl.search}${cleanedUrl.hash}`;
   window.history.replaceState({}, document.title, nextLocation);
+  return cleanedUrl;
 }
 
 function describeSupabaseError(error, fallbackMessage) {
@@ -574,12 +605,12 @@ function describeSupabaseError(error, fallbackMessage) {
   return fallbackMessage;
 }
 
-async function consumeSupabaseAuthCallback() {
+async function consumeSupabaseAuthCallback(urlValue = window.location.href) {
   if (!supabaseClient) {
     return false;
   }
 
-  const currentUrl = new URL(window.location.href);
+  const currentUrl = new URL(urlValue.toString());
   const queryParams = currentUrl.searchParams;
   const hashParams = new URLSearchParams(currentUrl.hash.startsWith("#") ? currentUrl.hash.slice(1) : "");
   const authCode = String(queryParams.get("code") || "").trim();
@@ -591,14 +622,14 @@ async function consumeSupabaseAuthCallback() {
   try {
     if (authCode && typeof supabaseClient.auth.exchangeCodeForSession === "function") {
       const { error } = await supabaseClient.auth.exchangeCodeForSession(authCode);
-      if (error) {
-        throw error;
-      }
+        if (error) {
+          throw error;
+        }
 
-      clearSupabaseAuthParamsFromLocation();
-      setCloudStatus("Connexion Supabase confirmee.");
-      setLastAction("Lien magique Supabase confirme");
-      return true;
+        clearSupabaseAuthParamsFromLocation(urlValue);
+        setCloudStatus("Connexion Supabase confirmee.");
+        setLastAction("Lien magique Supabase confirme");
+        return true;
     }
 
     if (tokenHash && typeof supabaseClient.auth.verifyOtp === "function") {
@@ -606,14 +637,14 @@ async function consumeSupabaseAuthCallback() {
         token_hash: tokenHash,
         type: otpType,
       });
-      if (error) {
-        throw error;
-      }
+        if (error) {
+          throw error;
+        }
 
-      clearSupabaseAuthParamsFromLocation();
-      setCloudStatus("Connexion Supabase confirmee.");
-      setLastAction("Lien magique Supabase confirme");
-      return true;
+        clearSupabaseAuthParamsFromLocation(urlValue);
+        setCloudStatus("Connexion Supabase confirmee.");
+        setLastAction("Lien magique Supabase confirme");
+        return true;
     }
 
     if (
@@ -625,26 +656,84 @@ async function consumeSupabaseAuthCallback() {
         access_token: accessToken,
         refresh_token: refreshToken,
       });
-      if (error) {
-        throw error;
-      }
+        if (error) {
+          throw error;
+        }
 
-      clearSupabaseAuthParamsFromLocation();
-      setCloudStatus("Connexion Supabase confirmee.");
-      setLastAction("Session Supabase restauree");
-      return true;
+        clearSupabaseAuthParamsFromLocation(urlValue);
+        setCloudStatus("Connexion Supabase confirmee.");
+        setLastAction("Session Supabase restauree");
+        return true;
     }
   } catch (error) {
-    console.error(error);
-    const message = describeSupabaseError(error, "Le retour du lien magique Supabase a echoue.");
-    setCloudStatus(message);
-    setLastAction(message);
-    clearSupabaseAuthParamsFromLocation();
-    renderAll();
+      console.error(error);
+      const message = describeSupabaseError(error, "Le retour du lien magique Supabase a echoue.");
+      setCloudStatus(message);
+      setLastAction(message);
+      clearSupabaseAuthParamsFromLocation(urlValue);
+      renderAll();
+      return false;
+    }
+
+    return false;
+}
+
+async function handleNativeSupabaseRedirect(urlValue) {
+  const authUrl = String(urlValue || "").trim();
+  if (!authUrl) {
     return false;
   }
 
-  return false;
+  try {
+    setCloudBusy(true);
+    setCloudStatus("Finalisation de la connexion Supabase...");
+    renderAll();
+
+    const handled = await consumeSupabaseAuthCallback(authUrl);
+    if (handled) {
+      await syncSupabaseSession();
+    }
+    return handled;
+  } finally {
+    setCloudBusy(false);
+    renderAll();
+  }
+}
+
+function bindNativeSupabaseRedirectListener() {
+  if (nativeSupabaseRedirectListenerBound) {
+    return;
+  }
+
+  window.addEventListener("budget-auth-redirect", (event) => {
+    const urlValue = String(event?.detail?.url || "").trim();
+    if (!urlValue) {
+      return;
+    }
+
+    void handleNativeSupabaseRedirect(urlValue);
+  });
+
+  nativeSupabaseRedirectListenerBound = true;
+}
+
+async function consumePendingNativeSupabaseRedirect() {
+  if (!canUseAndroidAuthRedirect()) {
+    return false;
+  }
+
+  try {
+    const result = await getBudgetAuthPlugin().consumePendingAuthRedirect();
+    const pendingUrl = String(result?.url || "").trim();
+    if (!pendingUrl) {
+      return false;
+    }
+
+    return await handleNativeSupabaseRedirect(pendingUrl);
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
 }
 
 function setCloudStatus(message) {
@@ -703,6 +792,7 @@ async function initSupabaseIntegration() {
     state.cloud.configured = true;
     state.cloud.ready = true;
     setCloudStatus("Supabase configure. Connectez-vous pour partager le budget.");
+    bindNativeSupabaseRedirectListener();
 
     if (supabaseAuthSubscription?.data?.subscription?.unsubscribe) {
       supabaseAuthSubscription.data.subscription.unsubscribe();
@@ -735,6 +825,7 @@ async function initSupabaseIntegration() {
     });
 
     await consumeSupabaseAuthCallback();
+    await consumePendingNativeSupabaseRedirect();
     await syncSupabaseSession();
   } catch (error) {
     console.error(error);
@@ -829,12 +920,14 @@ async function onCloudMagicLinkRequested() {
       },
     });
 
-    if (error) {
-      throw error;
-    }
+      if (error) {
+        throw error;
+      }
 
-    setCloudStatus(`Lien magique envoye a ${email}. Ouvrez votre email pour terminer la connexion.`);
-    setLastAction(`Lien magique Supabase envoye a ${email}`);
+      setCloudStatus(canUseAndroidAuthRedirect()
+        ? `Lien magique envoye a ${email}. Ouvrez votre email puis revenez dans l'app Budget 2025.`
+        : `Lien magique envoye a ${email}. Ouvrez votre email pour terminer la connexion.`);
+      setLastAction(`Lien magique Supabase envoye a ${email}`);
   } catch (error) {
     console.error(error);
     const message = describeSupabaseError(error, "Le lien magique n'a pas pu etre envoye.");
@@ -2440,12 +2533,33 @@ function getBudgetSourcePlugin() {
   return budgetSourcePlugin;
 }
 
+function getBudgetAuthPlugin() {
+  if (budgetAuthPlugin) {
+    return budgetAuthPlugin;
+  }
+
+  const Capacitor = getCapacitorRuntime();
+  if (!Capacitor) {
+    return null;
+  }
+
+  budgetAuthPlugin = typeof Capacitor.registerPlugin === "function"
+    ? Capacitor.registerPlugin("BudgetAuth")
+    : Capacitor.Plugins?.BudgetAuth || null;
+
+  return budgetAuthPlugin;
+}
+
 function canUseBrowserSourcePicker() {
   return Boolean(window.isSecureContext && typeof window.showOpenFilePicker === "function");
 }
 
 function canUseAndroidSourcePicker() {
   return Boolean(isAndroidNativeRuntime() && getBudgetSourcePlugin());
+}
+
+function canUseAndroidAuthRedirect() {
+  return Boolean(isAndroidNativeRuntime() && getBudgetAuthPlugin());
 }
 
 function getFilesystemPlugin() {
@@ -2776,6 +2890,10 @@ function renderControls() {
   refs.addButton.classList.toggle("hidden", !transactionTab);
   refs.addButton.textContent = "Nouvelle transaction";
   refs.addButton.disabled = !journalActive || !transactionTab;
+  refs.mobileFab?.classList.toggle("hidden", !journalActive || !transactionTab);
+  if (refs.mobileFab) {
+    refs.mobileFab.disabled = !journalActive || !transactionTab;
+  }
   refs.exportButton.disabled = !hasBudget || !window.XLSX;
   refs.saveButton.disabled = !journalActive || !formTab;
   refs.cancelButton.disabled = !journalActive || !formTab;
@@ -2786,6 +2904,7 @@ function renderCloudPanel() {
   const signedIn = hasSupabaseSession();
   const spaceSelected = hasCloudSpaceSelected();
   const busy = state.cloud.syncBusy;
+  const typedJoinCode = String(state.cloud.space.joinCode || "").trim();
   const canPublish = canUseSupabaseCloud() && (hasLocalBudgetData() || hasStoredBudgetDraft());
   const publishNeedsRestore = canUseSupabaseCloud() && !hasLocalBudgetData() && hasStoredBudgetDraft();
 
@@ -2797,14 +2916,26 @@ function renderCloudPanel() {
     ? refs.cloudCodeInput.value
     : state.cloud.space.joinCode;
 
-  refs.cloudEmailInput.disabled = !cloudReady || busy || signedIn;
-  refs.cloudCodeInput.disabled = !cloudReady || busy || !signedIn;
+  refs.cloudEmailInput.disabled = busy || signedIn;
+  refs.cloudCodeInput.disabled = busy;
   refs.cloudMagicLinkButton.disabled = !cloudReady || busy || signedIn;
   refs.cloudSignOutButton.disabled = !cloudReady || busy || !signedIn;
   refs.cloudCreateSpaceButton.disabled = !cloudReady || busy || !signedIn;
-  refs.cloudJoinSpaceButton.disabled = !cloudReady || busy || !signedIn;
+  refs.cloudJoinSpaceButton.disabled = !cloudReady || busy || !signedIn || !typedJoinCode;
   refs.cloudPushButton.disabled = !canPublish || busy;
   refs.cloudPullButton.disabled = !canUseSupabaseCloud() || busy;
+
+  refs.cloudCodeInput.placeholder = signedIn
+    ? "code a partager"
+    : "entrez le code puis connectez-vous";
+  refs.cloudCodeInput.title = signedIn
+    ? "Collez le code partage recu puis touchez Rejoindre"
+    : "Vous pouvez deja saisir le code. Connectez-vous ensuite avec Lien magique pour rejoindre l'espace";
+  refs.cloudJoinSpaceButton.title = !signedIn
+    ? "Connectez-vous d'abord avec Lien magique, puis rejoignez l'espace avec ce code"
+    : !typedJoinCode
+      ? "Entrez un code partage pour rejoindre un espace"
+      : "Rejoindre cet espace partage";
 
   refs.cloudMagicLinkButton.textContent = busy && !signedIn ? "Connexion..." : "Lien magique";
   refs.cloudSignOutButton.textContent = busy && signedIn ? "Patientez..." : "Deconnexion";

@@ -496,6 +496,32 @@ textarea {
   border: 1px solid rgba(24, 51, 59, 0.1);
 }
 
+.mobile-fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 40;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff8f4;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  box-shadow: 0 18px 38px rgba(169, 67, 29, 0.3);
+}
+
+.mobile-fab-plus {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.mobile-fab-label {
+  font-weight: 800;
+}
+
 .status-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1349,6 +1375,7 @@ textarea {
   .page-shell {
     width: min(100%, calc(100% - 18px));
     margin: 9px auto 24px;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
     padding-left: max(0px, env(safe-area-inset-left));
     padding-right: max(0px, env(safe-area-inset-right));
   }
@@ -1364,6 +1391,84 @@ textarea {
 
   .status-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-nav {
+    position: sticky;
+    top: max(8px, env(safe-area-inset-top));
+    z-index: 22;
+    padding: 12px;
+    backdrop-filter: blur(20px);
+  }
+
+  .app-nav-copy {
+    display: none;
+  }
+
+  .app-tab-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .app-tab-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-tab {
+    flex: 0 0 116px;
+    min-height: 78px;
+    padding: 12px 14px;
+  }
+
+  .toolbar {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .toolbar-primary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  #file-picker-field,
+  #search-field {
+    grid-column: 1 / -1;
+  }
+
+  .file-picker,
+  .control-field {
+    min-width: 0;
+  }
+
+  .file-picker {
+    min-height: 74px;
+  }
+
+  .toolbar-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .toolbar-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar-actions .button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 48px;
+  }
+
+  .toolbar-side {
+    justify-items: stretch;
   }
 
   .hero-topline {
@@ -1382,6 +1487,57 @@ textarea {
   .analysis-cash-chart {
     gap: 12px;
   }
+
+  .status-strip {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(180px, 68%);
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .status-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .status-card {
+    min-height: 88px;
+  }
+
+  .cards-grid {
+    gap: 14px;
+  }
+
+  .data-card {
+    min-height: auto;
+    padding: 18px 16px 16px;
+  }
+
+  .card-title {
+    font-size: 1.12rem;
+  }
+
+  .cloud-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .cloud-actions .button {
+    width: 100%;
+  }
+
+  .form-actions {
+    position: sticky;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    padding-top: 12px;
+    background: linear-gradient(180deg, rgba(255, 252, 248, 0), rgba(255, 252, 248, 0.94) 28%);
+  }
+
+  .mobile-fab {
+    display: inline-flex;
+  }
 }
 
 @media (max-width: 620px) {
@@ -1389,17 +1545,20 @@ textarea {
     min-height: 100dvh;
   }
 
-  .app-tab-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .page-shell {
+    width: min(100%, calc(100% - 12px));
+    margin: 6px auto 18px;
   }
 
   .toolbar,
-  .toolbar-primary,
-  .toolbar-actions,
   .cloud-actions,
   .form-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .toolbar-primary {
+    grid-template-columns: 1fr;
   }
 
   .toolbar-side {
@@ -1419,6 +1578,15 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .app-tab {
+    flex-basis: 100px;
+    min-height: 70px;
+  }
+
+  .app-tab-meta {
+    display: none;
+  }
+
   .analysis-cash-chart {
     grid-template-columns: 1fr;
   }
@@ -1435,9 +1603,32 @@ textarea {
 
   .hero h1 {
     max-width: 100%;
+    font-size: clamp(2.1rem, 10vw, 3rem);
+  }
+
+  .hero-text {
+    font-size: 0.95rem;
+  }
+
+  .hero-pill {
+    padding: 14px 16px;
+  }
+
+  .mobile-fab {
+    right: 12px;
+    left: 12px;
+    justify-content: center;
   }
 
   .button {
     min-height: 54px;
   }
+}
+
+body.native-android .page-shell {
+  padding-top: max(6px, env(safe-area-inset-top));
+}
+
+body.native-android .shell-status {
+  background: rgba(232, 245, 241, 0.84);
 }
