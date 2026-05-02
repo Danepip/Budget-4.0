@@ -750,6 +750,33 @@ textarea {
   font-weight: 700;
 }
 
+.recap-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.recap-status-on-budget {
+  background: rgba(90, 128, 255, 0.12);
+  color: #3652b3;
+}
+
+.recap-status-below-budget {
+  background: rgba(47, 125, 116, 0.14);
+  color: var(--teal);
+}
+
+.recap-status-above-budget {
+  background: rgba(209, 102, 50, 0.14);
+  color: var(--burnt);
+}
+
 .recap-section {
   display: grid;
   gap: 12px;
@@ -1394,6 +1421,54 @@ textarea {
   gap: 14px;
 }
 
+.budget-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.budget-summary-card {
+  display: grid;
+  gap: 10px;
+  min-height: 138px;
+  padding: 20px 22px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  border: 1px solid rgba(24, 51, 59, 0.1);
+  box-shadow: 0 10px 24px rgba(24, 51, 59, 0.06);
+}
+
+.budget-summary-card.tone-income,
+.budget-summary-card.tone-cash {
+  background: linear-gradient(180deg, rgba(220, 245, 240, 0.96), rgba(205, 237, 232, 0.92));
+}
+
+.budget-summary-card.tone-expenses {
+  background: linear-gradient(180deg, rgba(255, 241, 233, 0.96), rgba(252, 230, 217, 0.92));
+}
+
+.budget-summary-card.tone-savings {
+  background: linear-gradient(180deg, rgba(234, 240, 255, 0.96), rgba(221, 231, 252, 0.92));
+}
+
+.budget-summary-card.tone-default {
+  background: linear-gradient(180deg, rgba(245, 249, 248, 0.96), rgba(235, 243, 241, 0.92));
+}
+
+.budget-summary-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(24, 51, 59, 0.66);
+}
+
+.budget-summary-amount {
+  font-size: clamp(1.6rem, 2vw, 2.2rem);
+  line-height: 1.05;
+  color: var(--ink);
+}
+
 .plan-field-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(244, 250, 248, 0.84));
 }
@@ -1406,6 +1481,52 @@ textarea {
 .plan-field-card.is-derived input {
   background: rgba(255, 255, 255, 0.74);
   color: var(--muted);
+  font-weight: 700;
+}
+
+.plan-field-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px) minmax(170px, 200px);
+  gap: 12px;
+  align-items: end;
+}
+
+.plan-field-cell {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-field-cell-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.plan-field-cell-monthly {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: rgba(244, 250, 248, 0.86);
+}
+
+.plan-monthly-value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.plan-period-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  width: fit-content;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(47, 125, 116, 0.1);
+  color: var(--accent-deep);
+  font-size: 0.82rem;
   font-weight: 700;
 }
 
@@ -1448,6 +1569,14 @@ textarea {
 }
 
 @media (max-width: 1120px) {
+  .budget-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-field-grid {
+    grid-template-columns: 1fr;
+  }
+
   .app-nav,
   .layout {
     grid-template-columns: 1fr;

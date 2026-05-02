@@ -25,14 +25,24 @@ const APP_TAB_FORM = "form";
 const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
 const FALLBACK_PLAN_TEMPLATE = [
-  { label: "Income", plan: "7873,58" },
-  { label: "Expenses", plan: "0" },
-  { label: "Savings", plan: "500" },
-  { label: "Savings for seasonal exp.", plan: "0" },
-  { label: "Total Savings", plan: "500" },
-  { label: "Total Expenses", plan: "0" },
-  { label: "Cash short/extra", plan: "7373,58" },
+  { label: "Income 1", plan: "7873,58", period: "monthly", group: "income" },
+  { label: "Income 2", plan: "0", period: "monthly", group: "income" },
+  { label: "Savings", plan: "500", period: "monthly", group: "savings" },
+  { label: "Savings for seasonal exp.", plan: "0", period: "monthly", group: "savings" },
+  { label: "Income", plan: "7873,58", period: "monthly", group: "derived" },
+  { label: "Total Savings", plan: "500", period: "monthly", group: "derived" },
+  { label: "Expenses", plan: "0", period: "monthly", group: "derived" },
+  { label: "Cash short/extra", plan: "7373,58", period: "monthly", group: "derived" },
 ];
+const PLAN_PERIOD_OPTIONS = [
+  { value: "weekly", label: "Par semaine", monthlyFactor: 52 / 12 },
+  { value: "biweekly", label: "Aux 2 semaines", monthlyFactor: 26 / 12 },
+  { value: "monthly", label: "Par mois", monthlyFactor: 1 },
+];
+const DEFAULT_PLAN_PERIOD = "monthly";
+const PLAN_PERIOD_FACTORS = Object.fromEntries(
+  PLAN_PERIOD_OPTIONS.map((option) => [option.value, option.monthlyFactor])
+);
 const RECAP_RANGE_OPTIONS = [
   { value: "all", label: "Toute la periode" },
   { value: "1", label: "1 mois" },
@@ -62,6 +72,7 @@ const state = {
   search: "",
   editingIndex: null,
   editorMode: "create",
+  planEditing: false,
   lastAction: "En attente",
   budget: createEmptyBudgetModel(),
   recap: createEmptyRecapModel(),
@@ -112,18 +123,99 @@ function createFallbackPlanTemplate() {
   return FALLBACK_PLAN_TEMPLATE.map((row) => ({
     label: String(row.label || "").trim(),
     plan: normalizeAmountValue(row.plan),
+    period: normalizePlanPeriod(row.period),
+    group: normalizePlanGroup(row.group, row.label),
   }));
+}
+
+function normalizePlanPeriod(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return PLAN_PERIOD_FACTORS[normalized] ? normalized : DEFAULT_PLAN_PERIOD;
+}
+
+function getPlanPeriodLabel(value) {
+  return PLAN_PERIOD_OPTIONS.find((option) => option.value === normalizePlanPeriod(value))?.label || "Par mois";
+}
+
+function inferPlanGroupFromLabel(label) {
+  const normalized = normalizeHeaderName(label);
+
+  if (normalized === "income" || normalized === "income 1" || normalized === "income 2") {
+    return "income";
+  }
+
+  if (normalized === "savings" || normalized === "savings for seasonal exp.") {
+    return "savings";
+  }
+
+  if (normalized === "sol" || normalized === "association fees") {
+    return "neutral";
+  }
+
+  if (
+    normalized === "expenses" ||
+    normalized === "total expenses" ||
+    normalized === "total savings" ||
+    normalized === "cash short/extra"
+  ) {
+    return "derived";
+  }
+
+  return "expenses";
+}
+
+function normalizePlanGroup(value, label = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (
+    normalized === "income" ||
+    normalized === "savings" ||
+    normalized === "expenses" ||
+    normalized === "neutral" ||
+    normalized === "derived"
+  ) {
+    return normalized;
+  }
+
+  return inferPlanGroupFromLabel(label);
+}
+
+function convertPlanAmountToMonthly(amountValue, periodValue) {
+  const amount = parseAmount(amountValue);
+  const factor = PLAN_PERIOD_FACTORS[normalizePlanPeriod(periodValue)] || 1;
+  return roundCurrencyValue(amount * factor);
+}
+
+function roundCurrencyValue(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function isLegacyIncomePlanLabel(label) {
+  return normalizeHeaderName(label) === "income";
 }
 
 function isDerivedPlanLabel(label) {
   const normalized = normalizeHeaderName(label);
-  return normalized === "total savings" ||
+  return normalized === "income" ||
+    normalized === "expenses" ||
+    normalized === "total savings" ||
     normalized === "total expenses" ||
     normalized === "cash short/extra";
 }
 
 function isIncomePlanLabel(label) {
-  return normalizeHeaderName(label) === "income";
+  const normalized = normalizeHeaderName(label);
+  return normalized === "income" ||
+    normalized === "income 1" ||
+    normalized === "income 2";
+}
+
+function isSplitIncomeContributorLabel(label) {
+  const normalized = normalizeHeaderName(label);
+  return normalized === "income 1" || normalized === "income 2";
 }
 
 function isSavingsPlanLabel(label) {
@@ -142,75 +234,171 @@ function isPlanTemplateSummaryLabel(label) {
     isDerivedPlanLabel(label);
 }
 
+function getBudgetSummaryPriority(label) {
+  const normalized = normalizeHeaderName(label);
+  if (normalized === "income") {
+    return 0;
+  }
+
+  if (normalized === "expenses" || normalized === "total expenses") {
+    return 1;
+  }
+
+  if (normalized === "total savings") {
+    return 2;
+  }
+
+  if (normalized === "cash short/extra") {
+    return 3;
+  }
+
+  return Number.POSITIVE_INFINITY;
+}
+
+function sortBudgetSummaryRows(rows) {
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) => {
+      const priorityDiff = getBudgetSummaryPriority(left.row.label) - getBudgetSummaryPriority(right.row.label);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+
+      return left.index - right.index;
+    })
+    .map((entry) => entry.row);
+}
+
+function getBudgetSummaryCardMeta(label) {
+  const normalized = normalizeHeaderName(label);
+
+  if (normalized === "income") {
+    return { title: "Income", tone: "income" };
+  }
+
+  if (normalized === "expenses" || normalized === "total expenses") {
+    return { title: "Expenses", tone: "expenses" };
+  }
+
+  if (normalized === "total savings") {
+    return { title: "Savings", tone: "savings" };
+  }
+
+  if (normalized === "cash short/extra") {
+    return { title: "Cash", tone: "cash" };
+  }
+
+  return { title: label, tone: "default" };
+}
+
+function migrateLegacyIncomePlanRows(rows) {
+  const normalizedRows = rows.map((row) => ({
+    label: String(row?.label || "").trim(),
+    plan: normalizeAmountValue(row?.plan),
+    period: normalizePlanPeriod(row?.period),
+    group: normalizePlanGroup(row?.group, row?.label),
+  })).filter((row) => row.label);
+
+  const hasIncome1 = normalizedRows.some((row) => normalizeHeaderName(row.label) === "income 1");
+  const hasIncome2 = normalizedRows.some((row) => normalizeHeaderName(row.label) === "income 2");
+
+  if (hasIncome1 || hasIncome2) {
+    return normalizedRows;
+  }
+
+  const legacyIncomeIndex = normalizedRows.findIndex((row) => isLegacyIncomePlanLabel(row.label));
+  if (legacyIncomeIndex === -1) {
+    return normalizedRows;
+  }
+
+  const nextRows = normalizedRows.map((row) => ({ ...row }));
+  nextRows[legacyIncomeIndex] = {
+    ...nextRows[legacyIncomeIndex],
+    label: "Income 1",
+  };
+
+  nextRows.splice(legacyIncomeIndex + 1, 0, {
+    label: "Income 2",
+    plan: "0",
+    period: DEFAULT_PLAN_PERIOD,
+    group: "income",
+  });
+
+  return nextRows;
+}
+
+function stripAutoCalculatedPlanRows(rows) {
+  return rows.filter((row) => normalizePlanGroup(row.group, row.label) !== "derived");
+}
+
 function resolvePlanTemplate(rows = state.recap.planTemplate) {
   const seededRows = Array.isArray(rows) && rows.length ? rows : createFallbackPlanTemplate();
-  const normalizedRows = seededRows
-    .map((row) => ({
-      label: String(row?.label || "").trim(),
-      plan: normalizeAmountValue(row?.plan),
-    }))
-    .filter((row) => row.label);
+  const normalizedRows = migrateLegacyIncomePlanRows(seededRows).map((row) => ({
+    ...row,
+    group: normalizePlanGroup(row.group, row.label),
+  }));
+  const manualRows = stripAutoCalculatedPlanRows(normalizedRows);
+  const income = manualRows.reduce((sum, row) => {
+    if (row.group !== "income") {
+      return sum;
+    }
 
-  const manualRows = normalizedRows.filter((row) => !isDerivedPlanLabel(row.label));
-  const manualRowMap = new Map(manualRows.map((row) => [normalizeHeaderName(row.label), row]));
-
-  const income = parseAmount(manualRowMap.get("income")?.plan);
-  const explicitExpenses = parseAmount(manualRowMap.get("expenses")?.plan);
+    const amount = convertPlanAmountToMonthly(row.plan, row.period);
+    return Number.isFinite(amount) ? sum + amount : sum;
+  }, 0);
   let totalSavings = 0;
   let computedExpenses = 0;
 
   manualRows.forEach((row) => {
-    const amount = parseAmount(row.plan);
+    const amount = convertPlanAmountToMonthly(row.plan, row.period);
     if (!Number.isFinite(amount)) {
       return;
     }
 
-    if (isSavingsPlanLabel(row.label)) {
+    if (row.group === "savings") {
       totalSavings += amount;
       return;
     }
 
-    if (isIncomePlanLabel(row.label) || isExpenseSummaryPlanLabel(row.label)) {
+    if (row.group !== "expenses") {
       return;
     }
 
     computedExpenses += amount;
   });
 
-  const totalExpenses = Number.isFinite(explicitExpenses) ? explicitExpenses : computedExpenses;
-  const normalizedIncome = Number.isFinite(income) ? income : 0;
-  const cash = normalizedIncome - totalExpenses - totalSavings;
-  const resolvedValues = new Map([
-    ["total savings", totalSavings],
-    ["total expenses", totalExpenses],
-    ["cash short/extra", cash],
-  ]);
-
-  const nextRows = normalizedRows.map((row) => {
-    if (!isDerivedPlanLabel(row.label)) {
-      return row;
-    }
-
-    const computedValue = resolvedValues.get(normalizeHeaderName(row.label));
-    return {
-      label: row.label,
-      plan: normalizeAmountValue(Number.isFinite(computedValue) ? computedValue : 0),
-    };
-  });
-
-  ["Total Savings", "Total Expenses", "Cash short/extra"].forEach((label) => {
-    if (nextRows.some((row) => normalizeHeaderName(row.label) === normalizeHeaderName(label))) {
-      return;
-    }
-
-    const computedValue = resolvedValues.get(normalizeHeaderName(label));
-    nextRows.push({
-      label,
-      plan: normalizeAmountValue(Number.isFinite(computedValue) ? computedValue : 0),
-    });
-  });
-
-  return nextRows;
+  const totalExpenses = computedExpenses;
+  const normalizedIncome = roundCurrencyValue(Number.isFinite(income) ? income : 0);
+  const normalizedTotalSavings = roundCurrencyValue(totalSavings);
+  const normalizedTotalExpenses = roundCurrencyValue(totalExpenses);
+  const cash = roundCurrencyValue(normalizedIncome - normalizedTotalExpenses - normalizedTotalSavings);
+  return [
+    ...manualRows,
+    {
+      label: "Income",
+      plan: normalizeAmountValue(normalizedIncome),
+      period: DEFAULT_PLAN_PERIOD,
+      group: "derived",
+    },
+    {
+      label: "Expenses",
+      plan: normalizeAmountValue(normalizedTotalExpenses),
+      period: DEFAULT_PLAN_PERIOD,
+      group: "derived",
+    },
+    {
+      label: "Total Savings",
+      plan: normalizeAmountValue(normalizedTotalSavings),
+      period: DEFAULT_PLAN_PERIOD,
+      group: "derived",
+    },
+    {
+      label: "Cash short/extra",
+      plan: normalizeAmountValue(cash),
+      period: DEFAULT_PLAN_PERIOD,
+      group: "derived",
+    },
+  ];
 }
 
 function ensurePlanTemplateSeeded() {
@@ -325,6 +513,10 @@ function setAppTab(nextTab) {
   const normalizedTab = normalizeAppTab(nextTab);
   state.appTab = normalizedTab;
 
+  if (normalizedTab !== APP_TAB_PLAN) {
+    state.planEditing = false;
+  }
+
   if (normalizedTab !== APP_TAB_SHARE) {
     syncActiveViewForCurrentTab();
     state.search = "";
@@ -394,6 +586,7 @@ function cacheDom() {
   refs.cardsArea = document.getElementById("cards-area");
   refs.form = document.getElementById("record-form");
   refs.formFields = document.getElementById("form-fields");
+  refs.formActions = document.getElementById("form-actions");
   refs.formTitle = document.getElementById("form-title");
   refs.formSubtitle = document.getElementById("form-subtitle");
   refs.saveButton = document.getElementById("save-record");
@@ -456,11 +649,13 @@ function bindEvents() {
   refs.recapMonthSelect.addEventListener("change", onRecapMonthChanged);
   refs.recapRangeSelect.addEventListener("change", onRecapRangeChanged);
   refs.searchInput.addEventListener("input", onSearchChanged);
-  refs.addButton.addEventListener("click", startCreateMode);
+  refs.addButton.addEventListener("click", onToolbarActionRequested);
   refs.mobileFab?.addEventListener("click", startCreateMode);
   refs.exportButton.addEventListener("click", exportWorkbook);
   refs.installButton.addEventListener("click", onInstallApp);
   refs.form.addEventListener("submit", onSaveRecord);
+  refs.form.addEventListener("input", onPlanEditorFieldChanged);
+  refs.form.addEventListener("change", onPlanEditorFieldChanged);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
   document.addEventListener("click", onDocumentClick);
@@ -1403,7 +1598,21 @@ async function publishLocalBudgetToSupabase() {
     if (planPayload.length) {
       ({ error } = await supabaseClient.from("budget_plan_rows").insert(planPayload));
       if (error) {
-        throw error;
+        const fallbackPayload = stripPlanPeriodsFromPayload(planPayload);
+        const missingPeriodColumn =
+          fallbackPayload.length &&
+          /plan_period|column .*plan_period|schema cache/i.test(
+            `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`
+          );
+
+        if (!missingPeriodColumn) {
+          throw error;
+        }
+
+        ({ error } = await supabaseClient.from("budget_plan_rows").insert(fallbackPayload));
+        if (error) {
+          throw error;
+        }
       }
     }
 
@@ -1449,7 +1658,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
         .order("name", { ascending: true }),
       supabaseClient
         .from("budget_plan_rows")
-        .select("label, plan_amount, position")
+        .select("*")
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
         .order("label", { ascending: true }),
@@ -1500,6 +1709,8 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       planTemplate: (planRows || []).map((row) => ({
         label: String(row.label || "").trim(),
         plan: normalizeAmountValue(row.plan_amount),
+        period: normalizePlanPeriod(row.plan_period),
+        group: normalizePlanGroup(row.plan_group, row.label),
       })).filter((row) => row.label),
     };
     state.cloud.lastPulledAt = new Date().toISOString();
@@ -1559,9 +1770,14 @@ function buildSupabasePlanPayload(spaceId) {
       space_id: spaceId,
       label: String(row.label || "").trim(),
       plan_amount: Number.isFinite(parseAmount(row.plan)) ? parseAmount(row.plan) : null,
+      plan_period: normalizePlanPeriod(row.period),
       position: index,
     }))
     .filter((row) => row.label);
+}
+
+function stripPlanPeriodsFromPayload(planPayload) {
+  return planPayload.map(({ plan_period: _planPeriod, ...row }) => row);
 }
 
 function buildSupabaseTransactionPayload(spaceId) {
@@ -1725,10 +1941,12 @@ function applyStoredDraft(draft) {
   state.recap = {
     available: Boolean(draft.recap?.available),
     snapshotDate: String(draft.recap?.snapshotDate || ""),
-    planTemplate: Array.isArray(draft.recap?.planTemplate)
-      ? draft.recap.planTemplate.map((row) => ({
-          label: String(row?.label || ""),
-          plan: normalizeAmountValue(row?.plan),
+      planTemplate: Array.isArray(draft.recap?.planTemplate)
+        ? draft.recap.planTemplate.map((row) => ({
+            label: String(row?.label || ""),
+            plan: normalizeAmountValue(row?.plan),
+            period: normalizePlanPeriod(row?.period),
+            group: normalizePlanGroup(row?.group, row?.label),
         }))
       : [],
   };
@@ -1925,6 +2143,7 @@ async function importWorkbookBuffer(buffer, fileName, options = {}) {
   state.editorMode = "create";
   state.budget = parseBudgetWorkbook(workbook);
   state.recap = parseRecapWorkbook(workbook);
+  state.recapFilters = createEmptyRecapFilters();
 
   refs.searchInput.value = "";
   refs.fileInput.value = "";
@@ -2114,23 +2333,72 @@ function parseRecapWorkbook(workbook) {
   };
 }
 
+function resolveBudgetValueColumn(sheet, preferredYear = String(new Date().getFullYear())) {
+  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1:A1");
+  let fallbackPlanColumn = "I";
+  const yearCandidates = [];
+
+  for (let columnIndex = 7; columnIndex <= range.e.c; columnIndex += 1) {
+    const columnLetter = XLSX.utils.encode_col(columnIndex);
+    const row2Value = String(readCellText(sheet[`${columnLetter}2`]) || "").trim();
+    const row3Value = String(readCellText(sheet[`${columnLetter}3`]) || "").trim();
+
+    if (normalizeHeaderName(row3Value) === "plan") {
+      fallbackPlanColumn = columnLetter;
+    }
+
+    if (/^\d{4}$/.test(row2Value)) {
+      yearCandidates.push({ year: row2Value, columnLetter });
+    }
+  }
+
+  const preferredMatch = yearCandidates.find((entry) => entry.year === String(preferredYear));
+  if (preferredMatch) {
+    return preferredMatch.columnLetter;
+  }
+
+  if (yearCandidates.length) {
+    return yearCandidates.sort((left, right) => Number(left.year) - Number(right.year)).at(-1).columnLetter;
+  }
+
+  return fallbackPlanColumn;
+}
+
 function parseRecapPlanTemplate(sheet) {
   const range = XLSX.utils.decode_range(sheet["!ref"] || "A1:A1");
   const templateMap = new Map();
+  let currentGroup = "expenses";
+  const budgetValueColumn = resolveBudgetValueColumn(sheet);
 
   for (let row = 4; row <= range.e.r + 1; row += 1) {
     const label = String(readCellText(sheet[`H${row}`]) || "").trim();
-    if (!label || isIgnoredRecapLabel(label)) {
+    if (!label) {
       continue;
     }
 
     const normalized = normalizeHeaderName(label);
-    const plan = normalizeAmountValue(readCellRawValue(sheet[`I${row}`]));
+    if (normalized === "income") {
+      currentGroup = "income";
+    } else if (normalized === "savings") {
+      currentGroup = "savings";
+    } else if (normalized === "sol") {
+      currentGroup = "neutral";
+    } else if (normalized === "expenses") {
+      currentGroup = "expenses";
+    }
+
+    if (isIgnoredRecapLabel(label)) {
+      continue;
+    }
+
+    const plan = normalizeAmountValue(readCellRawValue(sheet[`${budgetValueColumn}${row}`]));
     const hasPlanValue = plan !== "";
     const existing = templateMap.get(normalized);
+    const inferredGroup = inferPlanGroupFromLabel(label);
+    const group = inferredGroup === "expenses" ? normalizePlanGroup(currentGroup, label) : inferredGroup;
 
     if (!existing || (!existing.plan && hasPlanValue)) {
-      templateMap.set(normalized, { label, plan });
+      templateMap.set(normalized, { label, plan, period: DEFAULT_PLAN_PERIOD, group });
     }
   }
 
@@ -2290,6 +2558,27 @@ function startCreateMode() {
   setAppTab(APP_TAB_FORM);
 }
 
+function startPlanEditMode() {
+  if (state.mode !== "budget") {
+    setLastAction("Chargez ou restaurez un budget avant de modifier le plan.");
+    renderAll();
+    return;
+  }
+
+  state.planEditing = true;
+  setLastAction("Edition du budget active.");
+  renderAll();
+}
+
+function onToolbarActionRequested() {
+  if (state.appTab === APP_TAB_PLAN) {
+    startPlanEditMode();
+    return;
+  }
+
+  startCreateMode();
+}
+
 function resetEditor() {
   state.editorMode = "create";
   state.editingIndex = null;
@@ -2298,6 +2587,7 @@ function resetEditor() {
 
 function onEditorCancelRequested() {
   if (state.appTab === APP_TAB_PLAN) {
+    state.planEditing = false;
     setLastAction("Modification du budget annulee.");
     renderAll();
     return;
@@ -2438,6 +2728,70 @@ async function onSaveRecord(event) {
   });
 }
 
+function collectPlanEditorTemplateRows() {
+  const currentPlanRows = ensurePlanTemplateSeeded();
+  const editableRows = currentPlanRows.filter((row) => !isDerivedPlanLabel(row.label));
+
+  return editableRows
+    .map((sourceRow) => {
+      const rowKey = normalizeHeaderName(sourceRow.label);
+      const amountInput = refs.form.querySelector(`[data-plan-input="true"][data-plan-key="${rowKey}"]`);
+      const periodSelect = refs.form.querySelector(`[data-plan-period="true"][data-plan-key="${rowKey}"]`);
+      return {
+        label: String(sourceRow.label || "").trim(),
+        plan: normalizeAmountValue(amountInput?.value ?? sourceRow.plan),
+        period: normalizePlanPeriod(periodSelect?.value ?? sourceRow.period),
+        group: normalizePlanGroup(sourceRow.group, sourceRow.label),
+      };
+    })
+    .filter((row) => row.label);
+}
+
+function refreshPlanEditorPreview() {
+  if (state.appTab !== APP_TAB_PLAN || state.mode !== "budget") {
+    return;
+  }
+
+  const previewRows = resolvePlanTemplate(collectPlanEditorTemplateRows());
+  const previewMap = new Map(previewRows.map((row) => [normalizeHeaderName(row.label), row]));
+
+  Array.from(refs.form.querySelectorAll("[data-plan-row]")).forEach((rowElement) => {
+    const label = String(rowElement.getAttribute("data-plan-row") || "");
+    const previewRow = previewMap.get(normalizeHeaderName(label));
+    if (!previewRow) {
+      return;
+    }
+
+    const monthlyTarget = rowElement.querySelector("[data-plan-monthly]");
+    if (monthlyTarget) {
+      monthlyTarget.textContent = formatCurrency(convertPlanAmountToMonthly(previewRow.plan, previewRow.period));
+    }
+
+    const periodTarget = rowElement.querySelector("[data-plan-period-label]");
+    if (periodTarget) {
+      periodTarget.textContent = getPlanPeriodLabel(previewRow.period);
+    }
+
+    const amountInput = rowElement.querySelector("[data-plan-input='true']");
+    if (amountInput?.readOnly) {
+      amountInput.value = normalizeAmountValue(previewRow.plan);
+    }
+  });
+}
+
+function onPlanEditorFieldChanged(event) {
+  if (state.appTab !== APP_TAB_PLAN || !state.planEditing) {
+    return;
+  }
+
+  const target = event.target;
+  if (!target?.matches?.("[data-plan-input='true'], [data-plan-period='true']")) {
+    return;
+  }
+
+  refreshPlanEditorPreview();
+}
+
 async function onSavePlanTemplateRequested() {
   if (state.mode !== "budget") {
     setLastAction("Chargez ou restaurez un budget avant de modifier le plan.");
@@ -2445,18 +2799,13 @@ async function onSavePlanTemplateRequested() {
     return;
   }
 
-  const currentPlanRows = ensurePlanTemplateSeeded();
-  const editableRows = currentPlanRows.filter((row) => !isDerivedPlanLabel(row.label));
-  const nextEditableTemplate = Array.from(refs.form.querySelectorAll("[data-plan-input]"))
-    .filter((input) => !input.readOnly)
-    .map((input, index) => {
-      const sourceRow = editableRows[index] || {};
-      return {
-        label: String(sourceRow.label || "").trim(),
-        plan: normalizeAmountValue(input.value),
-      };
-    })
-    .filter((row) => row.label);
+  if (!state.planEditing) {
+    setLastAction("Cliquez sur Editer budget pour modifier le plan.");
+    renderAll();
+    return;
+  }
+
+  const nextEditableTemplate = collectPlanEditorTemplateRows();
 
   if (!nextEditableTemplate.length) {
     setLastAction("Aucune ligne budget a enregistrer.");
@@ -2466,6 +2815,7 @@ async function onSavePlanTemplateRequested() {
 
   state.recap.available = true;
   state.recap.planTemplate = resolvePlanTemplate(nextEditableTemplate);
+  state.planEditing = false;
   persistDraft();
 
   const actionLabel = "Budget planifie mis a jour";
@@ -3197,6 +3547,7 @@ function renderControls() {
   const analysisActive = hasBudget && state.activeView === ANALYSIS_VIEW_NAME;
   const shareTab = state.appTab === APP_TAB_SHARE;
   const planTab = state.appTab === APP_TAB_PLAN;
+  const planEditing = planTab && state.planEditing;
   const formTab = state.appTab === APP_TAB_FORM;
   const transactionTab = state.appTab === APP_TAB_TRANSACTIONS;
   const draft = readStoredDraft();
@@ -3246,16 +3597,19 @@ function renderControls() {
   refs.saveDraftButton.classList.toggle("hidden", !shareTab);
   refs.restoreDraftButton.classList.toggle("hidden", !shareTab);
   refs.exportButton.classList.toggle("hidden", !shareTab);
-  refs.addButton.classList.toggle("hidden", !transactionTab);
-  refs.addButton.textContent = "Nouvelle transaction";
-  refs.addButton.disabled = !journalActive || !transactionTab;
+  refs.addButton.classList.toggle("hidden", !(transactionTab || planTab));
+  refs.addButton.textContent = planTab ? "Editer budget" : "Nouvelle transaction";
+  refs.addButton.disabled = planTab ? !hasBudget || planEditing : !journalActive || !transactionTab;
   refs.mobileFab?.classList.toggle("hidden", !journalActive || !transactionTab);
   if (refs.mobileFab) {
     refs.mobileFab.disabled = !journalActive || !transactionTab;
   }
   refs.exportButton.disabled = !hasBudget || !window.XLSX;
-  refs.saveButton.disabled = planTab ? !hasBudget : !journalActive || !formTab;
-  refs.cancelButton.disabled = planTab ? !hasBudget : !journalActive || !formTab;
+  refs.saveButton.disabled = planTab ? !hasBudget || !planEditing : !journalActive || !formTab;
+  refs.cancelButton.disabled = planTab ? !hasBudget || !planEditing : !journalActive || !formTab;
+  refs.saveButton.classList.toggle("hidden", planTab && !planEditing);
+  refs.cancelButton.classList.toggle("hidden", planTab && !planEditing);
+  refs.formActions.classList.toggle("hidden", planTab && !planEditing);
 }
 
 function renderCloudPanel() {
@@ -3640,6 +3994,7 @@ function buildLiveRecapView() {
       availabilityLabel: "",
       availabilityScopeLabel: "",
       periodLabel: "Toutes les donnees",
+      budgetPeriodCount: 1,
       filteredUndatedCount: 0,
     };
   }
@@ -3648,7 +4003,8 @@ function buildLiveRecapView() {
   const actualMap = buildActualAmountMap(recapRows);
   const metrics = buildRecapMetrics(actualMap);
   const detailRows = buildRecapDetailRows(actualMap);
-  const planRows = buildRecapPlanRows(actualMap, metrics);
+  const budgetPeriodCount = getRecapBudgetPeriodCount(recapRows);
+  const planRows = buildRecapPlanRows(actualMap, metrics, budgetPeriodCount);
   const availableYears = getAvailableRecapYears();
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
   const filtersActive = hasActiveRecapPeriodFilter();
@@ -3665,6 +4021,7 @@ function buildLiveRecapView() {
     availabilityLabel: buildRecapAvailabilityLabel(availableYears, availableMonths),
     availabilityScopeLabel: buildRecapAvailabilityScopeLabel(),
     periodLabel: buildRecapPeriodLabel(),
+    budgetPeriodCount,
     filteredUndatedCount: filtersActive ? countUndatedBudgetRows() : 0,
   };
 }
@@ -3687,6 +4044,7 @@ function buildLiveAnalysisView() {
       transactionCount: 0,
       trendTitle: "",
       trendSubtitle: "",
+      budgetPeriodCount: 1,
     };
   }
 
@@ -3696,7 +4054,8 @@ function buildLiveAnalysisView() {
   const allSeriesRows = buildAnalysisSeriesRows();
   const seriesRows = filterAnalysisSeriesRows(allSeriesRows);
   const detailRows = buildRecapDetailRows(actualMap);
-  const planRows = buildRecapPlanRows(actualMap, buildRecapMetrics(actualMap));
+  const budgetPeriodCount = getRecapBudgetPeriodCount(filteredRows);
+  const planRows = buildRecapPlanRows(actualMap, buildRecapMetrics(actualMap), budgetPeriodCount);
   const cashFlow = buildAnalysisCashFlow(snapshot);
   const expenseBreakdown = buildAnalysisExpenseBreakdown(filteredRows);
   const categoryBenchmark = buildAnalysisCategoryBenchmark();
@@ -3722,6 +4081,7 @@ function buildLiveAnalysisView() {
     transactionCount: filteredRows.length,
     trendTitle: buildAnalysisTrendTitle(),
     trendSubtitle: buildAnalysisTrendSubtitle(allSeriesRows.length, seriesRows.length),
+    budgetPeriodCount,
   };
 }
 
@@ -3843,6 +4203,48 @@ function buildRecapAvailabilityScopeLabel() {
   }
 
   return `Mois disponibles en ${state.recapFilters.year}`;
+}
+
+function buildRecapPeriodKeys(rows) {
+  const keys = new Set();
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const dateParts = getBudgetRowDateParts(row);
+    if (!dateParts) {
+      return;
+    }
+
+    keys.add(buildYearMonthKey(dateParts.year, dateParts.month));
+  });
+
+  return Array.from(keys).sort((left, right) => String(left).localeCompare(String(right)));
+}
+
+function getRecapBudgetPeriodCount(rows = getFilteredRecapSourceRows()) {
+  const filteredPeriodKeys = buildRecapPeriodKeys(rows);
+  if (filteredPeriodKeys.length) {
+    return filteredPeriodKeys.length;
+  }
+
+  const selectedMonths = getSelectedRecapMonths();
+  if (state.recapFilters.year !== "all" && selectedMonths.length) {
+    return selectedMonths.length;
+  }
+
+  if (state.recapFilters.year !== "all") {
+    return Math.max(getAvailableRecapMonths(state.recapFilters.year).length, 1);
+  }
+
+  if (selectedMonths.length) {
+    return selectedMonths.length;
+  }
+
+  return Math.max(buildRecapPeriodKeys(state.budget.rows).length, 1);
+}
+
+function getBudgetPeriodCountLabel(periodCount) {
+  const safeCount = Math.max(1, Number(periodCount) || 1);
+  return `${safeCount} mois`;
 }
 
 function formatMonthLabel(monthValue) {
@@ -4486,29 +4888,79 @@ function buildRecapDetailRows(actualMap) {
   return orderedRows;
 }
 
-function buildRecapPlanRows(actualMap, metrics) {
+function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
   const query = state.search;
+  const safePeriodCount = Math.max(1, Number(periodCount) || 1);
 
   return resolvePlanTemplate(state.recap.planTemplate)
-    .map((row) => ({
-      label: row.label,
-      plan: row.plan,
-      actual: normalizeAmountValue(computeActualForPlanLabel(row.label, actualMap, metrics)),
-    }))
+    .filter((row) => !isSplitIncomeContributorLabel(row.label))
+    .map((row) => {
+      const monthlyPlan = roundCurrencyValue(convertPlanAmountToMonthly(row.plan, row.period));
+      const scaledPlan = roundCurrencyValue(monthlyPlan * safePeriodCount);
+      const actual = roundCurrencyValue(computeActualForPlanLabel(row.label, actualMap, metrics));
+      const comparisonStatus = buildBudgetComparisonStatus(scaledPlan, actual);
+
+      return {
+        label: row.label,
+        group: normalizePlanGroup(row.group, row.label),
+        plan: normalizeAmountValue(scaledPlan),
+        monthlyPlan: normalizeAmountValue(monthlyPlan),
+        period: normalizePlanPeriod(row.period),
+        periodLabel: getPlanPeriodLabel(row.period),
+        budgetMonths: safePeriodCount,
+        actual: normalizeAmountValue(actual),
+        delta: normalizeAmountValue(comparisonStatus.delta),
+        statusLabel: comparisonStatus.label,
+        statusTone: comparisonStatus.tone,
+      };
+    })
     .filter((row) => matchesRecapSearch(row, query));
+}
+
+function buildBudgetComparisonStatus(planAmount, actualAmount) {
+  const plan = roundCurrencyValue(parseAmount(planAmount));
+  const actual = roundCurrencyValue(parseAmount(actualAmount));
+  const delta = roundCurrencyValue(actual - plan);
+  const tolerance = Math.max(0.01, roundCurrencyValue(Math.abs(plan) * 0.005));
+
+  if (Math.abs(delta) <= tolerance) {
+    return {
+      label: "Dans le budget",
+      tone: "on-budget",
+      delta,
+    };
+  }
+
+  if (delta < 0) {
+    return {
+      label: "En dessous du budget",
+      tone: "below-budget",
+      delta,
+    };
+  }
+
+  return {
+    label: "Au-dessus du budget",
+    tone: "above-budget",
+    delta,
+  };
 }
 
 function computeActualForPlanLabel(label, actualMap, metrics) {
   const normalized = normalizeHeaderName(label);
 
+  if (normalized === "income") {
+    return metrics.find((metric) => metric.label === "Income")?.value || 0;
+  }
+
+  if (normalized === "expenses" || normalized === "total expenses") {
+    return metrics.find((metric) => metric.label === "Expenses")?.value || 0;
+  }
+
   if (normalized === "total savings") {
     const savings = metrics.find((metric) => metric.label === "Savings")?.value || 0;
     const seasonal = metrics.find((metric) => metric.label === "Seasonal Savings")?.value || 0;
     return savings + seasonal;
-  }
-
-  if (normalized === "total expenses") {
-    return metrics.find((metric) => metric.label === "Expenses")?.value || 0;
   }
 
   if (normalized === "cash short/extra") {
@@ -4690,13 +5142,23 @@ function createAnalysisMarkup(analysisView) {
 
       ${createRecapTableMarkup(
         "Plan vs reel",
-        "Le plan reprend vos montants cibles actuels. La colonne Reel suit vos transactions dans l'app pour la periode filtree.",
-        ["Categorie", "Plan", "Reel"],
+        `Le budget mensuel est projete sur ${getBudgetPeriodCountLabel(analysisView.budgetPeriodCount)} pour rester coherent avec la periode reelle filtree.`,
+        [
+          { label: "Categorie", numeric: false },
+          { label: `Budget (${getBudgetPeriodCountLabel(analysisView.budgetPeriodCount)})`, numeric: true },
+          { label: "Reel", numeric: true },
+          { label: "Statut", numeric: false },
+        ],
         analysisView.planRows.map((row) => ({
           cells: [
             { value: row.label, numeric: false },
             { value: formatCurrency(row.plan), numeric: true },
             { value: formatCurrency(row.actual), numeric: true },
+            {
+              value: row.statusLabel,
+              numeric: false,
+              html: createRecapStatusChipMarkup(row.statusLabel, row.statusTone),
+            },
           ],
           total: /total|cash short\/extra/i.test(row.label),
         }))
@@ -4878,6 +5340,10 @@ function createRecapMetricMarkup(metric) {
   `;
 }
 
+function createRecapStatusChipMarkup(label, tone) {
+  return `<span class="recap-status recap-status-${escapeHtml(tone || "on-budget")}">${escapeHtml(label || "Dans le budget")}</span>`;
+}
+
 function createRecapTableMarkup(title, subtitle, headers, rows) {
   if (!rows.length) {
     return `
@@ -4901,13 +5367,21 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
         <table class="recap-table">
           <thead>
             <tr>
-              ${headers.map((header, index) => `<th class="${index > 0 ? "numeric" : ""}">${escapeHtml(header)}</th>`).join("")}
+              ${headers.map((header, index) => {
+                const label = typeof header === "object" ? header.label : header;
+                const numeric = typeof header === "object" ? Boolean(header.numeric) : index > 0;
+                return `<th class="${numeric ? "numeric" : ""}">${escapeHtml(label)}</th>`;
+              }).join("")}
             </tr>
           </thead>
           <tbody>
             ${rows.map((row) => `
               <tr class="${row.total ? "total-row" : ""}">
-                ${row.cells.map((cell) => `<td class="${cell.numeric ? "numeric" : ""}">${escapeHtml(cell.value || "-")}</td>`).join("")}
+                ${row.cells.map((cell) => {
+                  const classes = [cell.numeric ? "numeric" : "", cell.className || ""].filter(Boolean).join(" ");
+                  const content = cell.html || escapeHtml(cell.value ?? "-");
+                  return `<td class="${classes}">${content}</td>`;
+                }).join("")}
               </tr>
             `).join("")}
           </tbody>
@@ -4999,7 +5473,9 @@ function renderPlanEditor() {
 
   const planTemplate = ensurePlanTemplateSeeded();
   refs.formTitle.textContent = "Budget mensuel";
-  refs.formSubtitle.textContent = "Fixez ici les montants cibles utilises dans l'accueil, le recap et les comparaisons.";
+  refs.formSubtitle.textContent = state.planEditing
+    ? "Edition active. Choisissez le montant et la periode de chaque ligne, puis l'app calcule l'equivalent mensuel."
+    : "Budget en lecture seule. Cliquez sur Editer budget pour modifier le montant ou la periode de chaque ligne.";
   refs.formFields.innerHTML = "";
 
   if (!planTemplate.length) {
@@ -5008,10 +5484,43 @@ function renderPlanEditor() {
   }
 
   const editableRows = planTemplate.filter((row) => !isDerivedPlanLabel(row.label));
-  const derivedRows = planTemplate.filter((row) => isDerivedPlanLabel(row.label));
+  const derivedRows = sortBudgetSummaryRows(planTemplate.filter((row) => isDerivedPlanLabel(row.label)));
 
-  editableRows.forEach((row, index) => appendField(renderPlanAmountField(row, index, false)));
-  derivedRows.forEach((row, index) => appendField(renderPlanAmountField(row, editableRows.length + index, true)));
+  if (derivedRows.length) {
+    refs.formFields.appendChild(renderBudgetSummaryGrid(derivedRows));
+  }
+  editableRows.forEach((row, index) => appendField(renderPlanAmountField(row, derivedRows.length + index, !state.planEditing)));
+  refreshPlanEditorPreview();
+}
+
+function renderBudgetSummaryGrid(rows) {
+  const grid = document.createElement("section");
+  grid.className = "budget-summary-grid";
+
+  rows.forEach((row) => {
+    grid.appendChild(renderBudgetSummaryCard(row));
+  });
+
+  return grid;
+}
+
+function renderBudgetSummaryCard(row) {
+  const meta = getBudgetSummaryCardMeta(row.label);
+  const card = document.createElement("article");
+  card.className = `budget-summary-card tone-${meta.tone}`;
+  card.setAttribute("data-plan-row", row.label);
+
+  const heading = document.createElement("span");
+  heading.className = "budget-summary-title";
+  heading.textContent = meta.title;
+
+  const amount = document.createElement("strong");
+  amount.className = "budget-summary-amount";
+  amount.setAttribute("data-plan-monthly", "true");
+  amount.textContent = formatCurrency(convertPlanAmountToMonthly(row.plan, row.period));
+
+  card.append(heading, amount);
+  return card;
 }
 
 function renderDateField(value) {
@@ -5099,12 +5608,24 @@ function renderValueField(value) {
 
 function renderPlanAmountField(row, index, readOnly = false) {
   const wrapper = document.createElement("div");
-  wrapper.className = `field-card plan-field-card${readOnly ? " is-derived" : ""}`;
+  const derived = isDerivedPlanLabel(row.label);
+  const rowKey = normalizeHeaderName(row.label);
+  wrapper.className = `field-card plan-field-card${derived ? " is-derived" : ""}`;
+  wrapper.setAttribute("data-plan-row", row.label);
+  wrapper.setAttribute("data-plan-key", rowKey);
 
   const label = document.createElement("label");
   label.setAttribute("for", `plan-field-${index}`);
   label.textContent = row.label;
 
+  const grid = document.createElement("div");
+  grid.className = "plan-field-grid";
+
+  const amountGroup = document.createElement("div");
+  amountGroup.className = "plan-field-cell";
+  const amountLabel = document.createElement("span");
+  amountLabel.className = "plan-field-cell-label";
+  amountLabel.textContent = "Montant";
   const input = document.createElement("input");
   input.id = `plan-field-${index}`;
   input.type = "text";
@@ -5116,17 +5637,71 @@ function renderPlanAmountField(row, index, readOnly = false) {
   input.setAttribute("data-plan-input", "true");
   input.setAttribute("data-plan-index", String(index));
   input.setAttribute("data-plan-label", row.label);
+  input.setAttribute("data-plan-key", rowKey);
   if (readOnly) {
     input.readOnly = true;
   }
+  amountGroup.append(amountLabel, input);
+
+  let periodGroup = null;
+  if (!derived) {
+    periodGroup = document.createElement("div");
+    periodGroup.className = "plan-field-cell";
+    const periodLabel = document.createElement("span");
+    periodLabel.className = "plan-field-cell-label";
+    periodLabel.textContent = "Periode";
+    const select = document.createElement("select");
+    select.id = `plan-period-${index}`;
+    select.setAttribute("data-plan-period", "true");
+    select.setAttribute("data-plan-index", String(index));
+    select.setAttribute("data-plan-key", rowKey);
+    if (readOnly) {
+      select.disabled = true;
+    }
+    PLAN_PERIOD_OPTIONS.forEach((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = option.value;
+      optionElement.textContent = option.label;
+      optionElement.selected = normalizePlanPeriod(row.period) === option.value;
+      select.appendChild(optionElement);
+    });
+    periodGroup.append(periodLabel, select);
+  }
+
+  const monthlyGroup = document.createElement("div");
+  monthlyGroup.className = "plan-field-cell plan-field-cell-monthly";
+  const monthlyLabel = document.createElement("span");
+  monthlyLabel.className = "plan-field-cell-label";
+  monthlyLabel.textContent = derived ? "Valeur calculee" : "Mensuel";
+  const monthlyValue = document.createElement("strong");
+  monthlyValue.className = "plan-monthly-value";
+  monthlyValue.setAttribute("data-plan-monthly", "true");
+  monthlyValue.textContent = formatCurrency(convertPlanAmountToMonthly(row.plan, row.period));
+  monthlyGroup.append(monthlyLabel, monthlyValue);
+
+  if (derived) {
+    const periodText = document.createElement("span");
+    periodText.className = "plan-period-pill";
+    periodText.setAttribute("data-plan-period-label", "true");
+    periodText.textContent = "Equivalent mensuel";
+    monthlyGroup.append(periodText);
+  }
+
+  grid.append(amountGroup);
+  if (periodGroup) {
+    grid.append(periodGroup);
+  }
+  grid.append(monthlyGroup);
 
   const hint = document.createElement("p");
   hint.className = "field-hint";
-  hint.textContent = readOnly
-    ? "Valeur calculee automatiquement a partir de Income, Expenses et Savings."
-    : "Montant cible utilise pour la comparaison avec le reel.";
+  hint.textContent = derived
+    ? "Valeur calculee automatiquement a partir de Income 1, Income 2, Expenses et Savings."
+    : readOnly
+      ? "Cliquez sur Editer budget pour modifier le montant ou la periode."
+      : "L'app convertit automatiquement cette ligne en equivalent mensuel pour les comparaisons.";
 
-  wrapper.append(label, input, hint);
+  wrapper.append(label, grid, hint);
   return wrapper;
 }
 
