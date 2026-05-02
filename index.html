@@ -77,6 +77,10 @@
             <span class="app-tab-label">Accueil</span>
             <span class="app-tab-meta">Vue budget</span>
           </button>
+          <button id="app-tab-plan" class="app-tab" type="button" data-app-tab="plan" role="tab" aria-selected="false">
+            <span class="app-tab-label">Budget</span>
+            <span class="app-tab-meta">Plan mensuel</span>
+          </button>
           <button id="app-tab-transactions" class="app-tab" type="button" data-app-tab="transactions" role="tab" aria-selected="false">
             <span class="app-tab-label">Transactions</span>
             <span class="app-tab-meta">Liste des ecritures</span>
@@ -104,13 +108,6 @@
           </label>
           <input id="excel-file" type="file" accept=".xlsx,.xls,.csv">
 
-          <label id="sheet-select-field" class="control-field legacy-view-field">
-            <span>Vue</span>
-            <select id="sheet-select" disabled>
-              <option value="">Aucune feuille</option>
-            </select>
-          </label>
-
           <label class="control-field hidden" id="recap-year-field">
             <span>Annee</span>
             <select id="recap-year-select" disabled>
@@ -118,15 +115,28 @@
             </select>
           </label>
 
-          <label class="control-field hidden" id="recap-month-field">
-            <span>Mois</span>
-            <select id="recap-month-select" disabled>
-              <option value="all">Tous les mois</option>
-            </select>
-          </label>
+            <label class="control-field hidden" id="recap-month-field">
+              <span>Mois</span>
+              <div class="month-picker" id="recap-month-picker">
+                <button type="button" id="recap-month-trigger" class="month-picker-trigger" aria-haspopup="true" aria-expanded="false" disabled>
+                  Tous les mois
+                </button>
+                <div id="recap-month-panel" class="month-picker-panel hidden"></div>
+                <select id="recap-month-select" class="hidden" multiple disabled aria-hidden="true">
+                </select>
+              </div>
+              <small class="control-hint">Tous les mois par defaut</small>
+            </label>
 
-          <label id="search-field" class="control-field search-field">
-            <span>Recherche</span>
+            <label class="control-field hidden" id="recap-range-field">
+              <span>Periode</span>
+              <select id="recap-range-select" disabled>
+                <option value="all">Toute la periode</option>
+              </select>
+            </label>
+
+            <label id="search-field" class="control-field search-field">
+              <span>Recherche</span>
             <input id="search-input" type="search" placeholder="Categorie, date, valeur..." disabled>
           </label>
         </div>

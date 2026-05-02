@@ -19,10 +19,28 @@ const ANALYSIS_CATEGORY_COLORS = [
 ];
 const TCD_SHEET_NAME = "TCD";
 const APP_TAB_DASHBOARD = "dashboard";
+const APP_TAB_PLAN = "plan";
 const APP_TAB_TRANSACTIONS = "transactions";
 const APP_TAB_FORM = "form";
 const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
+const FALLBACK_PLAN_TEMPLATE = [
+  { label: "Income", plan: "7873,58" },
+  { label: "Expenses", plan: "0" },
+  { label: "Savings", plan: "500" },
+  { label: "Savings for seasonal exp.", plan: "0" },
+  { label: "Total Savings", plan: "500" },
+  { label: "Total Expenses", plan: "0" },
+  { label: "Cash short/extra", plan: "7373,58" },
+];
+const RECAP_RANGE_OPTIONS = [
+  { value: "all", label: "Toute la periode" },
+  { value: "1", label: "1 mois" },
+  { value: "2", label: "2 mois" },
+  { value: "3", label: "3 mois" },
+  { value: "6", label: "6 mois" },
+  { value: "12", label: "12 mois" },
+];
 
 const DATE_COL = "D";
 const CATEGORY_COL = "E";
@@ -90,10 +108,133 @@ function createEmptyRecapModel() {
   };
 }
 
+function createFallbackPlanTemplate() {
+  return FALLBACK_PLAN_TEMPLATE.map((row) => ({
+    label: String(row.label || "").trim(),
+    plan: normalizeAmountValue(row.plan),
+  }));
+}
+
+function isDerivedPlanLabel(label) {
+  const normalized = normalizeHeaderName(label);
+  return normalized === "total savings" ||
+    normalized === "total expenses" ||
+    normalized === "cash short/extra";
+}
+
+function isIncomePlanLabel(label) {
+  return normalizeHeaderName(label) === "income";
+}
+
+function isSavingsPlanLabel(label) {
+  const normalized = normalizeHeaderName(label);
+  return normalized === "savings" || normalized === "savings for seasonal exp.";
+}
+
+function isExpenseSummaryPlanLabel(label) {
+  return normalizeHeaderName(label) === "expenses";
+}
+
+function isPlanTemplateSummaryLabel(label) {
+  return isIncomePlanLabel(label) ||
+    isSavingsPlanLabel(label) ||
+    isExpenseSummaryPlanLabel(label) ||
+    isDerivedPlanLabel(label);
+}
+
+function resolvePlanTemplate(rows = state.recap.planTemplate) {
+  const seededRows = Array.isArray(rows) && rows.length ? rows : createFallbackPlanTemplate();
+  const normalizedRows = seededRows
+    .map((row) => ({
+      label: String(row?.label || "").trim(),
+      plan: normalizeAmountValue(row?.plan),
+    }))
+    .filter((row) => row.label);
+
+  const manualRows = normalizedRows.filter((row) => !isDerivedPlanLabel(row.label));
+  const manualRowMap = new Map(manualRows.map((row) => [normalizeHeaderName(row.label), row]));
+
+  const income = parseAmount(manualRowMap.get("income")?.plan);
+  const explicitExpenses = parseAmount(manualRowMap.get("expenses")?.plan);
+  let totalSavings = 0;
+  let computedExpenses = 0;
+
+  manualRows.forEach((row) => {
+    const amount = parseAmount(row.plan);
+    if (!Number.isFinite(amount)) {
+      return;
+    }
+
+    if (isSavingsPlanLabel(row.label)) {
+      totalSavings += amount;
+      return;
+    }
+
+    if (isIncomePlanLabel(row.label) || isExpenseSummaryPlanLabel(row.label)) {
+      return;
+    }
+
+    computedExpenses += amount;
+  });
+
+  const totalExpenses = Number.isFinite(explicitExpenses) ? explicitExpenses : computedExpenses;
+  const normalizedIncome = Number.isFinite(income) ? income : 0;
+  const cash = normalizedIncome - totalExpenses - totalSavings;
+  const resolvedValues = new Map([
+    ["total savings", totalSavings],
+    ["total expenses", totalExpenses],
+    ["cash short/extra", cash],
+  ]);
+
+  const nextRows = normalizedRows.map((row) => {
+    if (!isDerivedPlanLabel(row.label)) {
+      return row;
+    }
+
+    const computedValue = resolvedValues.get(normalizeHeaderName(row.label));
+    return {
+      label: row.label,
+      plan: normalizeAmountValue(Number.isFinite(computedValue) ? computedValue : 0),
+    };
+  });
+
+  ["Total Savings", "Total Expenses", "Cash short/extra"].forEach((label) => {
+    if (nextRows.some((row) => normalizeHeaderName(row.label) === normalizeHeaderName(label))) {
+      return;
+    }
+
+    const computedValue = resolvedValues.get(normalizeHeaderName(label));
+    nextRows.push({
+      label,
+      plan: normalizeAmountValue(Number.isFinite(computedValue) ? computedValue : 0),
+    });
+  });
+
+  return nextRows;
+}
+
+function ensurePlanTemplateSeeded() {
+  if (state.mode !== "budget") {
+    return [];
+  }
+
+  if (Array.isArray(state.recap.planTemplate) && state.recap.planTemplate.length) {
+    state.recap.planTemplate = resolvePlanTemplate(state.recap.planTemplate);
+    return state.recap.planTemplate;
+  }
+
+  state.recap.available = true;
+  state.recap.planTemplate = resolvePlanTemplate(createFallbackPlanTemplate());
+  persistDraftIfPossible();
+  return state.recap.planTemplate;
+}
+
 function createEmptyRecapFilters() {
   return {
     year: "all",
     month: "all",
+    months: [],
+    rangeMonths: "all",
   };
 }
 
@@ -135,6 +276,7 @@ function normalizeActiveView(value) {
 function normalizeAppTab(value) {
   if (
     value === APP_TAB_DASHBOARD ||
+    value === APP_TAB_PLAN ||
     value === APP_TAB_TRANSACTIONS ||
     value === APP_TAB_FORM ||
     value === APP_TAB_ANALYSIS ||
@@ -160,6 +302,11 @@ function getAppTabForActiveView(activeView) {
 
 function syncActiveViewForCurrentTab() {
   if (state.appTab === APP_TAB_DASHBOARD) {
+    state.activeView = RECAP_SHEET_NAME;
+    return;
+  }
+
+  if (state.appTab === APP_TAB_PLAN) {
     state.activeView = RECAP_SHEET_NAME;
     return;
   }
@@ -206,12 +353,15 @@ function cacheDom() {
   refs.toolbarSide = document.getElementById("toolbar-side");
   refs.toolbarActions = document.getElementById("toolbar-actions");
   refs.filePickerField = document.getElementById("file-picker-field");
-  refs.sheetSelectField = document.getElementById("sheet-select-field");
-  refs.sheetSelect = document.getElementById("sheet-select");
   refs.recapYearField = document.getElementById("recap-year-field");
   refs.recapYearSelect = document.getElementById("recap-year-select");
   refs.recapMonthField = document.getElementById("recap-month-field");
+  refs.recapMonthPicker = document.getElementById("recap-month-picker");
+  refs.recapMonthTrigger = document.getElementById("recap-month-trigger");
+  refs.recapMonthPanel = document.getElementById("recap-month-panel");
   refs.recapMonthSelect = document.getElementById("recap-month-select");
+  refs.recapRangeField = document.getElementById("recap-range-field");
+  refs.recapRangeSelect = document.getElementById("recap-range-select");
   refs.searchField = document.getElementById("search-field");
   refs.searchInput = document.getElementById("search-input");
   refs.appTabTitle = document.getElementById("app-tab-title");
@@ -300,17 +450,21 @@ function bindEvents() {
   });
   refs.saveDraftButton.addEventListener("click", onSaveDraftRequested);
   refs.restoreDraftButton.addEventListener("click", onRestoreDraftRequested);
-  refs.sheetSelect.addEventListener("change", onViewChanged);
   refs.recapYearSelect.addEventListener("change", onRecapYearChanged);
+  refs.recapMonthTrigger.addEventListener("click", onRecapMonthTriggerClicked);
+  refs.recapMonthPanel.addEventListener("click", onRecapMonthPanelClicked);
   refs.recapMonthSelect.addEventListener("change", onRecapMonthChanged);
+  refs.recapRangeSelect.addEventListener("change", onRecapRangeChanged);
   refs.searchInput.addEventListener("input", onSearchChanged);
   refs.addButton.addEventListener("click", startCreateMode);
   refs.mobileFab?.addEventListener("click", startCreateMode);
   refs.exportButton.addEventListener("click", exportWorkbook);
   refs.installButton.addEventListener("click", onInstallApp);
   refs.form.addEventListener("submit", onSaveRecord);
-  refs.cancelButton.addEventListener("click", resetEditor);
+  refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  document.addEventListener("click", onDocumentClick);
+  document.addEventListener("keydown", onDocumentKeyDown);
 }
 
 function syncLibraryState() {
@@ -1400,7 +1554,7 @@ function buildSupabaseCategoryPayload(spaceId) {
 }
 
 function buildSupabasePlanPayload(spaceId) {
-  return state.recap.planTemplate
+  return resolvePlanTemplate(state.recap.planTemplate)
     .map((row, index) => ({
       space_id: spaceId,
       label: String(row.label || "").trim(),
@@ -1578,10 +1732,16 @@ function applyStoredDraft(draft) {
         }))
       : [],
   };
-  state.recapFilters = {
-    year: String(draft.recapFilters?.year || "all"),
-    month: String(draft.recapFilters?.month || "all"),
-  };
+    state.recapFilters = {
+      year: String(draft.recapFilters?.year || "all"),
+      month: String(draft.recapFilters?.month || "all"),
+      months: Array.isArray(draft.recapFilters?.months)
+        ? draft.recapFilters.months.map((value) => String(value || "").padStart(2, "0")).filter(Boolean)
+        : draft.recapFilters?.month && draft.recapFilters.month !== "all"
+          ? [String(draft.recapFilters.month).padStart(2, "0")]
+          : [],
+      rangeMonths: "all",
+    };
   state.cloud.email = String(draft.cloud?.email || state.cloud.email || "");
   state.cloud.space = {
     id: String(draft.cloud?.space?.id || state.cloud.space.id || ""),
@@ -1982,33 +2142,140 @@ function isIgnoredRecapLabel(label) {
   return normalized === "sol" || normalized === "expenses";
 }
 
-function onViewChanged(event) {
-  state.activeView = normalizeActiveView(event.target.value);
-  state.appTab = getAppTabForActiveView(state.activeView);
-  state.search = "";
-  refs.searchInput.value = "";
-  state.editorMode = "create";
-  state.editingIndex = null;
-  persistDraft();
-  renderAll();
-}
-
 function onRecapYearChanged(event) {
   state.recapFilters.year = String(event.target.value || "all");
+  setRecapMonthPickerOpen(false);
 
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
-  if (state.recapFilters.month !== "all" && !availableMonths.includes(state.recapFilters.month)) {
-    state.recapFilters.month = "all";
-  }
+  state.recapFilters.months = getSelectedRecapMonths().filter((month) => availableMonths.includes(month));
+  state.recapFilters.month = state.recapFilters.months[0] || "all";
+  state.recapFilters.rangeMonths = "all";
 
   persistDraft();
   renderAll();
 }
 
 function onRecapMonthChanged(event) {
-  state.recapFilters.month = String(event.target.value || "all");
+  const selectedMonths = Array.from(event.target.selectedOptions || [])
+    .map((option) => String(option.value || "").padStart(2, "0"))
+    .filter((value) => value !== "all");
+  setSelectedRecapMonths(selectedMonths);
+}
+
+function onRecapRangeChanged(event) {
+  state.recapFilters.rangeMonths = "all";
   persistDraft();
   renderAll();
+}
+
+function getSelectedRecapMonths() {
+  const normalizedMonths = Array.isArray(state.recapFilters.months)
+    ? state.recapFilters.months.map((value) => String(value || "").padStart(2, "0")).filter(Boolean)
+    : [];
+
+  if (normalizedMonths.length) {
+    return Array.from(new Set(normalizedMonths)).sort((left, right) => Number(left) - Number(right));
+  }
+
+  if (state.recapFilters.month && state.recapFilters.month !== "all") {
+    return [String(state.recapFilters.month).padStart(2, "0")];
+  }
+
+  return [];
+}
+
+function setSelectedRecapMonths(monthValues) {
+  const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
+  const normalizedMonths = Array.from(
+    new Set(
+      (Array.isArray(monthValues) ? monthValues : [])
+        .map((value) => String(value || "").padStart(2, "0"))
+        .filter((value) => availableMonths.includes(value))
+    )
+  ).sort((left, right) => Number(left) - Number(right));
+
+  state.recapFilters.months = normalizedMonths;
+  state.recapFilters.month = normalizedMonths[0] || "all";
+  state.recapFilters.rangeMonths = "all";
+  persistDraft();
+  renderAll();
+}
+
+function buildRecapMonthTriggerLabel() {
+  const selectedMonths = getSelectedRecapMonths();
+  if (!selectedMonths.length) {
+    return "Tous les mois";
+  }
+
+  if (selectedMonths.length === 1) {
+    return formatMonthLabel(selectedMonths[0]);
+  }
+
+  if (selectedMonths.length === 2) {
+    return selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ");
+  }
+
+  return `${formatMonthLabel(selectedMonths[0])}, ${formatMonthLabel(selectedMonths[1])} +${selectedMonths.length - 2}`;
+}
+
+function setRecapMonthPickerOpen(open) {
+  const nextOpen = Boolean(open) && !refs.recapMonthTrigger.disabled;
+  refs.recapMonthPicker.classList.toggle("is-open", nextOpen);
+  refs.recapMonthPanel.classList.toggle("hidden", !nextOpen);
+  refs.recapMonthTrigger.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+}
+
+function onRecapMonthTriggerClicked(event) {
+  event.preventDefault();
+  if (refs.recapMonthTrigger.disabled) {
+    return;
+  }
+
+  setRecapMonthPickerOpen(!refs.recapMonthPicker.classList.contains("is-open"));
+}
+
+function onRecapMonthPanelClicked(event) {
+  const optionButton = event.target.closest("[data-month-value]");
+  if (!optionButton) {
+    return;
+  }
+
+  const monthValue = String(optionButton.dataset.monthValue || "");
+  if (monthValue === "all") {
+    setSelectedRecapMonths([]);
+    setRecapMonthPickerOpen(false);
+    return;
+  }
+
+  const selectedMonths = new Set(getSelectedRecapMonths());
+  if (selectedMonths.has(monthValue)) {
+    selectedMonths.delete(monthValue);
+  } else {
+    selectedMonths.add(monthValue);
+  }
+
+  setSelectedRecapMonths(Array.from(selectedMonths));
+  setRecapMonthPickerOpen(false);
+}
+
+function onDocumentClick(event) {
+  if (!refs.recapMonthPicker?.classList.contains("is-open")) {
+    return;
+  }
+
+  if (refs.recapMonthField.contains(event.target)) {
+    return;
+  }
+
+  setRecapMonthPickerOpen(false);
+}
+
+function onDocumentKeyDown(event) {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  setRecapMonthPickerOpen(false);
 }
 
 function onSearchChanged(event) {
@@ -2027,6 +2294,16 @@ function resetEditor() {
   state.editorMode = "create";
   state.editingIndex = null;
   setAppTab(APP_TAB_TRANSACTIONS);
+}
+
+function onEditorCancelRequested() {
+  if (state.appTab === APP_TAB_PLAN) {
+    setLastAction("Modification du budget annulee.");
+    renderAll();
+    return;
+  }
+
+  resetEditor();
 }
 
 function onCardAction(event) {
@@ -2109,6 +2386,11 @@ async function deleteRecord(index) {
 async function onSaveRecord(event) {
   event.preventDefault();
 
+  if (state.appTab === APP_TAB_PLAN) {
+    await onSavePlanTemplateRequested();
+    return;
+  }
+
   if (state.mode !== "budget") {
     return;
   }
@@ -2154,6 +2436,51 @@ async function onSaveRecord(event) {
     automatic: true,
     baseAction: actionLabel,
   });
+}
+
+async function onSavePlanTemplateRequested() {
+  if (state.mode !== "budget") {
+    setLastAction("Chargez ou restaurez un budget avant de modifier le plan.");
+    renderAll();
+    return;
+  }
+
+  const currentPlanRows = ensurePlanTemplateSeeded();
+  const editableRows = currentPlanRows.filter((row) => !isDerivedPlanLabel(row.label));
+  const nextEditableTemplate = Array.from(refs.form.querySelectorAll("[data-plan-input]"))
+    .filter((input) => !input.readOnly)
+    .map((input, index) => {
+      const sourceRow = editableRows[index] || {};
+      return {
+        label: String(sourceRow.label || "").trim(),
+        plan: normalizeAmountValue(input.value),
+      };
+    })
+    .filter((row) => row.label);
+
+  if (!nextEditableTemplate.length) {
+    setLastAction("Aucune ligne budget a enregistrer.");
+    renderAll();
+    return;
+  }
+
+  state.recap.available = true;
+  state.recap.planTemplate = resolvePlanTemplate(nextEditableTemplate);
+  persistDraft();
+
+  const actionLabel = "Budget planifie mis a jour";
+  setLastAction(actionLabel);
+  renderAll();
+
+  if (canUseSupabaseCloud()) {
+    try {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+    } catch (error) {
+      console.error(error);
+      setLastAction(`${actionLabel} - sync cloud en echec`);
+      renderAll();
+    }
+  }
 }
 
 async function exportWorkbook() {
@@ -2694,7 +3021,6 @@ function applyBudgetRowsToWorkbook(workbook, budgetModel) {
 function renderAll() {
   syncActiveViewForCurrentTab();
   renderAppTabs();
-  renderSheetOptions();
   syncRecapFilters();
   renderSectionHeading();
   renderStats();
@@ -2711,6 +3037,10 @@ function renderAppTabs() {
     [APP_TAB_DASHBOARD]: {
       title: "Tableau de bord",
       description: "Une lecture rapide de votre budget pour voir les soldes, les tendances et la periode active.",
+    },
+    [APP_TAB_PLAN]: {
+      title: "Budget planifie",
+      description: "Fixez ici vos montants cibles pour comparer le plan et le reel sans toucher aux transactions.",
     },
     [APP_TAB_TRANSACTIONS]: {
       title: "Transactions",
@@ -2731,9 +3061,10 @@ function renderAppTabs() {
   };
   const currentMeta = tabMeta[state.appTab] || tabMeta[APP_TAB_DASHBOARD];
   const showShare = state.appTab === APP_TAB_SHARE;
+  const showPlan = state.appTab === APP_TAB_PLAN;
   const showTransactions = state.appTab === APP_TAB_TRANSACTIONS;
   const showForm = state.appTab === APP_TAB_FORM;
-  const showWideContent = !showShare;
+  const showWideContent = !showShare && (showPlan || showForm);
 
   refs.appTabTitle.textContent = currentMeta.title;
   refs.appTabDescription.textContent = currentMeta.description;
@@ -2744,11 +3075,11 @@ function renderAppTabs() {
   });
 
   refs.cloudPanel.classList.toggle("hidden", !showShare);
-  refs.statusStrip.classList.toggle("hidden", showShare);
+  refs.statusStrip.classList.toggle("hidden", showShare || showPlan);
   refs.layout.classList.toggle("hidden", showShare);
   refs.layout.classList.toggle("layout-wide", showWideContent);
-  refs.editorArea.classList.toggle("hidden", !showForm);
-  refs.cardsArea.classList.toggle("hidden", showShare || showForm);
+  refs.editorArea.classList.toggle("hidden", !(showForm || showPlan));
+  refs.cardsArea.classList.toggle("hidden", showShare || showForm || showPlan);
 }
 
 function syncRecapFilters() {
@@ -2757,6 +3088,7 @@ function syncRecapFilters() {
   if (!availableYears.length) {
     state.recapFilters = createEmptyRecapFilters();
     renderRecapFilterOptions([], []);
+    renderRecapRangeOptions();
     return;
   }
 
@@ -2765,32 +3097,12 @@ function syncRecapFilters() {
   }
 
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
-  if (state.recapFilters.month !== "all" && !availableMonths.includes(state.recapFilters.month)) {
-    state.recapFilters.month = "all";
-  }
+  state.recapFilters.months = getSelectedRecapMonths().filter((month) => availableMonths.includes(month));
+  state.recapFilters.month = state.recapFilters.months[0] || "all";
+  state.recapFilters.rangeMonths = "all";
 
   renderRecapFilterOptions(availableYears, availableMonths);
-}
-
-function renderSheetOptions() {
-  refs.sheetSelect.innerHTML = "";
-
-  if (state.mode !== "budget") {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "Aucune feuille";
-    option.selected = true;
-    refs.sheetSelect.appendChild(option);
-    return;
-  }
-
-  [JOURNAL_SHEET_NAME, RECAP_SHEET_NAME, ANALYSIS_VIEW_NAME].forEach((viewName) => {
-    const option = document.createElement("option");
-    option.value = viewName;
-    option.textContent = viewName;
-    option.selected = viewName === state.activeView;
-    refs.sheetSelect.appendChild(option);
-  });
+  renderRecapRangeOptions();
 }
 
 function renderRecapFilterOptions(availableYears, availableMonths) {
@@ -2800,11 +3112,34 @@ function renderRecapFilterOptions(availableYears, availableMonths) {
   refs.recapYearSelect.value = state.recapFilters.year;
 
   refs.recapMonthSelect.innerHTML = "";
+  const selectedMonths = new Set(getSelectedRecapMonths());
   appendSelectOption(refs.recapMonthSelect, "all", "Tous les mois");
   availableMonths.forEach((month) => {
-    appendSelectOption(refs.recapMonthSelect, month, formatMonthLabel(month));
+    const option = document.createElement("option");
+    option.value = month;
+    option.textContent = formatMonthLabel(month);
+    option.selected = selectedMonths.has(month);
+    refs.recapMonthSelect.appendChild(option);
   });
-  refs.recapMonthSelect.value = state.recapFilters.month;
+  refs.recapMonthSelect.value = selectedMonths.size ? Array.from(selectedMonths)[0] : "all";
+
+  refs.recapMonthPanel.innerHTML = "";
+  refs.recapMonthPanel.appendChild(
+    createRecapMonthOptionButton("all", "Tous les mois", !selectedMonths.size)
+  );
+  availableMonths.forEach((month) => {
+    refs.recapMonthPanel.appendChild(
+      createRecapMonthOptionButton(month, formatMonthLabel(month), selectedMonths.has(month))
+    );
+  });
+  refs.recapMonthTrigger.textContent = buildRecapMonthTriggerLabel();
+}
+
+function renderRecapRangeOptions() {
+  state.recapFilters.rangeMonths = "all";
+  refs.recapRangeSelect.innerHTML = "";
+  appendSelectOption(refs.recapRangeSelect, "all", "Toute la periode");
+  refs.recapRangeSelect.value = state.recapFilters.rangeMonths;
 }
 
 function appendSelectOption(select, value, label) {
@@ -2814,7 +3149,25 @@ function appendSelectOption(select, value, label) {
   select.appendChild(option);
 }
 
+function createRecapMonthOptionButton(value, label, active) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "month-picker-option";
+  button.dataset.monthValue = value;
+  button.classList.toggle("is-active", Boolean(active));
+  button.innerHTML = `<span>${escapeHtml(label)}</span><span class="month-picker-option-check">${active ? "✓" : ""}</span>`;
+  return button;
+}
+
 function renderSectionHeading() {
+  if (state.appTab === APP_TAB_PLAN) {
+    refs.cardsKicker.textContent = "Budget";
+    refs.cardsTitle.textContent = "Plan vs reel";
+    refs.cardsCaption.textContent =
+      "Reglez vos montants cibles a gauche, puis verifiez a droite comment ils se comparent au reel sur la periode choisie.";
+    return;
+  }
+
   if (state.activeView === RECAP_SHEET_NAME) {
     refs.cardsKicker.textContent = "Recapitulatif";
     refs.cardsTitle.textContent = "Vue recap du budget";
@@ -2843,6 +3196,7 @@ function renderControls() {
   const recapActive = hasBudget && state.activeView === RECAP_SHEET_NAME;
   const analysisActive = hasBudget && state.activeView === ANALYSIS_VIEW_NAME;
   const shareTab = state.appTab === APP_TAB_SHARE;
+  const planTab = state.appTab === APP_TAB_PLAN;
   const formTab = state.appTab === APP_TAB_FORM;
   const transactionTab = state.appTab === APP_TAB_TRANSACTIONS;
   const draft = readStoredDraft();
@@ -2850,8 +3204,7 @@ function renderControls() {
   const availableYears = getAvailableRecapYears();
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
 
-  refs.sheetSelect.disabled = !hasBudget;
-  refs.searchInput.disabled = !hasBudget || shareTab || formTab;
+  refs.searchInput.disabled = !hasBudget || shareTab || formTab || planTab;
   refs.searchInput.placeholder = recapActive
     ? "Chercher un poste ou une categorie du recap..."
     : analysisActive
@@ -2877,11 +3230,17 @@ function renderControls() {
   refs.restoreDraftButton.title = hasStoredDraft
     ? "Recharge le dernier brouillon local memorise dans l'app"
     : "Aucun brouillon local disponible pour le moment";
-  refs.searchField.classList.toggle("hidden", shareTab || formTab);
-  refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab);
-  refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab);
+  refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab);
+  refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
+  refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
+  refs.recapRangeField.classList.add("hidden");
   refs.recapYearSelect.disabled = !hasBudget || !availableYears.length;
   refs.recapMonthSelect.disabled = !hasBudget || !availableMonths.length;
+  refs.recapMonthTrigger.disabled = !hasBudget || !availableMonths.length;
+  refs.recapRangeSelect.disabled = true;
+  if (refs.recapMonthTrigger.disabled) {
+    setRecapMonthPickerOpen(false);
+  }
   refs.openSourceButton.classList.toggle("hidden", !shareTab);
   refs.saveSourceButton.classList.toggle("hidden", !shareTab);
   refs.saveDraftButton.classList.toggle("hidden", !shareTab);
@@ -2895,8 +3254,8 @@ function renderControls() {
     refs.mobileFab.disabled = !journalActive || !transactionTab;
   }
   refs.exportButton.disabled = !hasBudget || !window.XLSX;
-  refs.saveButton.disabled = !journalActive || !formTab;
-  refs.cancelButton.disabled = !journalActive || !formTab;
+  refs.saveButton.disabled = planTab ? !hasBudget : !journalActive || !formTab;
+  refs.cancelButton.disabled = planTab ? !hasBudget : !journalActive || !formTab;
 }
 
 function renderCloudPanel() {
@@ -3319,6 +3678,8 @@ function buildLiveAnalysisView() {
       metricCards: [],
       comparisonRows: [],
       seriesRows: [],
+      detailRows: [],
+      planRows: [],
       cashFlow: null,
       expenseBreakdown: null,
       categoryBenchmark: null,
@@ -3330,9 +3691,12 @@ function buildLiveAnalysisView() {
   }
 
   const filteredRows = getFilteredRecapSourceRows();
-  const snapshot = computeMetricSnapshot(buildActualAmountMap(filteredRows));
+  const actualMap = buildActualAmountMap(filteredRows);
+  const snapshot = computeMetricSnapshot(actualMap);
   const allSeriesRows = buildAnalysisSeriesRows();
   const seriesRows = filterAnalysisSeriesRows(allSeriesRows);
+  const detailRows = buildRecapDetailRows(actualMap);
+  const planRows = buildRecapPlanRows(actualMap, buildRecapMetrics(actualMap));
   const cashFlow = buildAnalysisCashFlow(snapshot);
   const expenseBreakdown = buildAnalysisExpenseBreakdown(filteredRows);
   const categoryBenchmark = buildAnalysisCategoryBenchmark();
@@ -3349,6 +3713,8 @@ function buildLiveAnalysisView() {
     metricCards: buildAnalysisMetricCards(snapshot),
     comparisonRows: buildAnalysisComparisonRows(snapshot),
     seriesRows,
+    detailRows,
+    planRows,
     cashFlow,
     expenseBreakdown,
     categoryBenchmark,
@@ -3377,7 +3743,8 @@ function matchesRecapPeriod(row) {
     return false;
   }
 
-  if (state.recapFilters.month !== "all" && dateParts.month !== state.recapFilters.month) {
+  const selectedMonths = getSelectedRecapMonths();
+  if (selectedMonths.length && !selectedMonths.includes(dateParts.month)) {
     return false;
   }
 
@@ -3385,7 +3752,8 @@ function matchesRecapPeriod(row) {
 }
 
 function hasActiveRecapPeriodFilter() {
-  return state.recapFilters.year !== "all" || state.recapFilters.month !== "all";
+  return state.recapFilters.year !== "all" ||
+    getSelectedRecapMonths().length > 0;
 }
 
 function getAvailableRecapYears() {
@@ -3437,21 +3805,24 @@ function countUndatedBudgetRows() {
 }
 
 function buildRecapPeriodLabel() {
-  const { year, month } = state.recapFilters;
+  const { year } = state.recapFilters;
+  const selectedMonths = getSelectedRecapMonths();
 
-  if (year === "all" && month === "all") {
+  if (year === "all" && !selectedMonths.length) {
     return "Toutes les donnees";
   }
 
-  if (year !== "all" && month === "all") {
+  if (year !== "all" && !selectedMonths.length) {
     return `Annee ${year}`;
   }
 
-  if (year === "all" && month !== "all") {
-    return `${formatMonthLabel(month)} - toutes les annees`;
+  if (year === "all" && selectedMonths.length) {
+    const labels = selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ");
+    return `${labels} - toutes les annees`;
   }
 
-  return `${formatMonthLabel(month)} ${year}`;
+  const labels = selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ");
+  return `${labels} ${year}`;
 }
 
 function buildRecapAvailabilityLabel(availableYears, availableMonths) {
@@ -3809,13 +4180,14 @@ function buildMonthlyExpenseProfiles() {
 
 function resolveReferenceExpenseProfile(monthlyProfiles) {
   let candidates = monthlyProfiles.slice();
+  const selectedMonths = getSelectedRecapMonths();
 
   if (state.recapFilters.year !== "all") {
     candidates = candidates.filter((profile) => profile.year === state.recapFilters.year);
   }
 
-  if (state.recapFilters.month !== "all") {
-    candidates = candidates.filter((profile) => profile.month === state.recapFilters.month);
+  if (selectedMonths.length) {
+    candidates = candidates.filter((profile) => selectedMonths.includes(profile.month));
   }
 
   return candidates.at(-1) || monthlyProfiles.at(-1) || null;
@@ -3875,14 +4247,6 @@ function buildAnalysisSeriesRows() {
     seriesRows = seriesRows.slice(-8);
   }
 
-  if (mode === "selected_period_window") {
-    const selectedKey = buildYearMonthKey(state.recapFilters.year, state.recapFilters.month);
-    const selectedIndex = seriesRows.findIndex((row) => row.key === selectedKey);
-    seriesRows = selectedIndex >= 0
-      ? seriesRows.slice(Math.max(0, selectedIndex - 5), selectedIndex + 1)
-      : seriesRows.slice(-6);
-  }
-
   return seriesRows.map((row) => {
     const snapshot = computeMetricSnapshot(buildActualAmountMap(row.rows));
 
@@ -3899,24 +4263,32 @@ function buildAnalysisSeriesRows() {
 }
 
 function getAnalysisSeriesMode() {
-  if (state.recapFilters.year !== "all" && state.recapFilters.month === "all") {
+  const selectedMonths = getSelectedRecapMonths();
+
+  if (state.recapFilters.year !== "all") {
     return "year_months";
   }
 
-  if (state.recapFilters.year === "all" && state.recapFilters.month !== "all") {
+  if (selectedMonths.length === 1) {
     return "month_across_years";
   }
 
-  if (state.recapFilters.year !== "all" && state.recapFilters.month !== "all") {
-    return "selected_period_window";
+  if (selectedMonths.length > 1) {
+    return "filtered_months";
   }
 
   return "recent_months";
 }
 
 function getAnalysisBucketForDate(dateParts, mode) {
+  const selectedMonths = getSelectedRecapMonths();
+
   if (mode === "year_months") {
     if (dateParts.year !== state.recapFilters.year) {
+      return null;
+    }
+
+    if (selectedMonths.length && !selectedMonths.includes(dateParts.month)) {
       return null;
     }
 
@@ -3929,7 +4301,7 @@ function getAnalysisBucketForDate(dateParts, mode) {
   }
 
   if (mode === "month_across_years") {
-    if (dateParts.month !== state.recapFilters.month) {
+    if (!selectedMonths.length || dateParts.month !== selectedMonths[0]) {
       return null;
     }
 
@@ -3938,6 +4310,19 @@ function getAnalysisBucketForDate(dateParts, mode) {
       sortKey: dateParts.year,
       label: dateParts.year,
       shortLabel: dateParts.year,
+      };
+    }
+
+  if (mode === "filtered_months") {
+    if (!selectedMonths.includes(dateParts.month)) {
+      return null;
+    }
+
+    return {
+      key: buildYearMonthKey(dateParts.year, dateParts.month),
+      sortKey: buildYearMonthKey(dateParts.year, dateParts.month),
+      label: formatMonthShortLabel(dateParts.year, dateParts.month, true),
+      shortLabel: formatMonthShortLabel(dateParts.year, dateParts.month, false),
     };
   }
 
@@ -3972,17 +4357,18 @@ function matchesAnalysisSearch(row, query) {
 
 function buildAnalysisTrendTitle() {
   const mode = getAnalysisSeriesMode();
+  const selectedMonths = getSelectedRecapMonths();
 
   if (mode === "year_months") {
     return `Lecture mensuelle de ${state.recapFilters.year}`;
   }
 
   if (mode === "month_across_years") {
-    return `Comparaison annuelle pour ${formatMonthLabel(state.recapFilters.month)}`;
+    return `Comparaison annuelle pour ${formatMonthLabel(selectedMonths[0])}`;
   }
 
-  if (mode === "selected_period_window") {
-    return `Fenetre autour de ${buildRecapPeriodLabel()}`;
+  if (mode === "filtered_months") {
+    return `Comparaison des mois selectionnes`;
   }
 
   return "Dernieres periodes disponibles";
@@ -3991,13 +4377,14 @@ function buildAnalysisTrendTitle() {
 function buildAnalysisTrendSubtitle(totalCount, visibleCount) {
   const mode = getAnalysisSeriesMode();
   let baseSubtitle = "Income, expenses et savings total sont compares periode par periode.";
+  const selectedMonths = getSelectedRecapMonths();
 
   if (mode === "year_months") {
     baseSubtitle = "Chaque groupe compare les mois de l'annee filtree.";
   } else if (mode === "month_across_years") {
     baseSubtitle = "Le meme mois est compare d'une annee a l'autre.";
-  } else if (mode === "selected_period_window") {
-    baseSubtitle = "La selection montre la periode demandee et les periodes precedentes les plus proches.";
+  } else if (mode === "filtered_months") {
+    baseSubtitle = `Les mois selectionnes sont compares sur les periodes disponibles${selectedMonths.length ? ` (${selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ")})` : ""}.`;
   }
 
   if (state.search && totalCount !== visibleCount) {
@@ -4102,7 +4489,7 @@ function buildRecapDetailRows(actualMap) {
 function buildRecapPlanRows(actualMap, metrics) {
   const query = state.search;
 
-  return state.recap.planTemplate
+  return resolvePlanTemplate(state.recap.planTemplate)
     .map((row) => ({
       label: row.label,
       plan: row.plan,
@@ -4202,31 +4589,6 @@ function createRecapMarkup(recapView) {
           ${monthChips || '<span class="recap-chip">Aucun mois date</span>'}
         </div>
       </div>
-      ${createRecapTableMarkup(
-        "Transactions par categorie",
-        "Synthese live calculee a partir de Journalier selon la periode choisie.",
-        ["Categorie", "Montant"],
-        recapView.detailRows.map((row) => ({
-          cells: [
-            { value: row.label, numeric: false },
-            { value: formatSignedCurrency(row.amount), numeric: true },
-          ],
-          total: row.isTotal,
-        }))
-      )}
-      ${createRecapTableMarkup(
-        "Plan vs reel",
-        "Le plan vient de TCD, la colonne Reel suit vos transactions dans l'app pour la periode filtree.",
-        ["Categorie", "Plan", "Reel"],
-        recapView.planRows.map((row) => ({
-          cells: [
-            { value: row.label, numeric: false },
-            { value: formatCurrency(row.plan), numeric: true },
-            { value: formatCurrency(row.actual), numeric: true },
-          ],
-          total: /total|cash short\/extra/i.test(row.label),
-        }))
-      )}
     </div>
   `;
 }
@@ -4310,6 +4672,33 @@ function createAnalysisMarkup(analysisView) {
             { value: formatSignedCurrency(row.cash), numeric: true },
           ],
           total: false,
+        }))
+      )}
+
+      ${createRecapTableMarkup(
+        "Transactions par categorie",
+        "Synthese live calculee a partir de Journalier selon la periode choisie.",
+        ["Categorie", "Montant"],
+        analysisView.detailRows.map((row) => ({
+          cells: [
+            { value: row.label, numeric: false },
+            { value: formatSignedCurrency(row.amount), numeric: true },
+          ],
+          total: row.isTotal,
+        }))
+      )}
+
+      ${createRecapTableMarkup(
+        "Plan vs reel",
+        "Le plan reprend vos montants cibles actuels. La colonne Reel suit vos transactions dans l'app pour la periode filtree.",
+        ["Categorie", "Plan", "Reel"],
+        analysisView.planRows.map((row) => ({
+          cells: [
+            { value: row.label, numeric: false },
+            { value: formatCurrency(row.plan), numeric: true },
+            { value: formatCurrency(row.actual), numeric: true },
+          ],
+          total: /total|cash short\/extra/i.test(row.label),
         }))
       )}
     </div>
@@ -4529,6 +4918,14 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
 }
 
 function renderEditor() {
+  if (state.appTab === APP_TAB_PLAN) {
+    renderPlanEditor();
+    return;
+  }
+
+  refs.saveButton.textContent = "Enregistrer";
+  refs.cancelButton.textContent = "Reinitialiser";
+
   if (state.mode !== "budget") {
     refs.formTitle.textContent = "Nouvelle fiche";
     refs.formSubtitle.textContent = "Chargez Budget_2025 Final.xlsx pour generer le formulaire Journalier.";
@@ -4587,6 +4984,34 @@ function renderEditor() {
   appendField(renderDateField(editingRow.Date));
   appendField(renderCategoryField(editingRow.Categories));
   appendField(renderValueField(editingRow.Value));
+}
+
+function renderPlanEditor() {
+  refs.saveButton.textContent = "Enregistrer le budget";
+  refs.cancelButton.textContent = "Recharger les valeurs";
+
+  if (state.mode !== "budget") {
+    refs.formTitle.textContent = "Budget mensuel";
+    refs.formSubtitle.textContent = "Chargez ou restaurez un budget pour fixer les montants cibles.";
+    refs.formFields.innerHTML = '<div class="empty-form">Les lignes de budget apparaitront ici pour alimenter les comparaisons.</div>';
+    return;
+  }
+
+  const planTemplate = ensurePlanTemplateSeeded();
+  refs.formTitle.textContent = "Budget mensuel";
+  refs.formSubtitle.textContent = "Fixez ici les montants cibles utilises dans l'accueil, le recap et les comparaisons.";
+  refs.formFields.innerHTML = "";
+
+  if (!planTemplate.length) {
+    refs.formFields.innerHTML = '<div class="empty-form">Aucune ligne budget n\'est disponible pour le moment.</div>';
+    return;
+  }
+
+  const editableRows = planTemplate.filter((row) => !isDerivedPlanLabel(row.label));
+  const derivedRows = planTemplate.filter((row) => isDerivedPlanLabel(row.label));
+
+  editableRows.forEach((row, index) => appendField(renderPlanAmountField(row, index, false)));
+  derivedRows.forEach((row, index) => appendField(renderPlanAmountField(row, editableRows.length + index, true)));
 }
 
 function renderDateField(value) {
@@ -4667,6 +5092,39 @@ function renderValueField(value) {
   const hint = document.createElement("p");
   hint.className = "field-hint";
   hint.textContent = "Entrez un nombre negatif pour une depense, positif pour un revenu.";
+
+  wrapper.append(label, input, hint);
+  return wrapper;
+}
+
+function renderPlanAmountField(row, index, readOnly = false) {
+  const wrapper = document.createElement("div");
+  wrapper.className = `field-card plan-field-card${readOnly ? " is-derived" : ""}`;
+
+  const label = document.createElement("label");
+  label.setAttribute("for", `plan-field-${index}`);
+  label.textContent = row.label;
+
+  const input = document.createElement("input");
+  input.id = `plan-field-${index}`;
+  input.type = "text";
+  input.inputMode = "decimal";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.placeholder = "0,00";
+  input.value = normalizeAmountValue(row.plan);
+  input.setAttribute("data-plan-input", "true");
+  input.setAttribute("data-plan-index", String(index));
+  input.setAttribute("data-plan-label", row.label);
+  if (readOnly) {
+    input.readOnly = true;
+  }
+
+  const hint = document.createElement("p");
+  hint.className = "field-hint";
+  hint.textContent = readOnly
+    ? "Valeur calculee automatiquement a partir de Income, Expenses et Savings."
+    : "Montant cible utilise pour la comparaison avec le reel.";
 
   wrapper.append(label, input, hint);
   return wrapper;
