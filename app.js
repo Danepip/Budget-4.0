@@ -440,8 +440,32 @@ function createEmptyCloudState() {
       name: "",
       joinCode: "",
     },
+    alerts: createDefaultBudgetAlertSettings(),
     lastPulledAt: "",
     lastPushedAt: "",
+  };
+}
+
+function createDefaultBudgetAlertSettings() {
+  const config = getSupabaseConfig();
+  return {
+    enabled: true,
+    recipientEmail: String(config.budgetAlertEmail || "").trim().toLowerCase(),
+    cooldownHours: Math.min(168, Math.max(1, Number(config.budgetAlertCooldownHours) || 12)),
+  };
+}
+
+function sanitizeBudgetAlertSettings(rawSettings) {
+  const defaults = createDefaultBudgetAlertSettings();
+  return {
+    enabled: rawSettings?.enabled !== false,
+    recipientEmail: String(rawSettings?.recipientEmail || rawSettings?.email || defaults.recipientEmail || "")
+      .trim()
+      .toLowerCase(),
+    cooldownHours: Math.min(
+      168,
+      Math.max(1, Number(rawSettings?.cooldownHours) || defaults.cooldownHours)
+    ),
   };
 }
 
@@ -570,6 +594,12 @@ function cacheDom() {
   refs.cloudPullButton = document.getElementById("cloud-pull");
   refs.cloudSpaceHint = document.getElementById("cloud-space-hint");
   refs.cloudPanel = document.getElementById("workspace-cloud");
+  refs.budgetAlertPanel = document.getElementById("budget-alert-panel");
+  refs.budgetAlertStatus = document.getElementById("budget-alert-status");
+  refs.budgetAlertEnabled = document.getElementById("budget-alert-enabled");
+  refs.budgetAlertEmail = document.getElementById("budget-alert-email");
+  refs.budgetAlertCooldown = document.getElementById("budget-alert-cooldown");
+  refs.budgetAlertHint = document.getElementById("budget-alert-hint");
   refs.openSourceButton = document.getElementById("open-source");
   refs.saveSourceButton = document.getElementById("save-source");
   refs.saveDraftButton = document.getElementById("save-draft");
@@ -637,6 +667,9 @@ function bindEvents() {
   refs.cloudPullButton.addEventListener("click", () => {
     void onCloudRefreshRequested();
   });
+  refs.budgetAlertEnabled.addEventListener("change", onBudgetAlertEnabledChanged);
+  refs.budgetAlertEmail.addEventListener("input", onBudgetAlertEmailChanged);
+  refs.budgetAlertCooldown.addEventListener("input", onBudgetAlertCooldownChanged);
   refs.openSourceButton.addEventListener("click", onOpenSourceRequested);
   refs.saveSourceButton.addEventListener("click", () => {
     void saveSourceWorkbook();
@@ -793,6 +826,9 @@ function getSupabaseConfig() {
     url: String(rawConfig.url || "").trim(),
     anonKey: String(rawConfig.anonKey || "").trim(),
     defaultSpaceName: String(rawConfig.defaultSpaceName || "Budget partage 2025").trim() || "Budget partage 2025",
+    budgetAlertFunctionName: String(rawConfig.budgetAlertFunctionName || "budget-alert-email").trim(),
+    budgetAlertEmail: String(rawConfig.budgetAlertEmail || "").trim().toLowerCase(),
+    budgetAlertCooldownHours: Math.max(1, Number(rawConfig.budgetAlertCooldownHours) || 12),
   };
 }
 
@@ -806,6 +842,27 @@ function onCloudCodeChanged(event) {
   persistDraftIfPossible();
 }
 
+function onBudgetAlertEnabledChanged(event) {
+  state.cloud.alerts.enabled = Boolean(event.target.checked);
+  persistDraftIfPossible();
+  renderCloudPanel();
+}
+
+function onBudgetAlertEmailChanged(event) {
+  state.cloud.alerts.recipientEmail = String(event.target.value || "").trim().toLowerCase();
+  persistDraftIfPossible();
+  renderCloudPanel();
+}
+
+function onBudgetAlertCooldownChanged(event) {
+  state.cloud.alerts.cooldownHours = Math.min(
+    168,
+    Math.max(1, Number(event.target.value) || createDefaultBudgetAlertSettings().cooldownHours)
+  );
+  persistDraftIfPossible();
+  renderCloudPanel();
+}
+
 function hasSupabaseSession() {
   return Boolean(state.cloud.user);
 }
@@ -816,6 +873,27 @@ function hasCloudSpaceSelected() {
 
 function canUseSupabaseCloud() {
   return Boolean(supabaseClient && hasSupabaseSession() && hasCloudSpaceSelected());
+}
+
+function canUseBudgetAlertEmails() {
+  const config = getSupabaseConfig();
+  return canUseSupabaseCloud() && Boolean(config.budgetAlertFunctionName) && state.cloud.alerts.enabled;
+}
+
+function getBudgetAlertRecipientEmail() {
+  const config = getSupabaseConfig();
+  return String(
+    state.cloud.alerts.recipientEmail ||
+    config.budgetAlertEmail ||
+    state.cloud.user?.email ||
+    state.cloud.email ||
+    ""
+  ).trim().toLowerCase();
+}
+
+function isBudgetAlertSummaryLabel(label) {
+  const normalized = normalizeHeaderName(label);
+  return normalized === "total savings";
 }
 
 function hasLocalBudgetData() {
@@ -1627,6 +1705,7 @@ async function publishLocalBudgetToSupabase() {
     setCloudStatus(`Budget publie vers ${state.cloud.space.name}.`);
     setLastAction(`Donnees locales publiees vers ${state.cloud.space.name}`);
     persistDraftIfPossible();
+    void maybeSendBudgetAlertEmails("publication cloud");
   } catch (error) {
     console.error(error);
     const message = describeSupabaseError(error, "La publication vers Supabase a echoue.");
@@ -1839,6 +1918,7 @@ async function syncSingleTransactionToSupabase(record) {
   state.cloud.lastPushedAt = new Date().toISOString();
   setCloudStatus(`Derniere transaction synchronisee vers ${state.cloud.space.name || "Supabase"}.`);
   persistDraftIfPossible();
+  void maybeSendBudgetAlertEmails("transaction");
 }
 
 async function removeSingleTransactionFromSupabase(recordId) {
@@ -1859,6 +1939,120 @@ async function removeSingleTransactionFromSupabase(recordId) {
   state.cloud.lastPushedAt = new Date().toISOString();
   setCloudStatus(`Suppression synchronisee vers ${state.cloud.space.name || "Supabase"}.`);
   persistDraftIfPossible();
+  void maybeSendBudgetAlertEmails("suppression");
+}
+
+function buildBudgetAlertRows() {
+  if (state.mode !== "budget") {
+    return [];
+  }
+
+  const filteredRows = getFilteredRecapSourceRows();
+  const actualMap = buildActualAmountMap(filteredRows);
+  const metrics = buildRecapMetrics(actualMap);
+  const periodCount = getRecapBudgetPeriodCount(filteredRows);
+
+  return buildRecapPlanRows(actualMap, metrics, periodCount).filter((row) => {
+    if (row.statusTone !== "above-budget") {
+      return false;
+    }
+
+    if (isBudgetAlertSummaryLabel(row.label)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+async function maybeSendBudgetAlertEmails(triggerSource = "") {
+  if (!canUseBudgetAlertEmails()) {
+    return;
+  }
+
+  const recipientEmail = getBudgetAlertRecipientEmail();
+  if (!recipientEmail) {
+    return;
+  }
+
+  const alerts = buildBudgetAlertRows();
+  if (!alerts.length) {
+    return;
+  }
+
+  try {
+    const response = await invokeBudgetAlertFunction({
+      recipientEmail,
+      triggerSource,
+      periodLabel: buildRecapPeriodLabel(),
+      budgetPeriodCount: getRecapBudgetPeriodCount(),
+      alerts: alerts.map((row) => ({
+        label: row.label,
+        statusLabel: row.statusLabel,
+        statusTone: row.statusTone,
+        planAmount: roundCurrencyValue(parseAmount(row.plan)),
+        actualAmount: roundCurrencyValue(parseAmount(row.actual)),
+        deltaAmount: roundCurrencyValue(parseAmount(row.delta)),
+      })),
+    });
+
+    if (response?.sentCount > 0) {
+      setCloudStatus(`Alerte email envoyee pour ${response.sentCount} poste(s) vers ${recipientEmail}.`);
+      setLastAction(`Alerte budget email envoyee (${response.sentCount})`);
+      persistDraftIfPossible();
+      renderAll();
+    }
+  } catch (error) {
+    console.error(error);
+    const message = describeSupabaseError(error, "L'alerte email budget a echoue.");
+    setLastAction(message);
+    renderAll();
+  }
+}
+
+async function invokeBudgetAlertFunction(payload) {
+  const config = getSupabaseConfig();
+  const functionName = String(config.budgetAlertFunctionName || "").trim();
+  const accessToken = state.cloud.session?.access_token;
+
+  if (!functionName || !config.url || !accessToken) {
+    return null;
+  }
+
+  const response = await fetch(`${config.url}/functions/v1/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      spaceId: state.cloud.space.id,
+      spaceName: state.cloud.space.name,
+      recipientEmail: payload.recipientEmail,
+      periodLabel: payload.periodLabel,
+      budgetPeriodCount: payload.budgetPeriodCount,
+      triggerSource: payload.triggerSource,
+      cooldownHours: state.cloud.alerts.cooldownHours,
+      alerts: payload.alerts,
+    }),
+  });
+
+  if (!response.ok) {
+    let details = "";
+    try {
+      details = await response.text();
+    } catch (_error) {
+      details = "";
+    }
+
+    throw new Error(details || `Function ${functionName} failed (${response.status})`);
+  }
+
+  try {
+    return await response.json();
+  } catch (_error) {
+    return null;
+  }
 }
 
 function enqueueCloudSync(task) {
@@ -1911,6 +2105,7 @@ function persistDraft() {
     cloud: {
       email: state.cloud.email,
       space: state.cloud.space,
+      alerts: state.cloud.alerts,
       lastPulledAt: state.cloud.lastPulledAt,
       lastPushedAt: state.cloud.lastPushedAt,
     },
@@ -1966,6 +2161,7 @@ function applyStoredDraft(draft) {
     name: String(draft.cloud?.space?.name || state.cloud.space.name || ""),
     joinCode: String(draft.cloud?.space?.joinCode || draft.cloud?.space?.join_code || state.cloud.space.joinCode || ""),
   };
+  state.cloud.alerts = sanitizeBudgetAlertSettings(draft.cloud?.alerts);
   state.cloud.lastPulledAt = String(draft.cloud?.lastPulledAt || state.cloud.lastPulledAt || "");
   state.cloud.lastPushedAt = String(draft.cloud?.lastPushedAt || state.cloud.lastPushedAt || "");
   state.sourceSafety = createEmptySourceSafety();
@@ -3620,6 +3816,12 @@ function renderCloudPanel() {
   const typedJoinCode = String(state.cloud.space.joinCode || "").trim();
   const canPublish = canUseSupabaseCloud() && (hasLocalBudgetData() || hasStoredBudgetDraft());
   const publishNeedsRestore = canUseSupabaseCloud() && !hasLocalBudgetData() && hasStoredBudgetDraft();
+  const alertConfig = getSupabaseConfig();
+  const alertSettings = sanitizeBudgetAlertSettings(state.cloud.alerts);
+  state.cloud.alerts = alertSettings;
+  const alertFunctionReady = Boolean(alertConfig.budgetAlertFunctionName);
+  const effectiveAlertRecipient = getBudgetAlertRecipientEmail();
+  const alertControlsDisabled = !alertFunctionReady || busy;
 
   refs.cloudStatus.textContent = state.cloud.status;
   refs.cloudEmailInput.value = refs.cloudEmailInput.matches(":focus")
@@ -3671,6 +3873,36 @@ function renderCloudPanel() {
     : "Derniere publication: aucune";
 
   refs.cloudSpaceHint.textContent = [identityLabel, spaceLabel, codeLabel, pullLabel, pushLabel].join(" | ");
+
+  refs.budgetAlertEnabled.checked = alertSettings.enabled;
+  refs.budgetAlertEmail.value = refs.budgetAlertEmail.matches(":focus")
+    ? refs.budgetAlertEmail.value
+    : alertSettings.recipientEmail;
+  refs.budgetAlertCooldown.value = String(alertSettings.cooldownHours);
+
+  refs.budgetAlertEnabled.disabled = alertControlsDisabled;
+  refs.budgetAlertEmail.disabled = alertControlsDisabled || !alertSettings.enabled;
+  refs.budgetAlertCooldown.disabled = alertControlsDisabled || !alertSettings.enabled;
+
+  if (!alertFunctionReady) {
+    refs.budgetAlertStatus.textContent = "La fonction d'alerte email n'est pas configuree cote Supabase.";
+  } else if (!cloudReady) {
+    refs.budgetAlertStatus.textContent = "Supabase doit etre configure pour activer les alertes email.";
+  } else if (!alertSettings.enabled) {
+    refs.budgetAlertStatus.textContent = "Alertes email desactivees.";
+  } else if (!signedIn) {
+    refs.budgetAlertStatus.textContent = "Alertes email pretes. Connectez-vous puis publiez un budget pour surveiller les depassements.";
+  } else if (!spaceSelected) {
+    refs.budgetAlertStatus.textContent = "Alertes email actives. Creez ou rejoignez un espace partage pour lancer la surveillance.";
+  } else if (!effectiveAlertRecipient) {
+    refs.budgetAlertStatus.textContent = "Alertes email actives. Ajoutez un email destinataire ou laissez la connexion fournir votre adresse.";
+  } else {
+    refs.budgetAlertStatus.textContent = `Alertes email actives vers ${effectiveAlertRecipient}. Delai actuel: ${alertSettings.cooldownHours} h.`;
+  }
+
+  refs.budgetAlertHint.textContent = alertSettings.recipientEmail
+    ? "Les alertes se basent sur les lignes rouges du comparatif courant."
+    : "Laissez l'email vide pour utiliser l'adresse du compte connecte. Les alertes se basent sur les lignes rouges du comparatif courant.";
 }
 
 function renderDraftStatus() {

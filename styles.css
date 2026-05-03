@@ -368,6 +368,39 @@ textarea {
   text-align: left;
 }
 
+.alert-settings {
+  margin-top: 18px;
+  padding: 22px 24px;
+}
+
+.alert-grid {
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr) minmax(0, 220px);
+}
+
+.alert-settings .draft-status {
+  max-width: none;
+  text-align: left;
+}
+
+.checkbox-field {
+  justify-content: flex-end;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 22px;
+  min-height: auto;
+  padding: 0;
+  margin: 4px 0 0;
+  align-self: flex-start;
+  accent-color: var(--accent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.checkbox-field input[type="checkbox"]:focus {
+  box-shadow: none;
+}
+
 .draft-status {
   margin: 0;
   max-width: 460px;

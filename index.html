@@ -191,6 +191,39 @@
         <p id="cloud-space-hint" class="draft-status cloud-note">
           Compte: non connecte | Espace: aucun | Code partage: a creer ou rejoindre | Dernier chargement: aucun | Derniere publication: aucune
         </p>
+
+        <div id="budget-alert-panel" class="alert-settings panel">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Alertes email</p>
+              <h2>Surveillance du budget</h2>
+            </div>
+            <p id="budget-alert-status" class="section-caption">
+              Activez les emails automatiques quand un poste passe au-dessus du budget.
+            </p>
+          </div>
+
+          <div class="cloud-grid alert-grid">
+            <label class="control-field checkbox-field">
+              <span>Activer les alertes</span>
+              <input id="budget-alert-enabled" type="checkbox">
+            </label>
+
+            <label class="control-field">
+              <span>Email destinataire</span>
+              <input id="budget-alert-email" type="email" placeholder="vous@exemple.com" autocomplete="email">
+            </label>
+
+            <label class="control-field">
+              <span>Delai anti-spam (heures)</span>
+              <input id="budget-alert-cooldown" type="number" min="1" max="168" step="1" value="12" inputmode="numeric">
+            </label>
+          </div>
+
+          <p id="budget-alert-hint" class="draft-status cloud-note">
+            Les alertes se basent sur les lignes rouges du comparatif courant.
+          </p>
+        </div>
       </section>
 
       <section id="workspace-status" class="status-strip">
