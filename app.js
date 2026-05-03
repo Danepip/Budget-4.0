@@ -1274,7 +1274,7 @@ async function onCloudMagicLinkRequested() {
       }
 
       setCloudStatus(canUseAndroidAuthRedirect()
-        ? `Lien magique envoye a ${email}. Ouvrez votre email puis revenez dans l'app Budget 2025.`
+      ? `Lien magique envoye a ${email}. Ouvrez votre email puis revenez dans l'app Budget.`
         : `Lien magique envoye a ${email}. Ouvrez votre email pour terminer la connexion.`);
       setLastAction(`Lien magique Supabase envoye a ${email}`);
   } catch (error) {
@@ -2223,7 +2223,7 @@ function analyzeWorkbookSourceSafety(workbook, fileName) {
     normalizedSheetNames.has("recapitulatif") &&
     normalizedSheetNames.has("tcd")
   ) {
-    issues.push("modele Budget 2025 structure");
+  issues.push("modele Budget structure");
   }
 
   if (/budget_2025 final/i.test(String(fileName || ""))) {
@@ -3027,7 +3027,7 @@ function buildSimplifiedExportWorkbook() {
   journalSheet["!ref"] = `B2:F${lastRow}`;
 
   const infoSheet = XLSX.utils.aoa_to_sheet([
-    ["Budget 2025 Card View"],
+    ["Budget"],
     ["Export simplifie du journal"],
     [
       "Cette copie preserve les transactions Journalier et la liste de categories, sans reecrire le modele Excel source complexe."
@@ -3304,8 +3304,8 @@ async function exportWorkbookWithNativeShare(workbook, fileName) {
   });
 
   await Share.share({
-    title: "Budget 2025",
-    text: "Classeur Budget 2025 exporte depuis l'app mobile.",
+      title: "Budget",
+      text: "Classeur Budget exporte depuis l'app mobile.",
     files: [fileUri.uri],
     dialogTitle: "Partager le classeur Excel",
   });
@@ -4247,6 +4247,63 @@ function getBudgetPeriodCountLabel(periodCount) {
   return `${safeCount} mois`;
 }
 
+function buildBudgetCategoryOrderMap() {
+  const orderMap = new Map();
+
+  state.budget.categories.forEach((category, index) => {
+    const key = normalizeHeaderName(category);
+    if (!key || orderMap.has(key)) {
+      return;
+    }
+
+    orderMap.set(key, index);
+  });
+
+  return orderMap;
+}
+
+function getPlanComparisonFallbackOrder(label) {
+  const normalized = normalizeHeaderName(label);
+
+  if (normalized === "expenses" || normalized === "total expenses") {
+    return 1;
+  }
+
+  if (normalized === "total savings") {
+    return 2;
+  }
+
+  if (normalized === "cash short/extra") {
+    return 3;
+  }
+
+  return 10;
+}
+
+function comparePlanComparisonRows(left, right, categoryOrderMap) {
+  const leftKey = normalizeHeaderName(left.label);
+  const rightKey = normalizeHeaderName(right.label);
+  const leftIndex = categoryOrderMap.get(leftKey);
+  const rightIndex = categoryOrderMap.get(rightKey);
+  const leftHasCategoryOrder = Number.isInteger(leftIndex);
+  const rightHasCategoryOrder = Number.isInteger(rightIndex);
+
+  if (leftHasCategoryOrder && rightHasCategoryOrder && leftIndex !== rightIndex) {
+    return leftIndex - rightIndex;
+  }
+
+  if (leftHasCategoryOrder !== rightHasCategoryOrder) {
+    return leftHasCategoryOrder ? -1 : 1;
+  }
+
+  const fallbackDiff = getPlanComparisonFallbackOrder(left.label) - getPlanComparisonFallbackOrder(right.label);
+  if (fallbackDiff !== 0) {
+    return fallbackDiff;
+  }
+
+  return String(left.label).localeCompare(String(right.label), "fr-CA");
+}
+
 function formatMonthLabel(monthValue) {
   const monthNumber = Number(monthValue);
   if (!Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) {
@@ -4891,6 +4948,7 @@ function buildRecapDetailRows(actualMap) {
 function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
   const query = state.search;
   const safePeriodCount = Math.max(1, Number(periodCount) || 1);
+  const categoryOrderMap = buildBudgetCategoryOrderMap();
 
   return resolvePlanTemplate(state.recap.planTemplate)
     .filter((row) => !isSplitIncomeContributorLabel(row.label))
@@ -4898,7 +4956,7 @@ function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
       const monthlyPlan = roundCurrencyValue(convertPlanAmountToMonthly(row.plan, row.period));
       const scaledPlan = roundCurrencyValue(monthlyPlan * safePeriodCount);
       const actual = roundCurrencyValue(computeActualForPlanLabel(row.label, actualMap, metrics));
-      const comparisonStatus = buildBudgetComparisonStatus(scaledPlan, actual);
+      const comparisonStatus = buildBudgetComparisonStatus(scaledPlan, actual, row.label, row.group);
 
       return {
         label: row.label,
@@ -4914,26 +4972,60 @@ function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
         statusTone: comparisonStatus.tone,
       };
     })
-    .filter((row) => matchesRecapSearch(row, query));
+    .filter((row) => matchesRecapSearch(row, query))
+    .sort((left, right) => comparePlanComparisonRows(left, right, categoryOrderMap));
 }
 
-function buildBudgetComparisonStatus(planAmount, actualAmount) {
+function buildBudgetComparisonStatus(planAmount, actualAmount, rowLabel = "", rowGroup = "") {
   const plan = roundCurrencyValue(parseAmount(planAmount));
   const actual = roundCurrencyValue(parseAmount(actualAmount));
   const delta = roundCurrencyValue(actual - plan);
   const tolerance = Math.max(0.01, roundCurrencyValue(Math.abs(plan) * 0.005));
+  const normalizedLabel = normalizeHeaderName(rowLabel);
+  const normalizedGroup = normalizePlanGroup(rowGroup, rowLabel);
+  const isIncomeLike = normalizedLabel === "income" || normalizedGroup === "income";
+  const isSavingsLike =
+    normalizedLabel === "total savings" ||
+    normalizedLabel === "savings" ||
+    normalizedLabel === "savings for seasonal exp." ||
+    normalizedGroup === "savings";
+  const isCashLike = normalizedLabel === "cash short/extra";
 
   if (Math.abs(delta) <= tolerance) {
     return {
-      label: "Dans le budget",
+      label: "Conforme au budget",
       tone: "on-budget",
+      delta,
+    };
+  }
+
+  if (isIncomeLike) {
+    return {
+      label: delta > 0 ? "Plus d'argent que prevu" : "Moins d'argent que prevu",
+      tone: delta > 0 ? "below-budget" : "above-budget",
+      delta,
+    };
+  }
+
+  if (isSavingsLike) {
+    return {
+      label: delta > 0 ? "Plus d'epargne que prevu" : "Moins d'epargne que prevu",
+      tone: delta > 0 ? "below-budget" : "above-budget",
+      delta,
+    };
+  }
+
+  if (isCashLike) {
+    return {
+      label: delta > 0 ? "Plus de cash que prevu" : "Moins de cash que prevu",
+      tone: delta > 0 ? "below-budget" : "above-budget",
       delta,
     };
   }
 
   if (delta < 0) {
     return {
-      label: "En dessous du budget",
+      label: "Sous le budget",
       tone: "below-budget",
       delta,
     };
@@ -5341,7 +5433,12 @@ function createRecapMetricMarkup(metric) {
 }
 
 function createRecapStatusChipMarkup(label, tone) {
-  return `<span class="recap-status recap-status-${escapeHtml(tone || "on-budget")}">${escapeHtml(label || "Dans le budget")}</span>`;
+  return `
+    <span class="recap-status recap-status-${escapeHtml(tone || "on-budget")}">
+      <span class="recap-status-dot" aria-hidden="true"></span>
+      <span>${escapeHtml(label || "Conforme au budget")}</span>
+    </span>
+  `;
 }
 
 function createRecapTableMarkup(title, subtitle, headers, rows) {

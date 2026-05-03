@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Budget 2025 Card View",
-  "short_name": "Budget 2025",
-  "description": "Application de saisie et de recap budgetaire a partir de Budget_2025 Final.xlsx.",
+  "name": "Budget",
+  "short_name": "Budget",
+  "description": "Application Budget de saisie et de recap budgetaire a partir de Budget_2025 Final.xlsx.",
   "lang": "fr-CA",
   "start_url": "./index.html?source=pwa",
   "scope": "./",
