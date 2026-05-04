@@ -440,9 +440,19 @@ function createEmptyCloudState() {
       name: "",
       joinCode: "",
     },
+    collaboration: createEmptyCloudCollaborationState(),
     alerts: createDefaultBudgetAlertSettings(),
     lastPulledAt: "",
     lastPushedAt: "",
+  };
+}
+
+function createEmptyCloudCollaborationState(clientKey = createId()) {
+  return {
+    clientKey,
+    onlineUsers: [],
+    liveMessage: "",
+    lastEventAt: "",
   };
 }
 
@@ -560,6 +570,7 @@ function setAppTab(nextTab) {
 
   persistDraftIfPossible();
   renderAll();
+  void updateCloudPresenceTrack();
 }
 
 function cacheDom() {
@@ -594,6 +605,10 @@ function cacheDom() {
   refs.cloudPullButton = document.getElementById("cloud-pull");
   refs.cloudSpaceHint = document.getElementById("cloud-space-hint");
   refs.cloudPanel = document.getElementById("workspace-cloud");
+  refs.cloudCollaborationPanel = document.getElementById("cloud-collaboration-panel");
+  refs.cloudCollaborationStatus = document.getElementById("cloud-collaboration-status");
+  refs.cloudPresenceList = document.getElementById("cloud-presence-list");
+  refs.cloudLiveActivity = document.getElementById("cloud-live-activity");
   refs.budgetAlertPanel = document.getElementById("budget-alert-panel");
   refs.budgetAlertStatus = document.getElementById("budget-alert-status");
   refs.budgetAlertEnabled = document.getElementById("budget-alert-enabled");
@@ -873,6 +888,216 @@ function hasCloudSpaceSelected() {
 
 function canUseSupabaseCloud() {
   return Boolean(supabaseClient && hasSupabaseSession() && hasCloudSpaceSelected());
+}
+
+function getCloudDisplayName(emailValue = state.cloud.user?.email || state.cloud.email || "") {
+  const email = String(emailValue || "").trim().toLowerCase();
+  if (!email) {
+    return "Collaborateur";
+  }
+
+  const localPart = email.split("@")[0] || email;
+  return localPart.replace(/[._-]+/g, " ").trim() || email;
+}
+
+function getAppTabLabel(tab = state.appTab) {
+  switch (normalizeAppTab(tab)) {
+    case APP_TAB_DASHBOARD:
+      return "Accueil";
+    case APP_TAB_PLAN:
+      return "Budget";
+    case APP_TAB_TRANSACTIONS:
+      return "Transactions";
+    case APP_TAB_FORM:
+      return "Formulaire";
+    case APP_TAB_ANALYSIS:
+      return "Analyse";
+    case APP_TAB_SHARE:
+      return "Partage";
+    default:
+      return "Budget";
+  }
+}
+
+function buildCurrentEditActivityLabel() {
+  if (state.appTab === APP_TAB_PLAN && state.planEditing) {
+    return "modifie le budget";
+  }
+
+  if (state.appTab === APP_TAB_FORM) {
+    if (state.editorMode === "edit" && state.editingIndex !== null) {
+      const currentRow = state.budget.rows[state.editingIndex];
+      const rowLabel = currentRow?.Categories || currentRow?.Date || "une transaction";
+      return `modifie ${rowLabel}`;
+    }
+
+    return "prepare une nouvelle transaction";
+  }
+
+  return "";
+}
+
+function buildCloudPresencePayload() {
+  return {
+    clientKey: state.cloud.collaboration.clientKey,
+    userId: state.cloud.user?.id || "",
+    email: String(state.cloud.user?.email || state.cloud.email || "").trim().toLowerCase(),
+    displayName: getCloudDisplayName(),
+    appTab: state.appTab,
+    appTabLabel: getAppTabLabel(),
+    activityLabel: buildCurrentEditActivityLabel(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function updateCloudPresenceTrack() {
+  if (!supabaseRealtimeChannel || !canUseSupabaseCloud()) {
+    return;
+  }
+
+  try {
+    await supabaseRealtimeChannel.track(buildCloudPresencePayload());
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function setCloudLiveActivity(message) {
+  state.cloud.collaboration.liveMessage = String(message || "").trim();
+  state.cloud.collaboration.lastEventAt = new Date().toISOString();
+}
+
+function resetCloudCollaborationState() {
+  const currentClientKey = state.cloud.collaboration?.clientKey || createId();
+  state.cloud.collaboration = createEmptyCloudCollaborationState(currentClientKey);
+}
+
+function handleCloudPresenceSync() {
+  if (!supabaseRealtimeChannel) {
+    resetCloudCollaborationState();
+    renderAll();
+    return;
+  }
+
+  const presenceState = supabaseRealtimeChannel.presenceState();
+  const entries = [];
+
+  Object.entries(presenceState).forEach(([presenceKey, metas]) => {
+    const metaList = Array.isArray(metas) ? metas : [];
+    metaList.forEach((meta) => {
+      entries.push({
+        presenceKey,
+        clientKey: String(meta?.clientKey || presenceKey || ""),
+        userId: String(meta?.userId || ""),
+        email: String(meta?.email || "").trim().toLowerCase(),
+        displayName: String(meta?.displayName || getCloudDisplayName(meta?.email)).trim(),
+        appTab: normalizeAppTab(meta?.appTab),
+        appTabLabel: String(meta?.appTabLabel || getAppTabLabel(meta?.appTab)).trim(),
+        activityLabel: String(meta?.activityLabel || "").trim(),
+        updatedAt: String(meta?.updatedAt || ""),
+      });
+    });
+  });
+
+  entries.sort((left, right) => {
+    const leftSelf = left.clientKey === state.cloud.collaboration.clientKey ? 0 : 1;
+    const rightSelf = right.clientKey === state.cloud.collaboration.clientKey ? 0 : 1;
+    if (leftSelf !== rightSelf) {
+      return leftSelf - rightSelf;
+    }
+    return left.displayName.localeCompare(right.displayName, "fr", { sensitivity: "base" });
+  });
+
+  state.cloud.collaboration.onlineUsers = entries;
+  renderAll();
+}
+
+function formatCloudCollaborationMessage(action, payload = {}) {
+  const displayName = String(payload.displayName || getCloudDisplayName(payload.email)).trim() || "Quelqu'un";
+  const activityLabel = String(payload.activityLabel || "").trim();
+
+  if (action === "join") {
+    return `${displayName} est en ligne.`;
+  }
+
+  if (action === "leave") {
+    return `${displayName} a quitte la session.`;
+  }
+
+  if (action === "editing") {
+    return activityLabel
+      ? `${displayName} ${activityLabel}.`
+      : `${displayName} modifie l'application.`;
+  }
+
+  if (action === "saved") {
+    return activityLabel
+      ? `${displayName} a enregistre ${activityLabel}.`
+      : `${displayName} a enregistre une mise a jour.`;
+  }
+
+  if (action === "deleted") {
+    return activityLabel
+      ? `${displayName} a supprime ${activityLabel}.`
+      : `${displayName} a supprime un element.`;
+  }
+
+  return `${displayName} est actif dans l'application.`;
+}
+
+function onCloudPresenceJoin({ newPresences }) {
+  const entry = Array.isArray(newPresences) ? newPresences[0] : null;
+  if (!entry || String(entry.clientKey || "") === state.cloud.collaboration.clientKey) {
+    return;
+  }
+
+  setCloudLiveActivity(formatCloudCollaborationMessage("join", entry));
+  renderAll();
+}
+
+function onCloudPresenceLeave({ leftPresences }) {
+  const entry = Array.isArray(leftPresences) ? leftPresences[0] : null;
+  if (!entry || String(entry.clientKey || "") === state.cloud.collaboration.clientKey) {
+    return;
+  }
+
+  setCloudLiveActivity(formatCloudCollaborationMessage("leave", entry));
+  renderAll();
+}
+
+function onCloudActivityBroadcast({ payload }) {
+  if (!payload || String(payload.clientKey || "") === state.cloud.collaboration.clientKey) {
+    return;
+  }
+
+  setCloudLiveActivity(formatCloudCollaborationMessage(payload.action, payload));
+  renderAll();
+}
+
+async function sendCloudActivityBroadcast(action, activityLabel = "") {
+  if (!supabaseRealtimeChannel || !canUseSupabaseCloud()) {
+    return;
+  }
+
+  try {
+    await supabaseRealtimeChannel.send({
+      type: "broadcast",
+      event: "activity",
+      payload: {
+        action,
+        clientKey: state.cloud.collaboration.clientKey,
+        userId: state.cloud.user?.id || "",
+        email: String(state.cloud.user?.email || state.cloud.email || "").trim().toLowerCase(),
+        displayName: getCloudDisplayName(),
+        appTab: state.appTab,
+        appTabLabel: getAppTabLabel(),
+        activityLabel: String(activityLabel || "").trim(),
+        sentAt: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function canUseBudgetAlertEmails() {
@@ -1593,13 +1818,24 @@ function startSupabaseRealtime(spaceId) {
 
   const currentTopic = `budget-space-${spaceId}`;
   if (supabaseRealtimeChannel?.topic === currentTopic) {
+    void updateCloudPresenceTrack();
     return;
   }
 
   stopSupabaseRealtime();
 
   supabaseRealtimeChannel = supabaseClient
-    .channel(currentTopic)
+    .channel(currentTopic, {
+      config: {
+        presence: {
+          key: state.cloud.collaboration.clientKey,
+        },
+      },
+    })
+    .on("presence", { event: "sync" }, handleCloudPresenceSync)
+    .on("presence", { event: "join" }, onCloudPresenceJoin)
+    .on("presence", { event: "leave" }, onCloudPresenceLeave)
+    .on("broadcast", { event: "activity" }, onCloudActivityBroadcast)
     .on("postgres_changes", {
       event: "*",
       schema: "public",
@@ -1618,11 +1854,16 @@ function startSupabaseRealtime(spaceId) {
       table: "budget_plan_rows",
       filter: `space_id=eq.${spaceId}`,
     }, queueCloudRefresh)
-    .subscribe();
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        void updateCloudPresenceTrack();
+      }
+    });
 }
 
 function stopSupabaseRealtime() {
   clearCloudRefreshTimer();
+  resetCloudCollaborationState();
 
   if (!supabaseRealtimeChannel || !supabaseClient) {
     supabaseRealtimeChannel = null;
@@ -2752,6 +2993,7 @@ function startCreateMode() {
   state.editorMode = "create";
   state.editingIndex = null;
   setAppTab(APP_TAB_FORM);
+  void sendCloudActivityBroadcast("editing", "prepare une nouvelle transaction");
 }
 
 function startPlanEditMode() {
@@ -2764,6 +3006,8 @@ function startPlanEditMode() {
   state.planEditing = true;
   setLastAction("Edition du budget active.");
   renderAll();
+  void updateCloudPresenceTrack();
+  void sendCloudActivityBroadcast("editing", "modifie le budget");
 }
 
 function onToolbarActionRequested() {
@@ -2786,10 +3030,12 @@ function onEditorCancelRequested() {
     state.planEditing = false;
     setLastAction("Modification du budget annulee.");
     renderAll();
+    void updateCloudPresenceTrack();
     return;
   }
 
   resetEditor();
+  void updateCloudPresenceTrack();
 }
 
 function onCardAction(event) {
@@ -2828,6 +3074,8 @@ function openEditor(index) {
   state.editorMode = "edit";
   state.editingIndex = index;
   setAppTab(APP_TAB_FORM);
+  const rowLabel = state.budget.rows[index]?.Categories || state.budget.rows[index]?.Date || "une transaction";
+  void sendCloudActivityBroadcast("editing", `modifie ${rowLabel}`);
 }
 
 async function deleteRecord(index) {
@@ -2858,6 +3106,7 @@ async function deleteRecord(index) {
   renderAll();
   try {
     await enqueueCloudSync(() => removeSingleTransactionFromSupabase(target.__id));
+    await sendCloudActivityBroadcast("deleted", title);
   } catch (error) {
     console.error(error);
     setLastAction(`${actionLabel} - sync cloud en echec`);
@@ -2896,14 +3145,17 @@ async function onSaveRecord(event) {
   }
 
   let actionLabel = "Transaction enregistree";
+  let collaborationLabel = "une transaction";
   if (state.editorMode === "edit" && state.editingIndex !== null && state.budget.rows[state.editingIndex]) {
     nextRecord.__id = state.budget.rows[state.editingIndex].__id;
     state.budget.rows[state.editingIndex] = nextRecord;
     actionLabel = "Transaction mise a jour";
+    collaborationLabel = `la transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
     setLastAction(actionLabel);
   } else {
     state.budget.rows.push(nextRecord);
     actionLabel = "Nouvelle transaction ajoutee";
+    collaborationLabel = `une transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
     setLastAction(actionLabel);
   }
 
@@ -2913,6 +3165,7 @@ async function onSaveRecord(event) {
   setAppTab(APP_TAB_TRANSACTIONS);
   try {
     await enqueueCloudSync(() => syncSingleTransactionToSupabase(nextRecord));
+    await sendCloudActivityBroadcast("saved", collaborationLabel);
   } catch (error) {
     console.error(error);
     setLastAction(`${actionLabel} - sync cloud en echec`);
@@ -3017,10 +3270,12 @@ async function onSavePlanTemplateRequested() {
   const actionLabel = "Budget planifie mis a jour";
   setLastAction(actionLabel);
   renderAll();
+  void updateCloudPresenceTrack();
 
   if (canUseSupabaseCloud()) {
     try {
       await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      await sendCloudActivityBroadcast("saved", "le budget");
     } catch (error) {
       console.error(error);
       setLastAction(`${actionLabel} - sync cloud en echec`);
@@ -3818,6 +4073,8 @@ function renderCloudPanel() {
   const publishNeedsRestore = canUseSupabaseCloud() && !hasLocalBudgetData() && hasStoredBudgetDraft();
   const alertConfig = getSupabaseConfig();
   const alertSettings = sanitizeBudgetAlertSettings(state.cloud.alerts);
+  const onlineUsers = Array.isArray(state.cloud.collaboration.onlineUsers) ? state.cloud.collaboration.onlineUsers : [];
+  const otherOnlineUsers = onlineUsers.filter((entry) => entry.clientKey !== state.cloud.collaboration.clientKey);
   state.cloud.alerts = alertSettings;
   const alertFunctionReady = Boolean(alertConfig.budgetAlertFunctionName);
   const effectiveAlertRecipient = getBudgetAlertRecipientEmail();
@@ -3873,6 +4130,43 @@ function renderCloudPanel() {
     : "Derniere publication: aucune";
 
   refs.cloudSpaceHint.textContent = [identityLabel, spaceLabel, codeLabel, pullLabel, pushLabel].join(" | ");
+
+  if (!cloudReady) {
+    refs.cloudCollaborationStatus.textContent = "Supabase doit etre configure pour activer la presence en ligne.";
+  } else if (!signedIn) {
+    refs.cloudCollaborationStatus.textContent = "Connectez-vous a un espace partage pour voir qui est en ligne et qui modifie l'app.";
+  } else if (!spaceSelected) {
+    refs.cloudCollaborationStatus.textContent = "Presence prete. Creez ou rejoignez un espace partage pour collaborer en direct.";
+  } else if (!otherOnlineUsers.length) {
+    refs.cloudCollaborationStatus.textContent = "Vous etes seul en ligne pour le moment.";
+  } else {
+    refs.cloudCollaborationStatus.textContent = `${otherOnlineUsers.length} autre${otherOnlineUsers.length > 1 ? "s" : ""} utilisateur${otherOnlineUsers.length > 1 ? "s" : ""} en ligne maintenant.`;
+  }
+
+  refs.cloudPresenceList.innerHTML = onlineUsers.length
+    ? onlineUsers.map((entry) => {
+        const isSelf = entry.clientKey === state.cloud.collaboration.clientKey;
+        const label = escapeHtml(isSelf ? "Vous" : entry.displayName || getCloudDisplayName(entry.email));
+        const subtitle = escapeHtml(
+          entry.activityLabel
+            ? entry.activityLabel
+            : `dans ${entry.appTabLabel || getAppTabLabel(entry.appTab)}`
+        );
+        return `
+          <span class="presence-chip${isSelf ? " is-self" : ""}">
+            <span class="presence-dot" aria-hidden="true"></span>
+            <span class="presence-copy">
+              <strong>${label}</strong>
+              <small>${subtitle}</small>
+            </span>
+          </span>
+        `;
+      }).join("")
+    : '<span class="presence-chip is-empty"><span class="presence-copy"><strong>Aucune presence active</strong><small>Connectez-vous a un espace partage pour lancer la collaboration live.</small></span></span>';
+
+  refs.cloudLiveActivity.textContent = state.cloud.collaboration.liveMessage
+    ? `Activite live: ${state.cloud.collaboration.liveMessage}`
+    : "Aucune activite live pour le moment.";
 
   refs.budgetAlertEnabled.checked = alertSettings.enabled;
   refs.budgetAlertEmail.value = refs.budgetAlertEmail.matches(":focus")
