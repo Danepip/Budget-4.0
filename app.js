@@ -3866,7 +3866,8 @@ function renderAppTabs() {
   const showTransactions = state.appTab === APP_TAB_TRANSACTIONS;
   const showForm = state.appTab === APP_TAB_FORM;
   const showAnalysis = state.appTab === APP_TAB_ANALYSIS;
-  const showWideContent = !showShare && (showPlan || showForm || showAnalysis);
+  const showDashboard = state.appTab === APP_TAB_DASHBOARD;
+  const showWideContent = !showShare && (showDashboard || showPlan || showForm || showAnalysis || showTransactions);
 
   refs.appTabTitle.textContent = currentMeta.title;
   refs.appTabDescription.textContent = currentMeta.description;
