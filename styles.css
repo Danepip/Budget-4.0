@@ -1660,6 +1660,39 @@ textarea {
   font-weight: 700;
 }
 
+.value-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.value-sign-toggle {
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(24, 51, 59, 0.12);
+  background: rgba(231, 247, 242, 0.92);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.value-sign-toggle:hover {
+  background: rgba(221, 241, 236, 0.98);
+}
+
+.value-sign-toggle:focus {
+  outline: none;
+  border-color: rgba(47, 125, 116, 0.5);
+  box-shadow: 0 0 0 4px rgba(47, 125, 116, 0.12);
+}
+
+.value-sign-toggle:active {
+  transform: translateY(1px);
+}
+
 .field-hint {
   margin: 0;
   font-size: 0.8rem;
@@ -1894,6 +1927,14 @@ textarea {
 @media (max-width: 620px) {
   body {
     min-height: 100dvh;
+  }
+
+  .value-field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .value-sign-toggle {
+    width: 100%;
   }
 
   .page-shell {

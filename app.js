@@ -6220,14 +6220,41 @@ function renderValueField(value) {
   input.name = "Value";
   input.type = "text";
   input.inputMode = "decimal";
+  input.autocomplete = "off";
+  input.spellcheck = false;
   input.placeholder = "-42.08";
   input.value = value || "";
 
+  const inputRow = document.createElement("div");
+  inputRow.className = "value-field-row";
+
+  const toggleButton = document.createElement("button");
+  toggleButton.type = "button";
+  toggleButton.className = "value-sign-toggle";
+  toggleButton.textContent = "- / +";
+  toggleButton.setAttribute("aria-label", "Basculer entre montant negatif et positif");
+  toggleButton.addEventListener("click", () => {
+    const currentValue = String(input.value || "").trim();
+    if (!currentValue) {
+      input.value = "-";
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      return;
+    }
+
+    input.value = currentValue.startsWith("-")
+      ? currentValue.slice(1)
+      : `-${currentValue}`;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+
   const hint = document.createElement("p");
   hint.className = "field-hint";
-  hint.textContent = "Entrez un nombre negatif pour une depense, positif pour un revenu.";
+  hint.textContent = "Utilisez - / + si le clavier du telephone n'affiche pas le signe negatif.";
 
-  wrapper.append(label, input, hint);
+  inputRow.append(input, toggleButton);
+  wrapper.append(label, inputRow, hint);
   return wrapper;
 }
 
