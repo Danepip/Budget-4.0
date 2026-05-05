@@ -4866,8 +4866,15 @@ function buildActualAmountMap(rows) {
   return amounts;
 }
 
-function computeMetricSnapshot(actualMap) {
+function computeTotalIncome(actualMap) {
   const income = Math.abs(getActualAmount(actualMap, "Income"));
+  const associationFees = getActualAmount(actualMap, "Association fees");
+
+  return roundCurrencyValue(income + (associationFees > 0 ? associationFees : 0));
+}
+
+function computeMetricSnapshot(actualMap) {
+  const income = computeTotalIncome(actualMap);
   const savings = Math.abs(getActualAmount(actualMap, "Savings"));
   const seasonalSavings = Math.abs(getActualAmount(actualMap, "Savings for seasonal exp."));
   const totalSavings = savings + seasonalSavings;
