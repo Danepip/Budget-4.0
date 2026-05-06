@@ -833,6 +833,13 @@ textarea {
   display: block;
 }
 
+.recap-metric-icon img {
+  width: 26px;
+  height: 26px;
+  display: block;
+  object-fit: contain;
+}
+
 .recap-metric-icon-income {
   color: #1f8f5f;
 }

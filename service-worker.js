@@ -1,4 +1,4 @@
-const VERSION = "budget-card-view-v80";
+const VERSION = "budget-card-view-v81";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
@@ -19,6 +19,10 @@ const APP_SHELL = [
   "./apple-touch-icon.png",
   "./icon-192.png",
   "./icon-512.png",
+  "./metric-revenu.png",
+  "./metric-depenses.png",
+  "./metric-epargne.png",
+  "./metric-cash.png",
   "./icon-app.svg",
   "./icon-192.svg",
   "./icon-512.svg",
