@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Budget",
-  "short_name": "Budget",
-  "description": "Application Budget de saisie et de recap budgetaire a partir de Budget_2025 Final.xlsx.",
+  "name": "BUDEGETAPP",
+  "short_name": "BUDEGETAPP",
+  "description": "Application BUDEGETAPP de saisie et de recap budgetaire a partir de Budget_2025 Final.xlsx.",
   "lang": "fr-CA",
   "start_url": "./index.html?source=pwa",
   "scope": "./",

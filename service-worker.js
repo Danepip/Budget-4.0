@@ -1,4 +1,4 @@
-const VERSION = "budget-card-view-v45";
+const VERSION = "budget-card-view-v71";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
@@ -6,6 +6,7 @@ const APP_SHELL = [
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./budget-category-rules.js",
   "./supabase.config.js",
   "./capacitor.js",
   "./synapse.js",

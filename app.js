@@ -43,6 +43,410 @@ const DEFAULT_PLAN_PERIOD = "monthly";
 const PLAN_PERIOD_FACTORS = Object.fromEntries(
   PLAN_PERIOD_OPTIONS.map((option) => [option.value, option.monthlyFactor])
 );
+const BUDGET_RULES_API =
+  typeof window !== "undefined"
+    ? window.BUDGET_CATEGORY_RULES || null
+    : typeof globalThis !== "undefined"
+      ? globalThis.BUDGET_CATEGORY_RULES || null
+      : null;
+const FALLBACK_BUDGET_FRA_GROUP_ORDER = [
+  "income",
+  "savings",
+  "debt",
+  "housing",
+  "communications",
+  "food",
+  "insurance",
+  "transportation",
+  "childcare",
+  "education",
+  "recreation",
+  "personalcare",
+  "clothing",
+  "medical",
+  "pets",
+  "fees",
+  "gifts",
+  "custom",
+];
+const BUDGET_FRA_GROUP_ORDER = BUDGET_RULES_API?.GROUP_ORDER || FALLBACK_BUDGET_FRA_GROUP_ORDER;
+const FALLBACK_BUDGET_FRA_GROUP_META = {
+  income: {
+    label: "Revenu",
+    description: "Entrees d'argent du foyer",
+    tone: "positive",
+  },
+  savings: {
+    label: "Epargnes",
+    description: "Objectifs, reserve et accumulation",
+    tone: "neutral",
+  },
+  debt: {
+    label: "Remboursement de dettes",
+    description: "Carte de credit, pret et obligations",
+    tone: "negative",
+  },
+  housing: {
+    label: "Logement",
+    description: "Habitation, loyer, hypotheque et charges",
+    tone: "negative",
+  },
+  communications: {
+    label: "Communications",
+    description: "Telephone, internet et services numeriques",
+    tone: "neutral",
+  },
+  food: {
+    label: "Alimentation",
+    description: "Epicerie et restauration",
+    tone: "neutral",
+  },
+  insurance: {
+    label: "Assurances",
+    description: "Protections et couvertures",
+    tone: "negative",
+  },
+  transportation: {
+    label: "Transport",
+    description: "Auto, carburant, stationnement et deplacements",
+    tone: "negative",
+  },
+  childcare: {
+    label: "Soins aux enfants",
+    description: "Depenses liees aux enfants",
+    tone: "neutral",
+  },
+  education: {
+    label: "Etudes",
+    description: "Frais scolaires et apprentissage",
+    tone: "neutral",
+  },
+  recreation: {
+    label: "Loisirs",
+    description: "Sorties, voyage, sport et divertissement",
+    tone: "neutral",
+  },
+  personalcare: {
+    label: "Soins personnels",
+    description: "Coiffure, cosmetiques et entretien personnel",
+    tone: "neutral",
+  },
+  clothing: {
+    label: "Vetements",
+    description: "Vetements, accessoires et chaussures",
+    tone: "neutral",
+  },
+  medical: {
+    label: "Soins medicaux",
+    description: "Sante, assurance et soins specialises",
+    tone: "negative",
+  },
+  pets: {
+    label: "Animaux",
+    description: "Depenses reliees aux animaux",
+    tone: "neutral",
+  },
+  fees: {
+    label: "Frais",
+    description: "Cotisations, membres et frais divers",
+    tone: "neutral",
+  },
+  gifts: {
+    label: "Cadeaux et dons",
+    description: "Cadeaux, accueil et dons",
+    tone: "neutral",
+  },
+  custom: {
+    label: "Autres postes",
+    description: "Lignes a classer ou personnaliser",
+    tone: "default",
+  },
+};
+const BUDGET_FRA_GROUP_META = BUDGET_RULES_API?.GROUP_META || FALLBACK_BUDGET_FRA_GROUP_META;
+const REFERENCE_BUDGET_TEMPLATE_GROUPS = [
+  {
+    parent: "income",
+    planGroup: "income",
+    items: [
+      { label: "Mon revenu net", canonical: "income 1", aliases: ["Income 1", "Income"] },
+      { label: "Revenu du/de la partenaire", canonical: "income 2", aliases: ["Income 2"] },
+      { label: "Assurance-emploi" },
+      { label: "Revenu de location" },
+      { label: "Pension publique" },
+      { label: "Pension de l'employeur" },
+      { label: "Revenu personnel pour la retraite" },
+      { label: "Epargne-etudes et prets" },
+      { label: "Pension alimentaire pour enfants" },
+      { label: "Allocation pour enfants" },
+      { label: "Prestations d'invalidite" },
+      { label: "Aide sociale" },
+    ],
+  },
+  {
+    parent: "savings",
+    planGroup: "savings",
+    items: [
+      { label: "Savings", canonical: "savings", aliases: ["Savings"] },
+      { label: "Savings for seasonal exp.", canonical: "savings for seasonal exp.", aliases: ["Savings for seasonal exp."] },
+      { label: "Retraite" },
+      { label: "Education (epargne)" },
+      { label: "Achat d'une maison" },
+      { label: "Renovations de maison" },
+      { label: "Achat d'une auto" },
+      { label: "Impots" },
+    ],
+  },
+  {
+    parent: "debt",
+    planGroup: "expenses",
+    items: [
+      { label: "Carte de credit", canonical: "credit card", aliases: ["Credit card"] },
+      { label: "Marge de credit" },
+      { label: "Pret personnel" },
+      { label: "Pret etudiant", canonical: "student loans", aliases: ["Student loans"] },
+    ],
+  },
+  {
+    parent: "housing",
+    planGroup: "expenses",
+    items: [
+      { label: "Loyer", canonical: "rent", aliases: ["Rent"] },
+      { label: "Paiement hypothecaire", canonical: "mortgage", aliases: ["Mortgage"] },
+      { label: "Marge de credit hypothecaire" },
+      { label: "Impots fonciers" },
+      { label: "Frais de copropriete" },
+      { label: "Assurance pour locataire" },
+      { label: "Assurance maison", canonical: "home insurance", aliases: ["Home insurance"] },
+      { label: "Meubles et appareils menagers" },
+      { label: "Equipement et services pour l'exterieur" },
+      { label: "Systeme de securite residentielle" },
+      { label: "Electricite" },
+      { label: "Eau et egouts" },
+      { label: "Chauffage" },
+    ],
+  },
+  {
+    parent: "communications",
+    planGroup: "expenses",
+    items: [
+      { label: "Telephone / Cellulaire", canonical: "cellular telephone", aliases: ["Cellular telephone"] },
+      { label: "Cable ou satellite" },
+      { label: "Internet", canonical: "internet", aliases: ["Internet"] },
+      { label: "Forfait combine" },
+      {
+        label: "Services de divertissement",
+        canonical: "entertainment services",
+        aliases: ["Entertainement  (Netflix ; Prime ; Spotify; IPTV)"],
+      },
+    ],
+  },
+  {
+    parent: "food",
+    planGroup: "expenses",
+    items: [
+      { label: "Epicerie", canonical: "groceries", aliases: ["Groceries"] },
+      { label: "Restaurant ou plats a emporter", canonical: "dining out", aliases: ["Dining out"] },
+    ],
+  },
+  {
+    parent: "insurance",
+    planGroup: "expenses",
+    items: [
+      { label: "Vie" },
+      { label: "Medicale et dentaire" },
+      { label: "Invalidite ou accident" },
+    ],
+  },
+  {
+    parent: "transportation",
+    planGroup: "expenses",
+    items: [
+      { label: "Paiement d'auto (pret / location)", canonical: "vehicle lease", aliases: ["Vehicle lease"] },
+      { label: "Assurance auto", canonical: "car insurance", aliases: ["Car insurance"] },
+      { label: "Essence", canonical: "gas/fuel", aliases: ["Gas/fuel"] },
+      { label: "Entretien", canonical: "car maintenance", aliases: ["Car Maintenance"] },
+      { label: "Permis et immatriculation d'auto" },
+      { label: "Stationnement", canonical: "parking", aliases: ["Parking"] },
+      { label: "Transport en commun" },
+      { label: "Services de transport", canonical: "taxis", aliases: ["Taxis"] },
+    ],
+  },
+  {
+    parent: "childcare",
+    planGroup: "expenses",
+    items: [
+      { label: "Garderie" },
+      { label: "Gardiennage" },
+    ],
+  },
+  {
+    parent: "education",
+    planGroup: "expenses",
+    items: [
+      { label: "Frais scolaires" },
+      { label: "Manuels et fournitures" },
+      { label: "Voyages scolaires" },
+    ],
+  },
+  {
+    parent: "recreation",
+    planGroup: "expenses",
+    items: [
+      { label: "Vacances et voyages", canonical: "vacations/travel", aliases: ["Vacations/Travel"] },
+      { label: "Abonnement a des clubs" },
+      { label: "Activites et jouets pour enfants" },
+      { label: "Billets pour evenements", canonical: "concerts/clubs", aliases: ["Concerts/clubs"] },
+      { label: "Equipement sportif et autres activites" },
+      { label: "Equipement de divertissement" },
+      { label: "Alcool", canonical: "alcohol", aliases: ["Alcohol"] },
+      { label: "Produits d'inhalation de fumee" },
+    ],
+  },
+  {
+    parent: "personalcare",
+    planGroup: "expenses",
+    items: [
+      {
+        label: "Coiffure",
+        canonical: "salon services ( haircuts- hair styles)",
+        aliases: ["Salon services ( Haircuts- Hair styles)"],
+      },
+      {
+        label: "Cosmetiques et soins de la peau",
+        canonical: "cosmetics",
+        aliases: ["Cosmetics"],
+      },
+      { label: "Spa et soins de beaute" },
+    ],
+  },
+  {
+    parent: "clothing",
+    planGroup: "expenses",
+    items: [
+      {
+        label: "Vetements",
+        canonical: "clothing, including shoes",
+        aliases: ["Clothing, including shoes"],
+      },
+      { label: "Vetements pour enfants" },
+      { label: "Accessoires" },
+    ],
+  },
+  {
+    parent: "medical",
+    planGroup: "expenses",
+    items: [
+      { label: "Medecin / Frais medicaux" },
+      { label: "Dentiste" },
+      { label: "Specialistes" },
+    ],
+  },
+  {
+    parent: "pets",
+    planGroup: "expenses",
+    items: [
+      { label: "Nourriture pour animaux" },
+      { label: "Veterinaire" },
+    ],
+  },
+  {
+    parent: "fees",
+    planGroup: "expenses",
+    items: [
+      { label: "Frais bancaires" },
+      { label: "Frais de carte de credit" },
+      { label: "Cotisations professionnelles", canonical: "professional dues", aliases: ["Professional dues"] },
+    ],
+  },
+  {
+    parent: "gifts",
+    planGroup: "expenses",
+    items: [
+      {
+        label: "Cadeaux",
+        canonical: "gifts - hostess/housewarming",
+        aliases: ["Gifts – hostess/housewarming"],
+      },
+      { label: "Dons" },
+    ],
+  },
+];
+const REFERENCE_BUDGET_TEMPLATE_ITEMS = REFERENCE_BUDGET_TEMPLATE_GROUPS.flatMap((group, groupIndex) =>
+  group.items.map((item, itemIndex) => ({
+    label: item.label,
+    canonical: item.canonical || normalizeHeaderName(item.label),
+    aliases: Array.isArray(item.aliases) ? item.aliases : [],
+    parent: group.parent,
+    planGroup: group.planGroup,
+    order: groupIndex * 100 + itemIndex,
+  }))
+);
+const REFERENCE_BUDGET_TEMPLATE_INDEX = (() => {
+  const index = new Map();
+  REFERENCE_BUDGET_TEMPLATE_ITEMS.forEach((item) => {
+    [item.label, ...item.aliases].forEach((label) => {
+      const key = normalizeHeaderName(label);
+      if (key && !index.has(key)) {
+        index.set(key, item);
+      }
+    });
+  });
+  return index;
+})();
+const BUDGET_FRA_RULES = [
+  {
+    key: "savings",
+    title: "Epargnes",
+    kind: "min",
+    greenMin: 0.05,
+    yellowMin: 0,
+    greenLabel: "Au niveau recommande",
+    yellowLabel: "Sous la cible recommandee",
+    redLabel: "Aucune epargne detectee",
+  },
+  {
+    key: "debt",
+    title: "Dettes",
+    kind: "max",
+    greenMax: 0.15,
+    yellowMax: 0.3,
+  },
+  {
+    key: "housing",
+    title: "Logement",
+    kind: "max",
+    greenMax: 0.35,
+    yellowMax: 0.43,
+  },
+  {
+    key: "communications",
+    title: "Communications",
+    kind: "max",
+    greenMax: 0.05,
+    yellowMax: 0.15,
+  },
+  {
+    key: "food",
+    title: "Alimentation",
+    kind: "max",
+    greenMax: 0.2,
+    yellowMax: 0.3,
+  },
+  {
+    key: "insurance",
+    title: "Assurances",
+    kind: "max",
+    greenMax: 0.03,
+    yellowMax: 0.09,
+  },
+  {
+    key: "transportation",
+    title: "Transport",
+    kind: "max",
+    greenMax: 0.2,
+    yellowMax: 0.3,
+  },
+];
 const RECAP_RANGE_OPTIONS = [
   { value: "all", label: "Toute la periode" },
   { value: "1", label: "1 mois" },
@@ -128,6 +532,36 @@ function createFallbackPlanTemplate() {
   }));
 }
 
+function mergeReferenceBudgetTemplateRows(rows) {
+  const mergedRows = Array.isArray(rows) ? rows.map((row) => ({ ...row })) : [];
+  const seenCanonicalKeys = new Set(
+    mergedRows
+      .map((row) => getReferenceBudgetCanonicalKey(row.label))
+      .filter(Boolean)
+  );
+
+  REFERENCE_BUDGET_TEMPLATE_ITEMS.forEach((item) => {
+    if (seenCanonicalKeys.has(item.canonical)) {
+      return;
+    }
+
+    mergedRows.push({
+      label: item.label,
+      plan: "0",
+      period: DEFAULT_PLAN_PERIOD,
+      group: item.planGroup,
+    });
+    seenCanonicalKeys.add(item.canonical);
+  });
+
+  return mergedRows;
+}
+
+function getReferenceBudgetSortOrder(label, fallback = Number.MAX_SAFE_INTEGER) {
+  const item = getReferenceBudgetTemplateItem(label);
+  return item ? item.order : fallback;
+}
+
 function normalizePlanPeriod(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return PLAN_PERIOD_FACTORS[normalized] ? normalized : DEFAULT_PLAN_PERIOD;
@@ -177,6 +611,292 @@ function normalizePlanGroup(value, label = "") {
   }
 
   return inferPlanGroupFromLabel(label);
+}
+
+function getReferenceBudgetTemplateItem(label) {
+  return REFERENCE_BUDGET_TEMPLATE_INDEX.get(normalizeHeaderName(label)) || null;
+}
+
+function getReferenceBudgetCanonicalKey(label) {
+  const item = getReferenceBudgetTemplateItem(label);
+  return item?.canonical || normalizeHeaderName(label);
+}
+
+function createReferenceBudgetResolvedRule(item, label) {
+  const parentMeta = getBudgetFraCategoryMeta(item.parent);
+  const includeInIncome = item.parent === "income";
+  const includeInSavings = item.parent === "savings";
+  const includeInExpenses = !includeInIncome && !includeInSavings;
+  const alertEligibleParents = new Set([
+    "savings",
+    "debt",
+    "housing",
+    "communications",
+    "food",
+    "insurance",
+    "transportation",
+  ]);
+
+  return {
+    id: `reference-${item.canonical}`,
+    normalizedKey: getReferenceBudgetCanonicalKey(label),
+    label,
+    parent: item.parent,
+    parentMeta,
+    parentLabel: parentMeta.label,
+    flowType: includeInIncome ? "income" : includeInSavings ? "savings" : "expense",
+    includeInIncome,
+    includeInExpenses,
+    includeInSavings,
+    includeInParentTotals: true,
+    alertGroup: alertEligibleParents.has(item.parent) ? item.parent : null,
+    suggestionTags: ["reference-budget", item.parent],
+    notes: "Sous-poste issu du budget de reference.",
+  };
+}
+
+function buildAvailableFormCategories() {
+  const planRows = resolvePlanTemplate(state.recap.planTemplate)
+    .filter((row) => !isDerivedPlanLabel(row.label));
+
+  if (planRows.length) {
+    return buildBudgetFraPlanEditorGroups(planRows)
+      .map((group) => {
+        const seen = new Set();
+        const items = group.rows
+          .map((row) => String(row.label || "").trim())
+          .filter((label) => {
+            if (!label) {
+              return false;
+            }
+
+            const key = normalizeHeaderName(label);
+            if (seen.has(key)) {
+              return false;
+            }
+
+            seen.add(key);
+            return true;
+          });
+
+        return {
+          key: group.key,
+          label: group.meta.label,
+          items,
+        };
+      })
+      .filter((group) => group.items.length);
+  }
+
+  const fallbackItems = Array.from(
+    new Set(
+      state.budget.categories
+        .map((category) => String(category || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  return fallbackItems.length
+    ? [{ key: "fallback", label: "Categories du budget", items: fallbackItems }]
+    : [];
+}
+
+function getAvailableFormCategoryCount() {
+  return buildAvailableFormCategories().reduce((total, group) => total + group.items.length, 0);
+}
+
+function ensureBudgetCategoryAvailable(category) {
+  const label = String(category || "").trim();
+  if (!label) {
+    return;
+  }
+
+  const exists = state.budget.categories.some(
+    (entry) => normalizeHeaderName(entry) === normalizeHeaderName(label)
+  );
+
+  if (!exists) {
+    state.budget.categories.push(label);
+  }
+}
+
+function getResolvedBudgetCategoryRule(label, planGroup = "", amountValue = null) {
+  const amount = parseAmount(amountValue);
+  const referenceItem = getReferenceBudgetTemplateItem(label);
+
+  if (referenceItem) {
+    return createReferenceBudgetResolvedRule(referenceItem, label);
+  }
+
+  if (BUDGET_RULES_API?.resolveBudgetCategoryRule) {
+    return BUDGET_RULES_API.resolveBudgetCategoryRule(label, {
+      planGroup,
+      amount: Number.isFinite(amount) ? amount : null,
+    });
+  }
+
+  return {
+    parent: inferBudgetFraCategory(label, planGroup, amountValue),
+    parentMeta: null,
+    parentLabel: "",
+    includeInIncome: false,
+    includeInExpenses: false,
+    includeInSavings: false,
+    includeInParentTotals: false,
+  };
+}
+
+function inferBudgetFraCategory(label, planGroup = "", amountValue = null) {
+  if (BUDGET_RULES_API?.resolveBudgetCategoryRule) {
+    return getResolvedBudgetCategoryRule(label, planGroup, amountValue).parent || "";
+  }
+
+  const normalized = normalizeHeaderName(label);
+  const normalizedPlanGroup = normalizePlanGroup(planGroup, label);
+  const amount = parseAmount(amountValue);
+
+  if (
+    normalized === "income" ||
+    normalized === "income 1" ||
+    normalized === "income 2" ||
+    normalizedPlanGroup === "income"
+  ) {
+    return "income";
+  }
+
+  if (
+    normalized === "savings" ||
+    normalized === "savings for seasonal exp." ||
+    normalized === "total savings" ||
+    normalizedPlanGroup === "savings"
+  ) {
+    return "savings";
+  }
+
+  if (
+    normalized === "credit card" ||
+    normalized === "student loans" ||
+    normalized === "payment obligations"
+  ) {
+    return "debt";
+  }
+
+  if (normalized === "association fees") {
+    if (Number.isFinite(amount)) {
+      return amount >= 0 ? "income" : "";
+    }
+    if (normalizedPlanGroup === "income") {
+      return "income";
+    }
+    return "";
+  }
+
+  if (
+    normalized === "rent" ||
+    normalized === "mortgage" ||
+    normalized === "home insurance" ||
+    normalized === "home improvements"
+  ) {
+    return "housing";
+  }
+
+  if (
+    normalized === "cellular telephone" ||
+    normalized === "internet" ||
+    normalized === "subscriptions (chatgpt; windows)" ||
+    normalized === "entertainement  (netflix ; prime ; spotify; iptv)"
+  ) {
+    return "communications";
+  }
+
+  if (normalized === "groceries" || normalized === "dining out") {
+    return "food";
+  }
+
+  if (normalized === "hospital insurance") {
+    return "insurance";
+  }
+
+  if (
+    normalized === "vehicle lease" ||
+    normalized === "car insurance" ||
+    normalized === "gas/fuel" ||
+    normalized === "car maintenance" ||
+    normalized === "car wash" ||
+    normalized === "parking" ||
+    normalized === "taxis"
+  ) {
+    return "transportation";
+  }
+
+  if (normalized === "baby") {
+    return "childcare";
+  }
+
+  if (normalized === "education") {
+    return "education";
+  }
+
+  if (
+    normalized === "vacations/travel" ||
+    normalized === "concerts/clubs" ||
+    normalized === "sports" ||
+    normalized === "gym membership( accessories)" ||
+    normalized === "alcohol" ||
+    normalized === "hobbies (e.g crafts, baking...)" ||
+    normalized === "hobbies (e.g crafts, baking…)"
+  ) {
+    return "recreation";
+  }
+
+  if (normalized === "cosmetics" || normalized === "salon services ( haircuts- hair styles)") {
+    return "personalcare";
+  }
+
+  if (normalized === "clothing, including shoes") {
+    return "clothing";
+  }
+
+  if (normalized === "health") {
+    return "medical";
+  }
+
+  if (normalized === "membership(card; costco)" || normalized === "professional dues") {
+    return "fees";
+  }
+
+  if (normalized === "gifts – hostess/housewarming" || normalized === "gifts - hostess/housewarming") {
+    return "gifts";
+  }
+
+  if (normalizedPlanGroup === "neutral" || normalized === "other") {
+    return "custom";
+  }
+
+  if (normalizedPlanGroup === "expenses") {
+    return "custom";
+  }
+
+  return "custom";
+}
+
+function getBudgetFraCategoryMeta(categoryKey) {
+  if (!categoryKey) {
+    return {
+      label: "",
+      description: "",
+      tone: "default",
+    };
+  }
+  return BUDGET_FRA_GROUP_META[categoryKey] || BUDGET_FRA_GROUP_META.custom;
+}
+
+function getBudgetFraCategoryLabel(label, planGroup = "", amountValue = null) {
+  if (BUDGET_RULES_API?.resolveBudgetCategoryRule) {
+    return getResolvedBudgetCategoryRule(label, planGroup, amountValue).parentLabel || "";
+  }
+
+  return getBudgetFraCategoryMeta(inferBudgetFraCategory(label, planGroup, amountValue)).label;
 }
 
 function convertPlanAmountToMonthly(amountValue, periodValue) {
@@ -273,15 +993,15 @@ function getBudgetSummaryCardMeta(label) {
   const normalized = normalizeHeaderName(label);
 
   if (normalized === "income") {
-    return { title: "Income", tone: "income" };
+    return { title: "Revenu", tone: "income" };
   }
 
   if (normalized === "expenses" || normalized === "total expenses") {
-    return { title: "Expenses", tone: "expenses" };
+    return { title: "Depenses", tone: "expenses" };
   }
 
   if (normalized === "total savings") {
-    return { title: "Savings", tone: "savings" };
+    return { title: "Epargne", tone: "savings" };
   }
 
   if (normalized === "cash short/extra") {
@@ -289,6 +1009,413 @@ function getBudgetSummaryCardMeta(label) {
   }
 
   return { title: label, tone: "default" };
+}
+
+function getMetricDisplayLabel(label) {
+  const normalized = normalizeHeaderName(label);
+
+  if (normalized === "income") {
+    return "Revenu";
+  }
+
+  if (normalized === "expenses" || normalized === "total expenses") {
+    return "Depenses";
+  }
+
+  if (normalized === "savings" || normalized === "total savings") {
+    return "Epargne";
+  }
+
+  if (normalized === "seasonal savings" || normalized === "savings for seasonal exp.") {
+    return "Epargne saisonniere";
+  }
+
+  if (normalized === "cash" || normalized === "cash short/extra") {
+    return "Cash";
+  }
+
+  return label;
+}
+
+function getMetricIconKey(label) {
+  const normalized = normalizeHeaderName(label);
+
+  if (normalized === "income") {
+    return "income";
+  }
+
+  if (normalized === "expenses" || normalized === "total expenses") {
+    return "expenses";
+  }
+
+  if (normalized === "savings" || normalized === "total savings" || normalized === "seasonal savings" || normalized === "savings for seasonal exp.") {
+    return "savings";
+  }
+
+  if (normalized === "cash" || normalized === "cash short/extra") {
+    return "cash";
+  }
+
+  return "";
+}
+
+function getMetricIconMarkup(label) {
+  const iconKey = getMetricIconKey(label);
+
+  if (iconKey === "income") {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9 4h6l-1 2h2.5c2.9 0 5 2.2 5 5 0 5.4-4.1 8.4-9.5 8.4S2.5 16.4 2.5 11c0-2.8 2.1-5 5-5H10L9 4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M12 9.2v5.6M9.8 11.4H14M10.1 14.1h3.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    `;
+  }
+
+  if (iconKey === "expenses") {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M3 8.5h16a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M3 10.5h18M7 6h9a2 2 0 0 1 2 2v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16.5" cy="15" r="1.2" fill="currentColor"/>
+      </svg>
+    `;
+  }
+
+  if (iconKey === "savings") {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 14.5c0-2.8 2.2-5 5-5h.7c2.1 0 3.8 1.7 3.8 3.8v2.2c0 2.5-2 4.5-4.5 4.5h-1c-2.2 0-4-1.8-4-4v-1.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M9 10.2 7.6 8.8M15.4 10l1.6-1M10 14h3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="18.2" cy="14.2" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    `;
+  }
+
+  if (iconKey === "cash") {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="2.5" y="6.5" width="19" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 9.5h0M18 14.5h0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+    `;
+  }
+
+  return "";
+}
+
+function buildBudgetFraPlanEditorGroups(rows) {
+  const buckets = new Map();
+
+  rows.forEach((row) => {
+    const categoryKey = getPlanDisplayGroupKey(row);
+    if (!buckets.has(categoryKey)) {
+      buckets.set(categoryKey, []);
+    }
+    buckets.get(categoryKey).push(row);
+  });
+
+  return BUDGET_FRA_GROUP_ORDER
+    .map((key) => ({
+      key,
+      meta: getBudgetFraCategoryMeta(key),
+      rows: (buckets.get(key) || [])
+        .map((row, index) => ({
+          row,
+          index,
+          order: getReferenceBudgetSortOrder(row.label, Number.MAX_SAFE_INTEGER),
+        }))
+        .sort((left, right) => {
+          if (left.order !== right.order) {
+            return left.order - right.order;
+          }
+
+          return left.index - right.index;
+        })
+        .map((entry) => entry.row),
+    }))
+    .filter((group) => group.rows.length);
+}
+
+function getPlanDisplayGroupKey(row) {
+  const categoryKey = inferBudgetFraCategory(row.label, row.group, row.plan);
+  if (categoryKey && BUDGET_FRA_GROUP_ORDER.includes(categoryKey)) {
+    return categoryKey;
+  }
+
+  return "custom";
+}
+
+function computePlanGroupMonthlyTotal(rows) {
+  return rows.reduce(
+    (total, row) => total + convertPlanAmountToMonthly(row.plan, row.period),
+    0
+  );
+}
+
+function renderPlanGroupSection(categoryKey, rows, startIndex, readOnly = false, groupIndex = 0) {
+  const section = document.createElement("details");
+  section.className = "plan-group-section budget-panel";
+  section.setAttribute("data-budget-group", categoryKey);
+  if (groupIndex < 3) {
+    section.open = true;
+  }
+
+  const meta = getBudgetFraCategoryMeta(categoryKey);
+  const heading = document.createElement("summary");
+  heading.className = "plan-group-header";
+  heading.innerHTML = `
+    <div>
+      <div class="budget-kind">Grande categorie</div>
+      <h3 class="plan-group-title">${escapeHtml(meta.label)}</h3>
+    </div>
+    <div class="budget-summary-side">
+      <strong data-plan-group-total="${escapeHtml(categoryKey)}">${escapeHtml(
+        formatCurrency(computePlanGroupMonthlyTotal(rows))
+      )}</strong>
+      <span>equivalent mensuel</span>
+    </div>
+  `;
+
+  const body = document.createElement("div");
+  body.className = "plan-group-body";
+  body.innerHTML = `
+    <p class="budget-panel-note">${escapeHtml(meta.description || "Section budgetaire regroupee par parent.")}</p>
+    <div class="budget-head">
+      <div>Poste</div>
+      <div>Montant</div>
+      <div>Periode</div>
+      <div>Parent</div>
+      <div>Mensuel</div>
+    </div>
+  `;
+
+  const table = document.createElement("div");
+  table.className = "budget-table";
+
+  let nextIndex = startIndex;
+  rows.forEach((row) => {
+    table.appendChild(renderPlanAmountField(row, nextIndex, readOnly));
+    nextIndex += 1;
+  });
+
+  body.appendChild(table);
+  section.append(heading, body);
+  return { section, nextIndex };
+}
+
+function buildBudgetFraGroupTotals(actualMap) {
+  const totals = new Map();
+
+  actualMap.forEach((amount, key) => {
+    const label = findOriginalCategoryLabel(key);
+    const normalizedAmount = Number.isFinite(amount) ? amount : 0;
+    const rule = getResolvedBudgetCategoryRule(label, "", normalizedAmount);
+    const categoryKey = rule.parent;
+    if (!categoryKey || !rule.includeInParentTotals) {
+      return;
+    }
+    let contribution = 0;
+
+    if (rule.includeInIncome || rule.includeInSavings) {
+      contribution = Math.abs(normalizedAmount);
+    } else if (rule.includeInExpenses) {
+      contribution = getExpenseContributionAmount(normalizedAmount);
+    }
+
+    if (!Number.isFinite(contribution) || contribution === 0) {
+      return;
+    }
+
+    totals.set(categoryKey, roundCurrencyValue((totals.get(categoryKey) || 0) + contribution));
+  });
+
+  return totals;
+}
+
+function buildBudgetFraGroupSummaries(actualMap) {
+  const totals = buildBudgetFraGroupTotals(actualMap);
+
+  return BUDGET_FRA_GROUP_ORDER
+    .map((key) => {
+      const value = totals.get(key) || 0;
+      if (value <= 0) {
+        return null;
+      }
+
+      const meta = getBudgetFraCategoryMeta(key);
+      return {
+        key,
+        label: meta.label,
+        description: meta.description,
+        tone: meta.tone,
+        value,
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildBudgetFraRuleAlerts(actualMap, snapshot) {
+  const income = Math.max(0, roundCurrencyValue(snapshot.income));
+  if (!income) {
+    return [
+      {
+        key: "income",
+        title: "Revenu",
+        tone: "risk",
+        status: "Income requis",
+        detail: "Ajoutez votre revenu pour activer les alertes budgetaires de type Budget-fra.",
+        amountLabel: formatCurrency(0),
+        ratioLabel: "-",
+      },
+    ];
+  }
+
+  const totals = buildBudgetFraGroupTotals(actualMap);
+
+  return BUDGET_FRA_RULES.map((rule) => {
+    const amount = roundCurrencyValue(totals.get(rule.key) || 0);
+    const ratio = income > 0 ? amount / income : 0;
+    const meta = getBudgetFraCategoryMeta(rule.key);
+
+    if (rule.kind === "min") {
+      if (amount <= 0) {
+        return {
+          key: rule.key,
+          title: rule.title,
+          tone: "risk",
+          status: rule.redLabel,
+          detail: `Cible recommandee: au moins ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
+          amountLabel: formatCurrency(amount),
+          ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+          groupLabel: meta.label,
+        };
+      }
+
+      if (ratio >= rule.greenMin) {
+        return {
+          key: rule.key,
+          title: rule.title,
+          tone: "good",
+          status: rule.greenLabel,
+          detail: `Vous etes au-dessus du seuil recommande de ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
+          amountLabel: formatCurrency(amount),
+          ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+          groupLabel: meta.label,
+        };
+      }
+
+      return {
+        key: rule.key,
+        title: rule.title,
+        tone: "warn",
+        status: rule.yellowLabel,
+        detail: `Essayez de viser ${(rule.greenMin * 100).toFixed(0)} % du revenu ou plus.`,
+        amountLabel: formatCurrency(amount),
+        ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+        groupLabel: meta.label,
+      };
+    }
+
+    if (ratio <= rule.greenMax) {
+      return {
+        key: rule.key,
+        title: rule.title,
+        tone: "good",
+        status: "Dans la moyenne",
+        detail: `La cible recommandee reste sous ${(rule.greenMax * 100).toFixed(0)} % du revenu.`,
+        amountLabel: formatCurrency(amount),
+        ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+        groupLabel: meta.label,
+      };
+    }
+
+    if (ratio <= rule.yellowMax) {
+      return {
+        key: rule.key,
+        title: rule.title,
+        tone: "warn",
+        status: "Legerement au-dessus",
+        detail: `La zone de vigilance va de ${(rule.greenMax * 100).toFixed(0)} % a ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
+        amountLabel: formatCurrency(amount),
+        ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+        groupLabel: meta.label,
+      };
+    }
+
+    return {
+      key: rule.key,
+      title: rule.title,
+      tone: "risk",
+      status: "Au-dessus de la cible",
+      detail: `Cette categorie depasse ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
+      amountLabel: formatCurrency(amount),
+      ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+      groupLabel: meta.label,
+    };
+  });
+}
+
+function buildBudgetFraSuggestions(actualMap, snapshot) {
+  const suggestions = [];
+  const valueFor = (label) => Math.abs(getActualAmount(actualMap, label));
+  const groupTotals = buildBudgetFraGroupTotals(actualMap);
+
+  if (snapshot.cash < 0) {
+    suggestions.push({
+      title: "Votre budget finit en negatif",
+      trigger: "Solde global inferieur a zero",
+      body: "Priorisez les categories dette, logement et alimentation pour retrouver un budget respirable.",
+    });
+  } else if (snapshot.cash > 0) {
+    suggestions.push({
+      title: "Il reste de l'argent a orienter",
+      trigger: "Cash positif sur la periode",
+      body: "Vous pouvez diriger ce surplus vers l'epargne, un remboursement de dettes ou un objectif precis.",
+    });
+  }
+
+  if (snapshot.income > 0 && snapshot.totalSavings / snapshot.income < 0.05) {
+    suggestions.push({
+      title: "Renforcer l'epargne de securite",
+      trigger: "Savings sous 5 % du revenu",
+      body: "Le fichier Budget-fra suggere de renforcer l'epargne avant d'ajouter de nouvelles depenses discretionnaires.",
+    });
+  }
+
+  if (valueFor("Credit card") > 0) {
+    suggestions.push({
+      title: "Carte de credit a surveiller",
+      trigger: "Credit card > 0",
+      body: "Une suggestion utile serait d'afficher un rappel de remboursement prioritaire et une piste pour reduire les interets.",
+    });
+  }
+
+  if (valueFor("Groceries") > 0 || valueFor("Dining out") > 0) {
+    suggestions.push({
+      title: "Optimiser l'alimentation",
+      trigger: "Epicerie ou restos presents",
+      body: "On peut proposer de revoir l'epicerie, les repas planifies et la frequence des sorties restaurant.",
+    });
+  }
+
+  if (valueFor("Mortgage") > 0 || valueFor("Rent") > 0) {
+    suggestions.push({
+      title: "Le logement pese dans le budget",
+      trigger: "Loyer ou hypotheque detecte",
+      body: "La future mise a jour peut mettre en avant un rappel sur la cible logement et des conseils adaptes.",
+    });
+  }
+
+  if ((groupTotals.get("transportation") || 0) > 0) {
+    suggestions.push({
+      title: "Transport a suivre de pres",
+      trigger: "Depenses transport detectees",
+      body: "Le groupe transport peut porter des suggestions sur location, essence, entretien et arbitrages de mobilite.",
+    });
+  }
+
+  return suggestions.slice(0, 6);
 }
 
 function migrateLegacyIncomePlanRows(rows) {
@@ -333,7 +1460,8 @@ function stripAutoCalculatedPlanRows(rows) {
 
 function resolvePlanTemplate(rows = state.recap.planTemplate) {
   const seededRows = Array.isArray(rows) && rows.length ? rows : createFallbackPlanTemplate();
-  const normalizedRows = migrateLegacyIncomePlanRows(seededRows).map((row) => ({
+  const mergedRows = mergeReferenceBudgetTemplateRows(seededRows);
+  const normalizedRows = migrateLegacyIncomePlanRows(mergedRows).map((row) => ({
     ...row,
     group: normalizePlanGroup(row.group, row.label),
   }));
@@ -623,6 +1751,7 @@ function cacheDom() {
   refs.exportButton = document.getElementById("export-workbook");
   refs.mobileFab = document.getElementById("mobile-fab");
   refs.statusStrip = document.getElementById("workspace-status");
+  refs.formKicker = document.getElementById("form-kicker");
   refs.cardsGrid = document.getElementById("cards-grid");
   refs.cardsEmpty = document.getElementById("cards-empty");
   refs.recapView = document.getElementById("recap-view");
@@ -2015,12 +3144,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     state.budget = {
       headers: ["Date", "Categories", "Value"],
       categories: (categories || []).map((row) => String(row.name || "").trim()).filter(Boolean),
-      rows: (transactions || []).map((row) => sanitizeBudgetRow({
-        __id: row.id,
-        Date: row.entry_date,
-        Categories: row.category,
-        Value: normalizeAmountValue(row.amount),
-      })),
+      rows: (transactions || [])
+        .map((row) => sanitizeBudgetRow({
+          __id: row.id,
+          Date: row.entry_date,
+          Categories: row.category,
+          Value: normalizeAmountValue(row.amount),
+        }))
+        .filter((row) => !isIgnoredBudgetTransactionRow(row)),
       clearEndRow: START_ROW + (transactions?.length || 0) + 8,
     };
     state.recap = {
@@ -2371,7 +3502,9 @@ function applyStoredDraft(draft) {
   state.budget = {
     headers: ["Date", "Categories", "Value"],
     categories: Array.isArray(draft.categories) ? draft.categories : [],
-    rows: draft.rows.map((row) => sanitizeBudgetRow(row)),
+    rows: draft.rows
+      .map((row) => sanitizeBudgetRow(row))
+      .filter((row) => !isIgnoredBudgetTransactionRow(row)),
     clearEndRow: Number.isFinite(draft.clearEndRow) ? draft.clearEndRow : START_ROW,
   };
   state.recap = {
@@ -2744,15 +3877,33 @@ function parseBudgetRows(sheet, maxRow) {
       continue;
     }
 
-    rows.push({
+    const nextRow = {
       __id: createId(),
       Date: dateValue,
       Categories: categoryValue,
       Value: amountValue,
-    });
+    };
+
+    if (isIgnoredBudgetTransactionRow(nextRow)) {
+      continue;
+    }
+
+    rows.push(nextRow);
   }
 
   return rows;
+}
+
+function isIgnoredBudgetTransactionRow(row) {
+  const dateValue = normalizeDateValue(row?.Date);
+  const normalizedCategory = normalizeHeaderName(row?.Categories);
+  const normalizedValue = normalizeHeaderName(row?.Value);
+
+  if (!dateValue && normalizedCategory === "categories" && (!normalizedValue || normalizedValue === "value")) {
+    return true;
+  }
+
+  return false;
 }
 
 function parseRecapWorkbook(workbook) {
@@ -3159,6 +4310,7 @@ async function onSaveRecord(event) {
     setLastAction(actionLabel);
   }
 
+  ensureBudgetCategoryAvailable(nextRecord.Categories);
   sortBudgetRowsInPlace(state.budget.rows);
   state.editingIndex = null;
   state.editorMode = "create";
@@ -3221,9 +4373,29 @@ function refreshPlanEditorPreview() {
       periodTarget.textContent = getPlanPeriodLabel(previewRow.period);
     }
 
+    const parentTarget = rowElement.querySelector("[data-plan-parent-label]");
+    if (parentTarget) {
+      parentTarget.textContent =
+        getBudgetFraCategoryLabel(previewRow.label, previewRow.group, previewRow.plan) || "Aucun parent";
+      parentTarget.classList.toggle(
+        "budget-parent-empty",
+        !(getBudgetFraCategoryLabel(previewRow.label, previewRow.group, previewRow.plan))
+      );
+    }
+
     const amountInput = rowElement.querySelector("[data-plan-input='true']");
     if (amountInput?.readOnly) {
       amountInput.value = normalizeAmountValue(previewRow.plan);
+    }
+  });
+
+  const groupedPreviewRows = buildBudgetFraPlanEditorGroups(
+    previewRows.filter((row) => !isDerivedPlanLabel(row.label))
+  );
+  groupedPreviewRows.forEach((group) => {
+    const target = refs.form.querySelector(`[data-plan-group-total="${group.key}"]`);
+    if (target) {
+      target.textContent = formatCurrency(computePlanGroupMonthlyTotal(group.rows));
     }
   });
 }
@@ -3853,7 +5025,7 @@ function renderAppTabs() {
     },
     [APP_TAB_ANALYSIS]: {
       title: "Analyse",
-      description: "Des comparaisons claires entre income, expenses, savings et cash pour comprendre votre rythme.",
+      description: "Des comparaisons claires entre revenu, depenses, epargne et cash pour comprendre votre rythme.",
     },
     [APP_TAB_SHARE]: {
       title: "Partage et sauvegarde",
@@ -3981,9 +5153,9 @@ function renderSectionHeading() {
 
   if (state.activeView === ANALYSIS_VIEW_NAME) {
     refs.cardsKicker.textContent = "Comparaisons";
-    refs.cardsTitle.textContent = "Income, expenses et savings en perspective";
+    refs.cardsTitle.textContent = "Revenu, depenses et epargne en perspective";
     refs.cardsCaption.textContent =
-      "Cette vue ajoute des comparaisons et des graphiques pertinents a partir de Journalier pour suivre l'equilibre entre income, expenses, savings et cash.";
+      "Cette vue ajoute des comparaisons et des graphiques pertinents a partir de Journalier pour suivre l'equilibre entre revenu, depenses, epargne et cash.";
     return;
   }
 
@@ -4034,6 +5206,7 @@ function renderControls() {
   refs.restoreDraftButton.title = hasStoredDraft
     ? "Recharge le dernier brouillon local memorise dans l'app"
     : "Aucun brouillon local disponible pour le moment";
+  refs.filePickerField.classList.toggle("hidden", !shareTab);
   refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab);
   refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
   refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
@@ -4354,13 +5527,14 @@ function getFilteredJournalRows() {
         return true;
       }
 
-      const haystack = [
-        row.Date,
-        formatDateForDisplay(row.Date),
-        row.Categories,
-        row.Value,
-        formatCurrency(row.Value),
-      ].join(" ").toLowerCase();
+        const haystack = [
+          row.Date,
+          formatDateForDisplay(row.Date),
+          row.Categories,
+          getBudgetFraCategoryLabel(row.Categories || "", "", row.Value),
+          row.Value,
+          formatCurrency(row.Value),
+        ].join(" ").toLowerCase();
 
       return haystack.includes(query);
     })
@@ -4379,12 +5553,12 @@ function renderCards() {
     return;
   }
 
-  if (state.activeView === RECAP_SHEET_NAME) {
+  if (state.appTab === APP_TAB_DASHBOARD) {
     renderRecapView();
     return;
   }
 
-  if (state.activeView === ANALYSIS_VIEW_NAME) {
+  if (state.appTab === APP_TAB_ANALYSIS) {
     renderAnalysisView();
     return;
   }
@@ -4415,33 +5589,42 @@ function renderJournalCards() {
 
   refs.cardsEmpty.classList.add("hidden");
 
-  filteredRows.forEach(({ row, index }) => {
-    const card = document.createElement("article");
-    card.className = `data-card${index === state.editingIndex ? " active" : ""}`;
-    card.dataset.index = String(index);
+    filteredRows.forEach(({ row, index }) => {
+      const card = document.createElement("article");
+      card.className = `data-card${index === state.editingIndex ? " active" : ""}`;
+      card.dataset.index = String(index);
 
-    const amountLabel = formatCurrency(row.Value) || row.Value || "-";
-    const dateLabel = formatDateForDisplay(row.Date) || "Sans date";
+  const amountLabel = formatCurrency(row.Value) || row.Value || "-";
+  const dateLabel = formatDateForDisplay(row.Date) || "Sans date";
+  const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
+  const parentChipMarkup = parentLabel
+    ? `<span class="card-parent-chip">${escapeHtml(parentLabel)}</span>`
+    : "";
+  const parentDetailMarkup = parentLabel
+    ? createDetailMarkup("Grande categorie", parentLabel)
+    : "";
 
-    card.innerHTML = `
-      <div class="card-topline">
-        <span class="card-index">${escapeHtml(dateLabel)}</span>
-        <div class="card-actions">
+  card.innerHTML = `
+        <div class="card-topline">
+          <span class="card-index">${escapeHtml(dateLabel)}</span>
+          <div class="card-actions">
           <button class="card-action" type="button" data-action="edit" aria-label="Modifier">Edit</button>
           <button class="card-action delete" type="button" data-action="delete" aria-label="Supprimer">X</button>
         </div>
-      </div>
-      <div>
-        <h3 class="card-title">${escapeHtml(row.Categories || "Categorie non definie")}</h3>
-        <p class="card-subtitle">Feuille ${JOURNAL_SHEET_NAME}</p>
-        <p class="card-amount">${escapeHtml(amountLabel)}</p>
-      </div>
-      <div class="card-details">
-        ${createDetailMarkup("Date", dateLabel)}
-        ${createDetailMarkup("Categorie", row.Categories || "-")}
-        ${createDetailMarkup("Value", amountLabel)}
-      </div>
-    `;
+        </div>
+        <div>
+          ${parentChipMarkup}
+          <h3 class="card-title">${escapeHtml(row.Categories || "Categorie non definie")}</h3>
+          <p class="card-subtitle">Feuille ${JOURNAL_SHEET_NAME}</p>
+          <p class="card-amount">${escapeHtml(amountLabel)}</p>
+        </div>
+        <div class="card-details">
+          ${createDetailMarkup("Date", dateLabel)}
+          ${createDetailMarkup("Categorie", row.Categories || "-")}
+          ${parentDetailMarkup}
+          ${createDetailMarkup("Value", amountLabel)}
+        </div>
+      `;
 
     refs.cardsGrid.appendChild(card);
   });
@@ -4516,6 +5699,9 @@ function buildLiveRecapView() {
       metrics: [],
       detailRows: [],
       planRows: [],
+      groupSummaries: [],
+      ruleAlerts: [],
+      suggestions: [],
       transactionCount: 0,
       availableMonthCount: 0,
       availableMonthLabels: [],
@@ -4529,25 +5715,35 @@ function buildLiveRecapView() {
 
   const recapRows = getFilteredRecapSourceRows();
   const actualMap = buildActualAmountMap(recapRows);
+  const snapshot = computeMetricSnapshot(actualMap);
   const metrics = buildRecapMetrics(actualMap);
   const detailRows = buildRecapDetailRows(actualMap);
   const budgetPeriodCount = getRecapBudgetPeriodCount(recapRows);
   const planRows = buildRecapPlanRows(actualMap, metrics, budgetPeriodCount);
+  const groupSummaries = buildBudgetFraGroupSummaries(actualMap);
+  const ruleAlerts = buildBudgetFraRuleAlerts(actualMap, snapshot);
+  const suggestions = buildBudgetFraSuggestions(actualMap, snapshot);
   const availableYears = getAvailableRecapYears();
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
+  const availablePeriods = getAvailableRecapPeriodEntries(state.recapFilters.year);
   const filtersActive = hasActiveRecapPeriodFilter();
 
   return {
     available: true,
-    snapshotDate: state.recap.snapshotDate,
-    metrics,
-    detailRows,
-    planRows,
-    transactionCount: recapRows.length,
-    availableMonthCount: availableMonths.length,
-    availableMonthLabels: availableMonths.map((month) => formatMonthLabel(month)),
-    availabilityLabel: buildRecapAvailabilityLabel(availableYears, availableMonths),
-    availabilityScopeLabel: buildRecapAvailabilityScopeLabel(),
+      snapshotDate: state.recap.snapshotDate,
+      metrics,
+      detailRows,
+      planRows,
+      groupSummaries,
+      ruleAlerts,
+      suggestions,
+      transactionCount: recapRows.length,
+      availableMonthCount: state.recapFilters.year === "all" ? availablePeriods.length : availableMonths.length,
+      availableMonthLabels: state.recapFilters.year === "all"
+        ? availablePeriods.map((period) => period.label)
+        : availableMonths.map((month) => formatMonthLabel(month)),
+      availabilityLabel: buildRecapAvailabilityLabel(availableYears, availableMonths, availablePeriods),
+      availabilityScopeLabel: buildRecapAvailabilityScopeLabel(),
     periodLabel: buildRecapPeriodLabel(),
     budgetPeriodCount,
     filteredUndatedCount: filtersActive ? countUndatedBudgetRows() : 0,
@@ -4565,6 +5761,7 @@ function buildLiveAnalysisView() {
       seriesRows: [],
       detailRows: [],
       planRows: [],
+      planGroups: [],
       cashFlow: null,
       expenseBreakdown: null,
       categoryBenchmark: null,
@@ -4584,6 +5781,7 @@ function buildLiveAnalysisView() {
   const detailRows = buildRecapDetailRows(actualMap);
   const budgetPeriodCount = getRecapBudgetPeriodCount(filteredRows);
   const planRows = buildRecapPlanRows(actualMap, buildRecapMetrics(actualMap), budgetPeriodCount);
+  const planGroups = buildAnalysisPlanGroups(planRows);
   const cashFlow = buildAnalysisCashFlow(snapshot);
   const expenseBreakdown = buildAnalysisExpenseBreakdown(filteredRows);
   const categoryBenchmark = buildAnalysisCategoryBenchmark();
@@ -4602,6 +5800,7 @@ function buildLiveAnalysisView() {
     seriesRows,
     detailRows,
     planRows,
+    planGroups,
     cashFlow,
     expenseBreakdown,
     categoryBenchmark,
@@ -4676,6 +5875,35 @@ function getAvailableRecapMonths(year) {
   return Array.from(months).sort((left, right) => Number(left) - Number(right));
 }
 
+function getAvailableRecapPeriodEntries(year) {
+  const periods = new Map();
+
+  state.budget.rows.forEach((row) => {
+    const dateParts = getBudgetRowDateParts(row);
+    if (!dateParts) {
+      return;
+    }
+
+    if (year !== "all" && dateParts.year !== year) {
+      return;
+    }
+
+    const key = buildYearMonthKey(dateParts.year, dateParts.month);
+    if (!periods.has(key)) {
+      periods.set(key, {
+        key,
+        year: dateParts.year,
+        month: dateParts.month,
+        label: year === "all"
+          ? formatMonthYearLabel(dateParts.year, dateParts.month)
+          : formatMonthLabel(dateParts.month),
+      });
+    }
+  });
+
+  return Array.from(periods.values()).sort((left, right) => String(left.key).localeCompare(String(right.key)));
+}
+
 function getBudgetRowDateParts(row) {
   const iso = normalizeDateValue(row?.Date);
   if (!iso) {
@@ -4713,13 +5941,13 @@ function buildRecapPeriodLabel() {
   return `${labels} ${year}`;
 }
 
-function buildRecapAvailabilityLabel(availableYears, availableMonths) {
+function buildRecapAvailabilityLabel(availableYears, availableMonths, availablePeriods = []) {
   if (!availableYears.length) {
     return "Aucune date exploitable dans Journalier.";
   }
 
   if (state.recapFilters.year === "all") {
-    return `${availableYears.length} annee(s) avec donnees et ${availableMonths.length} mois couverts.`;
+    return `${availableYears.length} annee(s) avec donnees et ${availablePeriods.length} periode(s) couvertes.`;
   }
 
   return `${availableMonths.length} mois avec donnees en ${state.recapFilters.year}.`;
@@ -4727,7 +5955,7 @@ function buildRecapAvailabilityLabel(availableYears, availableMonths) {
 
 function buildRecapAvailabilityScopeLabel() {
   if (state.recapFilters.year === "all") {
-    return "Mois disponibles toutes annees confondues";
+    return "Periodes disponibles toutes annees confondues";
   }
 
   return `Mois disponibles en ${state.recapFilters.year}`;
@@ -4809,6 +6037,27 @@ function getPlanComparisonFallbackOrder(label) {
 }
 
 function comparePlanComparisonRows(left, right, categoryOrderMap) {
+  const resolveParentOrder = (row) => {
+    if (!row.parentLabel) {
+      return BUDGET_FRA_GROUP_ORDER.length;
+    }
+    const directIndex = BUDGET_FRA_GROUP_ORDER.findIndex(
+      (key) => getBudgetFraCategoryMeta(key).label === row.parentLabel
+    );
+    if (directIndex >= 0) {
+      return directIndex;
+    }
+    const inferredParent = inferBudgetFraCategory(row.label, row.group, row.actual || row.plan);
+    const inferredIndex = BUDGET_FRA_GROUP_ORDER.indexOf(inferredParent);
+    return inferredIndex >= 0 ? inferredIndex : BUDGET_FRA_GROUP_ORDER.length;
+  };
+
+  const leftParentOrder = resolveParentOrder(left);
+  const rightParentOrder = resolveParentOrder(right);
+  if (leftParentOrder !== rightParentOrder) {
+    return leftParentOrder - rightParentOrder;
+  }
+
   const leftKey = normalizeHeaderName(left.label);
   const rightKey = normalizeHeaderName(right.label);
   const leftIndex = categoryOrderMap.get(leftKey);
@@ -4867,10 +6116,21 @@ function buildActualAmountMap(rows) {
 }
 
 function computeTotalIncome(actualMap) {
-  const income = Math.abs(getActualAmount(actualMap, "Income"));
-  const associationFees = getActualAmount(actualMap, "Association fees");
+  let total = 0;
 
-  return roundCurrencyValue(income + (associationFees > 0 ? associationFees : 0));
+  actualMap.forEach((amount, key) => {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return;
+    }
+
+    const label = findOriginalCategoryLabel(key);
+    const rule = getResolvedBudgetCategoryRule(label, "", amount);
+    if (rule.includeInIncome) {
+      total += amount;
+    }
+  });
+
+  return roundCurrencyValue(total);
 }
 
 function computeMetricSnapshot(actualMap) {
@@ -4926,21 +6186,21 @@ function buildAnalysisComparisonRows(snapshot) {
       value: snapshot.expenses,
       displayValue: formatCurrency(snapshot.expenses),
       tone: "negative",
-      caption: "Somme des depenses hors postes de savings.",
+      caption: "Somme des depenses hors postes d'epargne.",
     },
     {
       label: "Savings",
       value: snapshot.totalSavings,
       displayValue: formatCurrency(snapshot.totalSavings),
       tone: "neutral",
-      caption: "Savings total incluant les seasonal savings.",
+      caption: "Epargne totale incluant l'epargne saisonniere.",
     },
     {
       label: "Cash",
       value: Math.abs(snapshot.cash),
       displayValue: formatSignedCurrency(snapshot.cash),
       tone: snapshot.cash >= 0 ? "positive" : "negative",
-      caption: "Disponible net apres expenses et savings.",
+      caption: "Disponible net apres depenses et epargne.",
     },
   ];
 
@@ -5075,14 +6335,30 @@ function buildExpenseCategoryMap(rows) {
       return;
     }
 
-    const key = normalizeHeaderName(label);
-    if (isIncomeOrSavingsKey(key) || amount >= 0) {
+    const rule = getResolvedBudgetCategoryRule(label, "", amount);
+    const parentLabel = rule.parentLabel || "";
+    if (!parentLabel || !rule.includeInParentTotals || !rule.includeInExpenses) {
       return;
     }
 
-    const existing = categories.get(key) || { label, value: 0 };
-    existing.value += Math.abs(amount);
+    const contribution = getExpenseContributionAmount(amount);
+    if (!Number.isFinite(contribution) || contribution === 0) {
+      return;
+    }
+
+    const key = normalizeHeaderName(parentLabel);
+    const existing = categories.get(key) || { label: parentLabel, value: 0 };
+    existing.value += contribution;
     categories.set(key, existing);
+  });
+
+  Array.from(categories.entries()).forEach(([key, entry]) => {
+    if (!Number.isFinite(entry.value) || entry.value <= 0) {
+      categories.delete(key);
+      return;
+    }
+
+    entry.value = roundCurrencyValue(entry.value);
   });
 
   return categories;
@@ -5370,7 +6646,7 @@ function buildAnalysisTrendTitle() {
 
 function buildAnalysisTrendSubtitle(totalCount, visibleCount) {
   const mode = getAnalysisSeriesMode();
-  let baseSubtitle = "Income, expenses et savings total sont compares periode par periode.";
+  let baseSubtitle = "Revenu, depenses et epargne totale sont compares periode par periode.";
   const selectedMonths = getSelectedRecapMonths();
 
   if (mode === "year_months") {
@@ -5425,19 +6701,20 @@ function buildRecapDetailRows(actualMap) {
   const seen = new Set();
   const query = state.search;
 
-  state.budget.categories.forEach((category) => {
-    const key = normalizeHeaderName(category);
-    const amount = actualMap.get(key);
+    state.budget.categories.forEach((category) => {
+      const key = normalizeHeaderName(category);
+      const amount = actualMap.get(key);
 
-    if (!Number.isFinite(amount) || Math.abs(amount) < 0.005) {
+      if (!Number.isFinite(amount) || Math.abs(amount) < 0.005) {
       return;
     }
 
-    const row = {
-      label: category,
-      amount,
-      isTotal: false,
-    };
+      const row = {
+        label: category,
+        parentLabel: getBudgetFraCategoryLabel(category, "", amount),
+        amount,
+        isTotal: false,
+      };
 
     if (!matchesRecapSearch(row, query)) {
       return;
@@ -5452,12 +6729,13 @@ function buildRecapDetailRows(actualMap) {
       return;
     }
 
-    const label = findOriginalCategoryLabel(key);
-    const row = {
-      label,
-      amount,
-      isTotal: false,
-    };
+      const label = findOriginalCategoryLabel(key);
+      const row = {
+        label,
+        parentLabel: getBudgetFraCategoryLabel(label, "", amount),
+        amount,
+        isTotal: false,
+      };
 
     if (!matchesRecapSearch(row, query)) {
       return;
@@ -5467,11 +6745,12 @@ function buildRecapDetailRows(actualMap) {
   });
 
   const totalAmount = Array.from(actualMap.values()).reduce((sum, value) => sum + value, 0);
-  const totalRow = {
-    label: "Total general",
-    amount: totalAmount,
-    isTotal: true,
-  };
+    const totalRow = {
+      label: "Total general",
+      parentLabel: "Toutes categories",
+      amount: totalAmount,
+      isTotal: true,
+    };
 
   if (!query || matchesRecapSearch(totalRow, query)) {
     orderedRows.push(totalRow);
@@ -5490,14 +6769,22 @@ function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
     .map((row) => {
       const monthlyPlan = roundCurrencyValue(convertPlanAmountToMonthly(row.plan, row.period));
       const scaledPlan = roundCurrencyValue(monthlyPlan * safePeriodCount);
-      const actual = roundCurrencyValue(computeActualForPlanLabel(row.label, actualMap, metrics));
-      const comparisonStatus = buildBudgetComparisonStatus(scaledPlan, actual, row.label, row.group);
+      const actualContext = resolvePlanActualContext(row.label, row.group, actualMap, metrics);
+      const actual = roundCurrencyValue(actualContext.actual);
+      const comparisonStatus = buildBudgetComparisonStatus(
+        scaledPlan,
+        actual,
+        row.label,
+        row.group,
+        actualContext.mode
+      );
 
-      return {
-        label: row.label,
-        group: normalizePlanGroup(row.group, row.label),
-        plan: normalizeAmountValue(scaledPlan),
-        monthlyPlan: normalizeAmountValue(monthlyPlan),
+        return {
+          label: row.label,
+          parentLabel: getBudgetFraCategoryLabel(row.label, row.group, actualContext.classifierAmount),
+          group: normalizePlanGroup(row.group, row.label),
+          plan: normalizeAmountValue(scaledPlan),
+          monthlyPlan: normalizeAmountValue(monthlyPlan),
         period: normalizePlanPeriod(row.period),
         periodLabel: getPlanPeriodLabel(row.period),
         budgetMonths: safePeriodCount,
@@ -5511,20 +6798,119 @@ function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
     .sort((left, right) => comparePlanComparisonRows(left, right, categoryOrderMap));
 }
 
-function buildBudgetComparisonStatus(planAmount, actualAmount, rowLabel = "", rowGroup = "") {
+function getPlanComparisonParentMeta(row) {
+  if (row.parentLabel) {
+    const directKey = BUDGET_FRA_GROUP_ORDER.find(
+      (key) => getBudgetFraCategoryMeta(key).label === row.parentLabel
+    );
+
+    if (directKey) {
+      return {
+        key: directKey,
+        label: row.parentLabel,
+        order: BUDGET_FRA_GROUP_ORDER.indexOf(directKey),
+        mode: directKey === "income" ? "income" : directKey === "savings" ? "savings" : "expense",
+      };
+    }
+
+    const inferredKey = inferBudgetFraCategory(row.label, row.group, row.actual || row.plan);
+    if (inferredKey && BUDGET_FRA_GROUP_ORDER.includes(inferredKey)) {
+      return {
+        key: inferredKey,
+        label: row.parentLabel,
+        order: BUDGET_FRA_GROUP_ORDER.indexOf(inferredKey),
+        mode: inferredKey === "income" ? "income" : inferredKey === "savings" ? "savings" : "expense",
+      };
+    }
+
+    return {
+      key: normalizeHeaderName(row.parentLabel) || "custom-parent",
+      label: row.parentLabel,
+      order: BUDGET_FRA_GROUP_ORDER.length,
+      mode: "expense",
+    };
+  }
+
+  return {
+    key: "unclassified",
+    label: "Sans parent",
+    order: BUDGET_FRA_GROUP_ORDER.length + 1,
+    mode: "expense",
+  };
+}
+
+function buildAnalysisPlanGroups(planRows) {
+  const groups = new Map();
+
+  (Array.isArray(planRows) ? planRows : [])
+    .filter((row) => {
+      const normalized = normalizeHeaderName(row.label);
+      if (normalized === "income") {
+        return true;
+      }
+
+      return !isDerivedPlanLabel(row.label);
+    })
+    .forEach((row) => {
+      const parentMeta = getPlanComparisonParentMeta(row);
+      const key = parentMeta.key;
+      const planAmount = roundCurrencyValue(parseAmount(row.plan));
+      const actualAmount = roundCurrencyValue(parseAmount(row.actual));
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          label: parentMeta.label,
+          order: parentMeta.order,
+          mode: parentMeta.mode,
+          plan: 0,
+          actual: 0,
+          rows: [],
+        });
+      }
+
+      const group = groups.get(key);
+      group.plan = roundCurrencyValue(group.plan + planAmount);
+      group.actual = roundCurrencyValue(group.actual + actualAmount);
+      group.rows.push(row);
+    });
+
+  return Array.from(groups.values())
+    .map((group) => {
+      const status = buildBudgetComparisonStatus(
+        group.plan,
+        group.actual,
+        group.label,
+        group.key,
+        group.mode
+      );
+
+      return {
+        ...group,
+        statusLabel: status.label,
+        statusTone: status.tone,
+        delta: status.delta,
+      };
+    })
+    .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label, "fr-CA"));
+}
+
+function buildBudgetComparisonStatus(planAmount, actualAmount, rowLabel = "", rowGroup = "", comparisonMode = "") {
   const plan = roundCurrencyValue(parseAmount(planAmount));
   const actual = roundCurrencyValue(parseAmount(actualAmount));
   const delta = roundCurrencyValue(actual - plan);
   const tolerance = Math.max(0.01, roundCurrencyValue(Math.abs(plan) * 0.005));
   const normalizedLabel = normalizeHeaderName(rowLabel);
   const normalizedGroup = normalizePlanGroup(rowGroup, rowLabel);
-  const isIncomeLike = normalizedLabel === "income" || normalizedGroup === "income";
+  const normalizedMode = String(comparisonMode || "").trim().toLowerCase();
+  const isIncomeLike = normalizedMode === "income" || normalizedLabel === "income" || normalizedGroup === "income";
   const isSavingsLike =
+    normalizedMode === "savings" ||
     normalizedLabel === "total savings" ||
     normalizedLabel === "savings" ||
     normalizedLabel === "savings for seasonal exp." ||
     normalizedGroup === "savings";
-  const isCashLike = normalizedLabel === "cash short/extra";
+  const isCashLike = normalizedMode === "cash" || normalizedLabel === "cash short/extra";
 
   if (Math.abs(delta) <= tolerance) {
     return {
@@ -5573,28 +6959,83 @@ function buildBudgetComparisonStatus(planAmount, actualAmount, rowLabel = "", ro
   };
 }
 
-function computeActualForPlanLabel(label, actualMap, metrics) {
+function resolvePlanActualContext(label, rowGroup, actualMap, metrics) {
   const normalized = normalizeHeaderName(label);
 
   if (normalized === "income") {
-    return metrics.find((metric) => metric.label === "Income")?.value || 0;
+    const amount = metrics.find((metric) => metric.label === "Income")?.value || 0;
+    return {
+      actual: amount,
+      classifierAmount: amount,
+      mode: "income",
+    };
   }
 
   if (normalized === "expenses" || normalized === "total expenses") {
-    return metrics.find((metric) => metric.label === "Expenses")?.value || 0;
+    const amount = metrics.find((metric) => metric.label === "Expenses")?.value || 0;
+    return {
+      actual: amount,
+      classifierAmount: amount,
+      mode: "expense",
+    };
   }
 
   if (normalized === "total savings") {
     const savings = metrics.find((metric) => metric.label === "Savings")?.value || 0;
     const seasonal = metrics.find((metric) => metric.label === "Seasonal Savings")?.value || 0;
-    return savings + seasonal;
+    const amount = savings + seasonal;
+    return {
+      actual: amount,
+      classifierAmount: amount,
+      mode: "savings",
+    };
   }
 
   if (normalized === "cash short/extra") {
-    return metrics.find((metric) => metric.label === "Cash")?.value || 0;
+    const amount = metrics.find((metric) => metric.label === "Cash")?.value || 0;
+    return {
+      actual: amount,
+      classifierAmount: amount,
+      mode: "cash",
+    };
   }
 
-  return Math.abs(getActualAmount(actualMap, label));
+  const sourceAmount = getActualAmount(actualMap, label);
+  const rule = getResolvedBudgetCategoryRule(label, rowGroup, sourceAmount);
+
+  if (rule.includeInExpenses) {
+    return {
+      actual: Math.max(0, roundCurrencyValue(getExpenseContributionAmount(sourceAmount))),
+      classifierAmount: sourceAmount,
+      mode: "expense",
+    };
+  }
+
+  if (rule.includeInIncome) {
+    return {
+      actual: Math.max(0, roundCurrencyValue(sourceAmount)),
+      classifierAmount: sourceAmount,
+      mode: "income",
+    };
+  }
+
+  if (rule.includeInSavings) {
+    return {
+      actual: Math.max(0, roundCurrencyValue(sourceAmount)),
+      classifierAmount: sourceAmount,
+      mode: "savings",
+    };
+  }
+
+  return {
+    actual: Math.abs(sourceAmount),
+    classifierAmount: sourceAmount,
+    mode: "",
+  };
+}
+
+function computeActualForPlanLabel(label, actualMap, metrics) {
+  return resolvePlanActualContext(label, "", actualMap, metrics).actual;
 }
 
 function matchesRecapSearch(row, query) {
@@ -5604,6 +7045,7 @@ function matchesRecapSearch(row, query) {
 
   const haystack = [
     row.label,
+    row.parentLabel,
     row.plan,
     row.actual,
     formatSignedCurrency(row.amount),
@@ -5617,16 +7059,26 @@ function computeTotalExpenses(actualMap) {
   let total = 0;
 
   actualMap.forEach((amount, key) => {
-    if (isIncomeOrSavingsKey(key)) {
+    if (!Number.isFinite(amount)) {
       return;
     }
 
-    if (amount < 0) {
-      total += Math.abs(amount);
+    const label = findOriginalCategoryLabel(key);
+    const rule = getResolvedBudgetCategoryRule(label, "", amount);
+    if (rule.includeInExpenses) {
+      total += getExpenseContributionAmount(amount);
     }
   });
 
-  return total;
+  return roundCurrencyValue(total);
+}
+
+function getExpenseContributionAmount(amount) {
+  if (!Number.isFinite(amount) || amount === 0) {
+    return 0;
+  }
+
+  return amount < 0 ? Math.abs(amount) : -amount;
 }
 
 function isIncomeOrSavingsKey(key) {
@@ -5645,30 +7097,88 @@ function findOriginalCategoryLabel(key) {
 }
 
 function createRecapMarkup(recapView) {
-  const transactionLabel = `${recapView.transactionCount} transaction${recapView.transactionCount > 1 ? "s" : ""} retenue${recapView.transactionCount > 1 ? "s" : ""}.`;
-  const undatedNote = recapView.filteredUndatedCount
-    ? ` ${recapView.filteredUndatedCount} ligne(s) sans date sont exclues quand un filtre de periode est actif.`
-    : "";
-  const monthChips = recapView.availableMonthLabels
-    .map((monthLabel) => `<span class="recap-chip">${escapeHtml(monthLabel)}</span>`)
-    .join("");
-
   return `
     <div class="recap-shell">
       <div class="recap-metrics">
         ${recapView.metrics.map((metric) => createRecapMetricMarkup(metric)).join("")}
       </div>
-      <div class="recap-note">
-        <strong>Source:</strong> vue reconstruite depuis <code>${RECAP_SHEET_NAME}</code> et <code>${TCD_SHEET_NAME}</code>.
-        ${recapView.snapshotDate ? ` Snapshot date: ${escapeHtml(recapView.snapshotDate)}.` : ""}
-        <br><strong>Periode analysee:</strong> ${escapeHtml(recapView.periodLabel)}. ${escapeHtml(transactionLabel)}
-        <br><strong>Disponibilite:</strong> ${escapeHtml(recapView.availabilityLabel)}${escapeHtml(undatedNote)}
-        <div class="recap-availability">
-          <span class="recap-chip">${escapeHtml(recapView.availabilityScopeLabel)}</span>
-          ${monthChips || '<span class="recap-chip">Aucun mois date</span>'}
-        </div>
-      </div>
+      ${createBudgetFraSummaryMarkup(recapView.groupSummaries)}
     </div>
+  `;
+}
+
+function createBudgetFraSummaryMarkup(rows) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return "";
+  }
+
+  return `
+    <section class="recap-section">
+      <div class="fra-group-grid">
+        ${rows.map((row) => `
+          <article class="fra-group-card fra-group-card-${escapeHtml(row.tone || "default")}">
+            <span class="fra-group-kicker">${escapeHtml(row.label)}</span>
+            <strong>${escapeHtml(formatCurrency(row.value))}</strong>
+            <p>${escapeHtml(row.description)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function createBudgetFraAlertMarkup(rows) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return "";
+  }
+
+  return `
+    <section class="recap-section">
+      <div class="recap-section-head">
+        <h3>Alertes suggerees</h3>
+        <p>Ces alertes s'inspirent des seuils du fichier Budget-fra et comparent chaque grande famille a votre revenu.</p>
+      </div>
+      <div class="fra-alert-grid">
+        ${rows.map((row) => `
+          <article class="fra-alert-card fra-alert-card-${escapeHtml(row.tone || "warn")}">
+            <div class="fra-alert-head">
+              <span class="fra-alert-kicker">${escapeHtml(row.groupLabel || row.title || "")}</span>
+              ${createRecapStatusChipMarkup(row.status, row.tone === "good" ? "below-budget" : row.tone === "risk" ? "above-budget" : "on-budget")}
+            </div>
+            <strong>${escapeHtml(row.title)}</strong>
+            <p>${escapeHtml(row.detail)}</p>
+            <div class="fra-alert-meta">
+              <span>${escapeHtml(row.amountLabel)}</span>
+              <span>${escapeHtml(row.ratioLabel)}</span>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function createBudgetFraSuggestionMarkup(rows) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return "";
+  }
+
+  return `
+    <section class="recap-section">
+      <div class="recap-section-head">
+        <h3>Suggestions du moment</h3>
+        <p>Premiere couche de suggestions inspirees de Budget-fra pour vous orienter sans surcharger l'application.</p>
+      </div>
+      <div class="fra-suggestion-grid">
+        ${rows.map((row) => `
+          <article class="fra-suggestion-card">
+            <span class="fra-suggestion-trigger">${escapeHtml(row.trigger)}</span>
+            <strong>${escapeHtml(row.title)}</strong>
+            <p>${escapeHtml(row.body)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -5681,18 +7191,10 @@ function createAnalysisMarkup(analysisView) {
     ...analysisView.seriesRows.flatMap((row) => [row.income, row.expenses, row.savings]),
     1
   );
-  const transactionLabel = `${analysisView.transactionCount} transaction${analysisView.transactionCount > 1 ? "s" : ""} retenue${analysisView.transactionCount > 1 ? "s" : ""}.`;
-
   return `
     <div class="analysis-shell">
       <div class="recap-metrics">
         ${analysisView.metricCards.map((metric) => createRecapMetricMarkup(metric)).join("")}
-      </div>
-      <div class="recap-note">
-        <strong>Source:</strong> vue analytique construite depuis <code>${JOURNAL_SHEET_NAME}</code>.
-        ${analysisView.snapshotDate ? ` Snapshot date: ${escapeHtml(analysisView.snapshotDate)}.` : ""}
-        <br><strong>Periode analysee:</strong> ${escapeHtml(analysisView.periodLabel)}. ${escapeHtml(transactionLabel)}
-        <br><strong>Lecture:</strong> les graphiques comparent Income, Expenses et Savings. Savings inclut aussi les seasonal savings.
       </div>
 
       <section class="recap-section">
@@ -5727,9 +7229,9 @@ function createAnalysisMarkup(analysisView) {
             ${analysisView.seriesRows.map((row) => createAnalysisPeriodGroupMarkup(row, trendMaxValue)).join("")}
           </div>
           <div class="analysis-legend">
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Income</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Expenses</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Savings</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Revenu</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Depenses</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Epargne</span>
           </div>
         ` : `
           <div class="empty-form">
@@ -5740,8 +7242,8 @@ function createAnalysisMarkup(analysisView) {
 
       ${createRecapTableMarkup(
         "Tableau de comparaison",
-        "Resume periode par periode pour comparer Income, Expenses, Savings et Cash.",
-        ["Periode", "Income", "Expenses", "Savings", "Cash"],
+        "Resume periode par periode pour comparer Revenu, Depenses, Epargne et Cash.",
+        ["Periode", "Revenu", "Depenses", "Epargne", "Cash"],
         analysisView.seriesRows.map((row) => ({
           cells: [
             { value: row.label, numeric: false },
@@ -5754,43 +7256,85 @@ function createAnalysisMarkup(analysisView) {
         }))
       )}
 
-      ${createRecapTableMarkup(
-        "Transactions par categorie",
-        "Synthese live calculee a partir de Journalier selon la periode choisie.",
-        ["Categorie", "Montant"],
-        analysisView.detailRows.map((row) => ({
-          cells: [
-            { value: row.label, numeric: false },
-            { value: formatSignedCurrency(row.amount), numeric: true },
-          ],
-          total: row.isTotal,
-        }))
-      )}
-
-      ${createRecapTableMarkup(
-        "Plan vs reel",
-        `Le budget mensuel est projete sur ${getBudgetPeriodCountLabel(analysisView.budgetPeriodCount)} pour rester coherent avec la periode reelle filtree.`,
-        [
-          { label: "Categorie", numeric: false },
-          { label: `Budget (${getBudgetPeriodCountLabel(analysisView.budgetPeriodCount)})`, numeric: true },
-          { label: "Reel", numeric: true },
-          { label: "Statut", numeric: false },
-        ],
-        analysisView.planRows.map((row) => ({
-          cells: [
-            { value: row.label, numeric: false },
-            { value: formatCurrency(row.plan), numeric: true },
-            { value: formatCurrency(row.actual), numeric: true },
-            {
-              value: row.statusLabel,
-              numeric: false,
-              html: createRecapStatusChipMarkup(row.statusLabel, row.statusTone),
-            },
-          ],
-          total: /total|cash short\/extra/i.test(row.label),
-        }))
-      )}
+      ${createAnalysisPlanGroupsMarkup(analysisView.planGroups, analysisView.budgetPeriodCount)}
     </div>
+  `;
+}
+
+function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
+  if (!Array.isArray(groups) || !groups.length) {
+    return `
+      <section class="recap-section">
+        <div class="recap-section-head">
+          <h3>Plan vs reel</h3>
+          <p>Le budget mensuel est projete sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester coherent avec la periode reelle filtree.</p>
+        </div>
+        <div class="empty-form">Aucune grande categorie a comparer pour cette periode.</div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="recap-section">
+      <div class="recap-section-head">
+        <h3>Plan vs reel</h3>
+        <p>Le budget mensuel est projete sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester coherent avec la periode reelle filtree. Cliquez sur une grande categorie pour ouvrir le detail des sous-categories.</p>
+      </div>
+      <div class="analysis-plan-groups">
+        ${groups.map((group, index) => createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
+  return `
+    <details class="analysis-plan-group" ${index < 2 ? "open" : ""}>
+      <summary class="analysis-plan-group-summary">
+        <div class="analysis-plan-group-copy">
+          <span class="analysis-plan-group-kicker">Grande categorie</span>
+          <strong>${escapeHtml(group.label)}</strong>
+          <span class="analysis-plan-group-meta">${escapeHtml(group.rows.length)} sous-categorie${group.rows.length > 1 ? "s" : ""}</span>
+        </div>
+        <div class="analysis-plan-group-stats">
+          <div class="analysis-plan-stat">
+            <span>Budget (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</span>
+            <strong>${escapeHtml(formatCurrency(group.plan))}</strong>
+          </div>
+          <div class="analysis-plan-stat">
+            <span>Reel</span>
+            <strong>${escapeHtml(formatCurrency(group.actual))}</strong>
+          </div>
+          <div class="analysis-plan-status-wrap">
+            ${createRecapStatusChipMarkup(group.statusLabel, group.statusTone)}
+          </div>
+        </div>
+      </summary>
+      <div class="analysis-plan-group-body">
+        <div class="recap-table-wrap">
+          <table class="recap-table analysis-plan-table">
+            <thead>
+              <tr>
+                <th>Categorie</th>
+                <th class="numeric">Budget (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</th>
+                <th class="numeric">Reel</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${group.rows.map((row) => `
+                <tr>
+                  <td>${escapeHtml(row.label)}</td>
+                  <td class="numeric">${escapeHtml(formatCurrency(row.plan))}</td>
+                  <td class="numeric">${escapeHtml(formatCurrency(row.actual))}</td>
+                  <td>${createRecapStatusChipMarkup(row.statusLabel, row.statusTone)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
   `;
 }
 
@@ -5798,7 +7342,7 @@ function createAnalysisMetricBarMarkup(row, maxValue) {
   return `
     <article class="analysis-bar-card analysis-bar-card-${row.tone}">
       <div class="analysis-bar-head">
-        <span>${escapeHtml(row.label)}</span>
+        <span>${escapeHtml(getMetricDisplayLabel(row.label))}</span>
         <strong>${escapeHtml(row.displayValue)}</strong>
       </div>
       <div class="analysis-bar-track">
@@ -5826,14 +7370,14 @@ function createAnalysisCashFlowMarkup(cashFlow) {
     <article class="analysis-visual-card">
       <div class="analysis-visual-head">
         <h4>Entrees et sorties d'argent</h4>
-        <p>Income en face de l'utilisation reelle: expenses, savings et cash restant.</p>
+        <p>Revenu en face de l'utilisation reelle: depenses, epargne et cash restant.</p>
       </div>
       <div class="analysis-cash-chart">
         <div class="analysis-cash-column">
           <div class="analysis-cash-track">
             <span class="analysis-cash-fill income" style="height: ${incomeHeight}%;"></span>
           </div>
-          <strong>Income</strong>
+          <strong>Revenu</strong>
           <span>${escapeHtml(formatCurrency(cashFlow.income))}</span>
         </div>
         <div class="analysis-cash-column">
@@ -5847,14 +7391,14 @@ function createAnalysisCashFlowMarkup(cashFlow) {
         </div>
       </div>
       <div class="analysis-cash-legend">
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Income</span>
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Expenses</span>
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Savings</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Revenu</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Depenses</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Epargne</span>
         <span class="analysis-legend-item"><span class="analysis-legend-swatch cash"></span>Cash</span>
       </div>
       <p class="analysis-visual-note">
         ${cashFlow.overflow > 0
-          ? `Deficit observe: ${escapeHtml(formatCurrency(cashFlow.overflow))} au-dela de l'income.`
+          ? `Deficit observe: ${escapeHtml(formatCurrency(cashFlow.overflow))} au-dela du revenu.`
           : `Cash disponible apres arbitrage: ${escapeHtml(formatSignedCurrency(cashFlow.cash))}.`}
       </p>
     </article>
@@ -5884,7 +7428,7 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
         <div class="analysis-donut-chart" style="--analysis-donut:${expenseBreakdown.gradient};">
           <div class="analysis-donut-center">
             <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
-            <span>Expenses</span>
+            <span>Depenses</span>
           </div>
         </div>
         <div class="analysis-donut-legend">
@@ -5959,9 +7503,13 @@ function createAnalysisPeriodGroupMarkup(row, maxValue) {
 }
 
 function createRecapMetricMarkup(metric) {
+  const iconMarkup = getMetricIconMarkup(metric.label);
   return `
     <article class="recap-metric recap-metric-${metric.tone}">
-      <span class="recap-metric-label">${escapeHtml(metric.label)}</span>
+      <div class="recap-metric-head">
+        ${iconMarkup ? `<span class="recap-metric-icon recap-metric-icon-${escapeHtml(getMetricIconKey(metric.label))}" aria-hidden="true">${iconMarkup}</span>` : ""}
+        <span class="recap-metric-label">${escapeHtml(getMetricDisplayLabel(metric.label))}</span>
+      </div>
       <strong>${escapeHtml(formatCurrency(metric.value))}</strong>
     </article>
   `;
@@ -6025,8 +7573,15 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
 
 function renderEditor() {
   if (state.appTab === APP_TAB_PLAN) {
+    if (refs.formKicker) {
+      refs.formKicker.textContent = "Budget planifie";
+    }
     renderPlanEditor();
     return;
+  }
+
+  if (refs.formKicker) {
+    refs.formKicker.textContent = "Formulaire";
   }
 
   refs.saveButton.textContent = "Enregistrer";
@@ -6117,12 +7672,55 @@ function renderPlanEditor() {
 
   const editableRows = planTemplate.filter((row) => !isDerivedPlanLabel(row.label));
   const derivedRows = sortBudgetSummaryRows(planTemplate.filter((row) => isDerivedPlanLabel(row.label)));
+  const groupedEditableRows = buildBudgetFraPlanEditorGroups(editableRows);
 
   if (derivedRows.length) {
     refs.formFields.appendChild(renderBudgetSummaryGrid(derivedRows));
   }
-  editableRows.forEach((row, index) => appendField(renderPlanAmountField(row, derivedRows.length + index, !state.planEditing)));
+
+  if (groupedEditableRows.length) {
+    let nextIndex = derivedRows.length;
+    const sections = document.createElement("div");
+    sections.className = "budget-sections";
+    groupedEditableRows.forEach((group, groupIndex) => {
+      const renderedGroup = renderPlanGroupSection(
+        group.key,
+        group.rows,
+        nextIndex,
+        !state.planEditing,
+        groupIndex
+      );
+      sections.appendChild(renderedGroup.section);
+      nextIndex = renderedGroup.nextIndex;
+    });
+    refs.formFields.appendChild(sections);
+  } else {
+    editableRows.forEach((row, index) => appendField(renderPlanAmountField(row, derivedRows.length + index, !state.planEditing)));
+  }
+
   refreshPlanEditorPreview();
+}
+
+function refreshCategoryParentMeta() {
+  const select = document.getElementById("field-categories");
+  const parentChip = document.querySelector(".field-parent-chip");
+  const hint = document.querySelector(".field-hint");
+
+  if (!select || !parentChip || !hint) {
+    return;
+  }
+
+  const selectedValue = String(select.value || "").trim();
+  const valueInput = document.getElementById("field-value");
+  const amountValue = valueInput ? valueInput.value : "";
+  const parentLabel = selectedValue
+    ? getBudgetFraCategoryLabel(selectedValue, "", amountValue)
+    : "Aucune";
+  const displayLabel = parentLabel || "Aucune";
+
+  parentChip.textContent = displayLabel;
+  parentChip.classList.toggle("is-empty", !selectedValue || !parentLabel);
+  hint.textContent = `${getAvailableFormCategoryCount()} categories disponibles depuis l'onglet Budget. Tapez pour filtrer plus vite ou entrez directement le nom complet.`;
 }
 
 function renderBudgetSummaryGrid(rows) {
@@ -6138,13 +7736,27 @@ function renderBudgetSummaryGrid(rows) {
 
 function renderBudgetSummaryCard(row) {
   const meta = getBudgetSummaryCardMeta(row.label);
+  const iconKey = getMetricIconKey(row.label);
+  const iconMarkup = getMetricIconMarkup(row.label);
   const card = document.createElement("article");
   card.className = `budget-summary-card tone-${meta.tone}`;
   card.setAttribute("data-plan-row", row.label);
 
-  const heading = document.createElement("span");
-  heading.className = "budget-summary-title";
-  heading.textContent = meta.title;
+  const heading = document.createElement("div");
+  heading.className = "budget-summary-head";
+
+  if (iconMarkup) {
+    const icon = document.createElement("span");
+    icon.className = `budget-summary-icon recap-metric-icon recap-metric-icon-${iconKey}`;
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = iconMarkup;
+    heading.append(icon);
+  }
+
+  const title = document.createElement("span");
+  title.className = "budget-summary-title";
+  title.textContent = meta.title;
+  heading.append(title);
 
   const amount = document.createElement("strong");
   amount.className = "budget-summary-amount";
@@ -6181,36 +7793,43 @@ function renderCategoryField(value) {
   label.setAttribute("for", "field-categories");
   label.textContent = "Categories";
 
-  const select = document.createElement("select");
-  select.id = "field-categories";
-  select.name = "Categories";
+  const categoryInput = document.createElement("input");
+  categoryInput.id = "field-categories";
+  categoryInput.name = "Categories";
+  categoryInput.type = "text";
+  categoryInput.setAttribute("list", "budget-category-options");
+  categoryInput.setAttribute("autocomplete", "off");
+  categoryInput.placeholder = "Tapez ou choisissez une categorie";
+  categoryInput.value = value || "";
 
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Choisir une categorie";
-  select.appendChild(placeholder);
+  const datalist = document.createElement("datalist");
+  datalist.id = "budget-category-options";
+  buildAvailableFormCategories()
+    .flatMap((group) => group.items)
+    .forEach((category) => {
+      const option = document.createElement("option");
+      option.value = category;
+      datalist.appendChild(option);
+    });
 
-  state.budget.categories.forEach((category) => {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    select.appendChild(option);
-  });
+  const parentMeta = document.createElement("div");
+  parentMeta.className = "field-parent-meta";
 
-  if (value && !state.budget.categories.includes(value)) {
-    const currentOption = document.createElement("option");
-    currentOption.value = value;
-    currentOption.textContent = `${value} (hors liste)`;
-    select.appendChild(currentOption);
-  }
+  const parentLabelCaption = document.createElement("span");
+  parentLabelCaption.className = "field-parent-label";
+  parentLabelCaption.textContent = "Grande categorie";
 
-  select.value = value || "";
+  const parentChip = document.createElement("span");
+  parentChip.className = "field-parent-chip";
 
   const hint = document.createElement("p");
   hint.className = "field-hint";
-  hint.textContent = `${state.budget.categories.length} categories disponibles depuis Journalier!B.`;
+  categoryInput.addEventListener("input", refreshCategoryParentMeta);
+  categoryInput.addEventListener("change", refreshCategoryParentMeta);
 
-  wrapper.append(label, select, hint);
+  parentMeta.append(parentLabelCaption, parentChip);
+  wrapper.append(label, categoryInput, datalist, parentMeta, hint);
+  queueMicrotask(refreshCategoryParentMeta);
   return wrapper;
 }
 
@@ -6246,6 +7865,7 @@ function renderValueField(value) {
       input.value = "-";
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
+      refreshCategoryParentMeta();
       return;
     }
 
@@ -6254,7 +7874,11 @@ function renderValueField(value) {
       : `-${currentValue}`;
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
+    refreshCategoryParentMeta();
   });
+
+  input.addEventListener("input", refreshCategoryParentMeta);
+  input.addEventListener("change", refreshCategoryParentMeta);
 
   const hint = document.createElement("p");
   hint.className = "field-hint";
@@ -6262,6 +7886,7 @@ function renderValueField(value) {
 
   inputRow.append(input, toggleButton);
   wrapper.append(label, inputRow, hint);
+  queueMicrotask(refreshCategoryParentMeta);
   return wrapper;
 }
 
@@ -6269,22 +7894,29 @@ function renderPlanAmountField(row, index, readOnly = false) {
   const wrapper = document.createElement("div");
   const derived = isDerivedPlanLabel(row.label);
   const rowKey = normalizeHeaderName(row.label);
-  wrapper.className = `field-card plan-field-card${derived ? " is-derived" : ""}`;
+  wrapper.className = `budget-row plan-field-card${derived ? " is-derived" : ""}${readOnly ? " is-locked" : " is-editing"}`;
   wrapper.setAttribute("data-plan-row", row.label);
   wrapper.setAttribute("data-plan-key", rowKey);
-
-  const label = document.createElement("label");
-  label.setAttribute("for", `plan-field-${index}`);
-  label.textContent = row.label;
-
-  const grid = document.createElement("div");
-  grid.className = "plan-field-grid";
+  const parentLabel = !derived ? getBudgetFraCategoryLabel(row.label, row.group, row.plan) : "";
+  const itemGroup = document.createElement("div");
+  itemGroup.className = "budget-row-cell budget-row-poste";
+  itemGroup.innerHTML = `
+    <span class="budget-mobile-label">Poste</span>
+    <div>
+      <label class="item-label" for="plan-field-${index}">${escapeHtml(row.label)}</label>
+      <span class="item-code">${escapeHtml(
+        derived
+          ? "Valeur calculee automatiquement"
+          : readOnly
+            ? "Lecture seule. Cliquez sur Editer budget pour modifier."
+            : "Le budget sera converti en equivalent mensuel."
+      )}</span>
+    </div>
+  `;
 
   const amountGroup = document.createElement("div");
-  amountGroup.className = "plan-field-cell";
-  const amountLabel = document.createElement("span");
-  amountLabel.className = "plan-field-cell-label";
-  amountLabel.textContent = "Montant";
+  amountGroup.className = "budget-row-cell";
+  amountGroup.innerHTML = `<span class="budget-mobile-label">Montant</span>`;
   const input = document.createElement("input");
   input.id = `plan-field-${index}`;
   input.type = "text";
@@ -6300,15 +7932,13 @@ function renderPlanAmountField(row, index, readOnly = false) {
   if (readOnly) {
     input.readOnly = true;
   }
-  amountGroup.append(amountLabel, input);
+  amountGroup.appendChild(input);
 
   let periodGroup = null;
   if (!derived) {
     periodGroup = document.createElement("div");
-    periodGroup.className = "plan-field-cell";
-    const periodLabel = document.createElement("span");
-    periodLabel.className = "plan-field-cell-label";
-    periodLabel.textContent = "Periode";
+    periodGroup.className = "budget-row-cell";
+    periodGroup.innerHTML = `<span class="budget-mobile-label">Periode</span>`;
     const select = document.createElement("select");
     select.id = `plan-period-${index}`;
     select.setAttribute("data-plan-period", "true");
@@ -6324,43 +7954,40 @@ function renderPlanAmountField(row, index, readOnly = false) {
       optionElement.selected = normalizePlanPeriod(row.period) === option.value;
       select.appendChild(optionElement);
     });
-    periodGroup.append(periodLabel, select);
+    periodGroup.appendChild(select);
   }
 
+  const parentGroup = document.createElement("div");
+  parentGroup.className = "budget-row-cell";
+  parentGroup.innerHTML = `<span class="budget-mobile-label">Parent</span>`;
+  const parentValue = document.createElement("span");
+  parentValue.className = `budget-parent-pill${parentLabel ? "" : " budget-parent-empty"}`;
+  parentValue.setAttribute("data-plan-parent-label", "true");
+  parentValue.textContent = parentLabel || "Aucun parent";
+  parentGroup.appendChild(parentValue);
+
   const monthlyGroup = document.createElement("div");
-  monthlyGroup.className = "plan-field-cell plan-field-cell-monthly";
-  const monthlyLabel = document.createElement("span");
-  monthlyLabel.className = "plan-field-cell-label";
-  monthlyLabel.textContent = derived ? "Valeur calculee" : "Mensuel";
+  monthlyGroup.className = "budget-row-cell budget-row-monthly";
+  monthlyGroup.innerHTML = `<span class="budget-mobile-label">Mensuel</span>`;
   const monthlyValue = document.createElement("strong");
   monthlyValue.className = "plan-monthly-value";
   monthlyValue.setAttribute("data-plan-monthly", "true");
   monthlyValue.textContent = formatCurrency(convertPlanAmountToMonthly(row.plan, row.period));
-  monthlyGroup.append(monthlyLabel, monthlyValue);
+  monthlyGroup.appendChild(monthlyValue);
 
-  if (derived) {
-    const periodText = document.createElement("span");
-    periodText.className = "plan-period-pill";
-    periodText.setAttribute("data-plan-period-label", "true");
-    periodText.textContent = "Equivalent mensuel";
-    monthlyGroup.append(periodText);
-  }
-
-  grid.append(amountGroup);
   if (periodGroup) {
-    grid.append(periodGroup);
+    const periodText = document.createElement("span");
+    periodText.className = "budget-period-pill";
+    periodText.setAttribute("data-plan-period-label", "true");
+    periodText.textContent = getPlanPeriodLabel(row.period);
+    monthlyGroup.appendChild(periodText);
   }
-  grid.append(monthlyGroup);
 
-  const hint = document.createElement("p");
-  hint.className = "field-hint";
-  hint.textContent = derived
-    ? "Valeur calculee automatiquement a partir de Income 1, Income 2, Expenses et Savings."
-    : readOnly
-      ? "Cliquez sur Editer budget pour modifier le montant ou la periode."
-      : "L'app convertit automatiquement cette ligne en equivalent mensuel pour les comparaisons.";
-
-  wrapper.append(label, grid, hint);
+  wrapper.append(itemGroup, amountGroup);
+  if (periodGroup) {
+    wrapper.appendChild(periodGroup);
+  }
+  wrapper.append(parentGroup, monthlyGroup);
   return wrapper;
 }
 
