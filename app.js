@@ -587,6 +587,7 @@ function inferPlanGroupFromLabel(label) {
   }
 
   if (
+    normalized === "total income" ||
     normalized === "expenses" ||
     normalized === "total expenses" ||
     normalized === "total savings" ||
@@ -920,6 +921,7 @@ function isLegacyIncomePlanLabel(label) {
 function isDerivedPlanLabel(label) {
   const normalized = normalizeHeaderName(label);
   return normalized === "income" ||
+    normalized === "total income" ||
     normalized === "expenses" ||
     normalized === "total savings" ||
     normalized === "total expenses" ||
@@ -935,7 +937,12 @@ function isIncomePlanLabel(label) {
 
 function isSplitIncomeContributorLabel(label) {
   const normalized = normalizeHeaderName(label);
-  return normalized === "income 1" || normalized === "income 2";
+  if (normalized === "income") {
+    return false;
+  }
+
+  const canonical = getReferenceBudgetCanonicalKey(label);
+  return canonical === "income 1" || canonical === "income 2";
 }
 
 function isSavingsPlanLabel(label) {
@@ -1454,6 +1461,85 @@ function migrateLegacyIncomePlanRows(rows) {
   return nextRows;
 }
 
+function getPlanTemplateDedupKey(row) {
+  const label = String(row?.label || "").trim();
+  if (!label) {
+    return "";
+  }
+
+  const normalizedLabel = normalizeHeaderName(label);
+  const planGroup = normalizePlanGroup(row?.group, label);
+  if (planGroup === "derived") {
+    return `derived:${normalizedLabel}`;
+  }
+
+  const referenceItem = getReferenceBudgetTemplateItem(label);
+  if (referenceItem?.canonical) {
+    return `reference:${referenceItem.canonical}`;
+  }
+
+  return `label:${normalizedLabel}`;
+}
+
+function getPlanTemplateRowPreferenceScore(row) {
+  const amount = Math.abs(parseAmount(row?.plan));
+  const period = normalizePlanPeriod(row?.period);
+  const label = String(row?.label || "").trim();
+  const referenceItem = getReferenceBudgetTemplateItem(label);
+  let score = 0;
+
+  if (amount > 0.0001) {
+    score += 100;
+  }
+
+  if (period !== DEFAULT_PLAN_PERIOD) {
+    score += 10;
+  }
+
+  if (referenceItem && normalizeHeaderName(referenceItem.label) === normalizeHeaderName(label)) {
+    score += 2;
+  }
+
+  return score;
+}
+
+function dedupePlanTemplateRows(rows) {
+  const orderedKeys = [];
+  const entries = new Map();
+
+  rows.forEach((row, index) => {
+    const normalizedRow = {
+      ...row,
+      label: String(row?.label || "").trim(),
+      plan: normalizeAmountValue(row?.plan),
+      period: normalizePlanPeriod(row?.period),
+      group: normalizePlanGroup(row?.group, row?.label),
+    };
+
+    if (!normalizedRow.label) {
+      return;
+    }
+
+    const key = getPlanTemplateDedupKey(normalizedRow);
+    const score = getPlanTemplateRowPreferenceScore(normalizedRow);
+
+    if (!entries.has(key)) {
+      orderedKeys.push(key);
+      entries.set(key, { row: normalizedRow, score, index });
+      return;
+    }
+
+    const current = entries.get(key);
+    if (score > current.score) {
+      entries.set(key, { row: normalizedRow, score, index: current.index });
+    }
+  });
+
+  return orderedKeys
+    .map((key) => entries.get(key)?.row)
+    .filter(Boolean);
+}
+
 function stripAutoCalculatedPlanRows(rows) {
   return rows.filter((row) => normalizePlanGroup(row.group, row.label) !== "derived");
 }
@@ -1461,7 +1547,7 @@ function stripAutoCalculatedPlanRows(rows) {
 function resolvePlanTemplate(rows = state.recap.planTemplate) {
   const seededRows = Array.isArray(rows) && rows.length ? rows : createFallbackPlanTemplate();
   const mergedRows = mergeReferenceBudgetTemplateRows(seededRows);
-  const normalizedRows = migrateLegacyIncomePlanRows(mergedRows).map((row) => ({
+  const normalizedRows = dedupePlanTemplateRows(migrateLegacyIncomePlanRows(mergedRows)).map((row) => ({
     ...row,
     group: normalizePlanGroup(row.group, row.label),
   }));
@@ -6765,7 +6851,6 @@ function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
   const categoryOrderMap = buildBudgetCategoryOrderMap();
 
   return resolvePlanTemplate(state.recap.planTemplate)
-    .filter((row) => !isSplitIncomeContributorLabel(row.label))
     .map((row) => {
       const monthlyPlan = roundCurrencyValue(convertPlanAmountToMonthly(row.plan, row.period));
       const scaledPlan = roundCurrencyValue(monthlyPlan * safePeriodCount);
@@ -6841,16 +6926,12 @@ function getPlanComparisonParentMeta(row) {
 
 function buildAnalysisPlanGroups(planRows) {
   const groups = new Map();
+  const incomeSummaryRow = (Array.isArray(planRows) ? planRows : []).find(
+    (row) => normalizeHeaderName(row.label) === "income"
+  );
 
   (Array.isArray(planRows) ? planRows : [])
-    .filter((row) => {
-      const normalized = normalizeHeaderName(row.label);
-      if (normalized === "income") {
-        return true;
-      }
-
-      return !isDerivedPlanLabel(row.label);
-    })
+    .filter((row) => !isDerivedPlanLabel(row.label))
     .forEach((row) => {
       const parentMeta = getPlanComparisonParentMeta(row);
       const key = parentMeta.key;
@@ -6871,9 +6952,28 @@ function buildAnalysisPlanGroups(planRows) {
 
       const group = groups.get(key);
       group.plan = roundCurrencyValue(group.plan + planAmount);
-      group.actual = roundCurrencyValue(group.actual + actualAmount);
-      group.rows.push(row);
-    });
+        group.actual = roundCurrencyValue(group.actual + actualAmount);
+        group.rows.push(row);
+      });
+
+  if (incomeSummaryRow) {
+    const incomeGroupKey = "income";
+    const incomeMeta = getBudgetFraCategoryMeta(incomeGroupKey);
+    if (!groups.has(incomeGroupKey)) {
+      groups.set(incomeGroupKey, {
+        key: incomeGroupKey,
+        label: incomeMeta.label,
+        order: BUDGET_FRA_GROUP_ORDER.indexOf(incomeGroupKey),
+        mode: "income",
+        plan: 0,
+        actual: 0,
+        rows: [],
+      });
+    }
+
+    const incomeGroup = groups.get(incomeGroupKey);
+    incomeGroup.actual = roundCurrencyValue(parseAmount(incomeSummaryRow.actual));
+  }
 
   return Array.from(groups.values())
     .map((group) => {
