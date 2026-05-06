@@ -1973,47 +1973,22 @@ async function registerAppShell() {
 }
 
 function renderAppShellState() {
-  if (!refs.appShellStatus || !refs.installButton) {
+  if (!refs.installButton) {
     return;
   }
 
   const standalone = isStandaloneMode();
-  const onlineLabel = navigator.onLine ? "En ligne" : "Hors ligne";
-  const installVisible = standalone || Boolean(deferredInstallPrompt);
   document.body.classList.toggle("native-app", isNativeAppRuntime());
   document.body.classList.toggle("native-android", isAndroidNativeRuntime());
   document.body.classList.toggle("standalone-shell", standalone);
 
-  refs.installButton.classList.toggle("hidden", !installVisible);
-  refs.installButton.disabled = !deferredInstallPrompt;
+  refs.installButton.disabled = standalone || !deferredInstallPrompt;
   refs.installButton.textContent = standalone ? "App installee" : "Installer l'app";
-
-  if (standalone) {
-    refs.appShellStatus.textContent = `${onlineLabel} - Mode app actif${appShellReady ? " - Cache hors ligne pret" : ""}`;
-    return;
-  }
-
-  if (location.protocol === "file:") {
-    refs.appShellStatus.textContent = `${onlineLabel} - Mode local - Publiez l'app en HTTPS pour l'installer`;
-    return;
-  }
-
-  if (!window.isSecureContext) {
-    refs.appShellStatus.textContent = `${onlineLabel} - HTTPS requis pour l'installation`;
-    return;
-  }
-
-  if (deferredInstallPrompt) {
-    refs.appShellStatus.textContent = `${onlineLabel} - Installation disponible${appShellReady ? " - Cache hors ligne pret" : ""}`;
-    return;
-  }
-
-  if (isAppleMobileDevice()) {
-    refs.appShellStatus.textContent = `${onlineLabel} - iPhone/iPad: utilisez Partager puis Sur l'ecran d'accueil`;
-    return;
-  }
-
-  refs.appShellStatus.textContent = `${onlineLabel} - L'installation sera proposee quand l'app sera prete${appShellReady ? " - Cache hors ligne pret" : ""}`;
+  refs.installButton.title = standalone
+    ? "Cette version web est deja installee."
+    : deferredInstallPrompt
+      ? "Installer la version web sur cet appareil."
+      : "L'installation sera proposee quand le navigateur la rendra disponible.";
 }
 
 function getSupabaseRuntime() {
