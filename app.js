@@ -5856,12 +5856,16 @@ function buildLiveAnalysisView() {
       trendTitle: "",
       trendSubtitle: "",
       budgetPeriodCount: 1,
+      ruleAlerts: [],
+      suggestions: [],
     };
   }
 
   const filteredRows = getFilteredRecapSourceRows();
   const actualMap = buildActualAmountMap(filteredRows);
   const snapshot = computeMetricSnapshot(actualMap);
+  const ruleAlerts = buildBudgetFraRuleAlerts(actualMap, snapshot);
+  const suggestions = buildBudgetFraSuggestions(actualMap, snapshot);
   const allSeriesRows = buildAnalysisSeriesRows();
   const seriesRows = filterAnalysisSeriesRows(allSeriesRows);
   const detailRows = buildRecapDetailRows(actualMap);
@@ -5895,6 +5899,8 @@ function buildLiveAnalysisView() {
     trendTitle: buildAnalysisTrendTitle(),
     trendSubtitle: buildAnalysisTrendSubtitle(allSeriesRows.length, seriesRows.length),
     budgetPeriodCount,
+    ruleAlerts,
+    suggestions,
   };
 }
 
@@ -7235,8 +7241,7 @@ function createBudgetFraAlertMarkup(rows) {
   return `
     <section class="recap-section">
       <div class="recap-section-head">
-        <h3>Alertes suggerees</h3>
-        <p>Ces alertes s'inspirent des seuils du fichier Budget-fra et comparent chaque grande famille a votre revenu.</p>
+        <h3>Alertes</h3>
       </div>
       <div class="fra-alert-grid">
         ${rows.map((row) => `
@@ -7254,8 +7259,8 @@ function createBudgetFraAlertMarkup(rows) {
           </article>
         `).join("")}
       </div>
-    </section>
-  `;
+      </section>
+    `;
 }
 
 function createBudgetFraSuggestionMarkup(rows) {
@@ -7318,6 +7323,8 @@ function createAnalysisMarkup(analysisView) {
           ${analysisView.comparisonRows.map((row) => createAnalysisMetricBarMarkup(row, comparisonMaxValue)).join("")}
         </div>
       </section>
+
+      ${createBudgetFraAlertMarkup(analysisView.ruleAlerts)}
 
       <section class="recap-section">
         <div class="recap-section-head">
