@@ -1521,9 +1521,6 @@ function renderPlanGroupSection(categoryKey, rows, startIndex, readOnly = false,
   const section = document.createElement("details");
   section.className = "plan-group-section budget-panel";
   section.setAttribute("data-budget-group", categoryKey);
-  if (groupIndex < 3) {
-    section.open = true;
-  }
 
   const meta = getBudgetFraCategoryMeta(categoryKey);
   const heading = document.createElement("summary");
@@ -8236,7 +8233,7 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
 
 function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
   return `
-    <details class="analysis-plan-group" ${index < 2 ? "open" : ""}>
+    <details class="analysis-plan-group">
       <summary class="analysis-plan-group-summary">
         <div class="analysis-plan-group-copy">
           <span class="analysis-plan-group-kicker">Grande categorie</span>

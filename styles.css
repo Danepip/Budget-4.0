@@ -2157,6 +2157,19 @@ textarea {
   min-width: 0;
 }
 
+.budget-row .item-label {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.budget-row .item-code {
+  display: inline-block;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .budget-row-poste {
   align-self: start;
 }
@@ -2189,6 +2202,80 @@ textarea {
   color: var(--muted);
 }
 
+.budget-row input,
+.budget-row select {
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 248, 0.94));
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 6px 14px rgba(24, 51, 59, 0.04);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.budget-row input {
+  font-size: 1.12rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-row select {
+  cursor: pointer;
+  color: rgba(24, 51, 59, 0.86);
+  font-weight: 600;
+  appearance: none;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 248, 0.94)),
+    linear-gradient(45deg, transparent 50%, rgba(24, 51, 59, 0.45) 50%),
+    linear-gradient(135deg, rgba(24, 51, 59, 0.45) 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position:
+    0 0,
+    calc(100% - 22px) calc(50% - 2px),
+    calc(100% - 16px) calc(50% - 2px);
+  background-size:
+    100% 100%,
+    6px 6px,
+    6px 6px;
+  padding-right: 42px;
+}
+
+.budget-row input::placeholder {
+  color: rgba(24, 51, 59, 0.34);
+}
+
+.budget-row input:focus,
+.budget-row select:focus {
+  outline: none;
+  border-color: rgba(47, 125, 116, 0.34);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(251, 254, 252, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 0 0 4px rgba(47, 125, 116, 0.1),
+    0 10px 22px rgba(24, 51, 59, 0.06);
+}
+
+.budget-row.is-locked input,
+.budget-row.is-locked select {
+  border-color: rgba(24, 51, 59, 0.07);
+  background: linear-gradient(180deg, rgba(252, 252, 251, 0.96), rgba(243, 246, 244, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.budget-row.is-locked input[readonly],
+.budget-row.is-locked select:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .budget-row-monthly {
   align-self: stretch;
   padding: 12px 14px;
@@ -2216,9 +2303,11 @@ textarea {
 }
 
 .plan-field-card.is-derived input {
-  background: rgba(255, 255, 255, 0.74);
+  border-color: rgba(47, 125, 116, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(239, 247, 244, 0.92));
   color: var(--muted);
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 .plan-monthly-value {
