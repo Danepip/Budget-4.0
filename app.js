@@ -1,4 +1,10 @@
 const STORAGE_KEY = "budget-2025-card-view-v2";
+const STARTUP_STATE_KEY = "budget-2025-card-view-startup-v1";
+const SETTINGS_KEY = "budget-2025-card-view-settings-v1";
+const RECURRING_TEMPLATES_KEY = "budget-2025-card-view-recurring-v1";
+const HISTORY_STATE_KEY = "budget-2025-card-view-history-v1";
+const HISTORY_STACK_LIMIT = 20;
+const HISTORY_EVENT_LIMIT = 8;
 
 const JOURNAL_SHEET_NAME = "Journalier";
 const RECAP_SHEET_NAME = "Recapitulatif";
@@ -469,6 +475,9 @@ const state = {
   sourceLink: null,
   sourceSafety: createEmptySourceSafety(),
   cloud: createEmptyCloudState(),
+  settings: createDefaultUiSettings(),
+  recurringTemplates: [],
+  history: createEmptyHistoryState(),
   draftSavedAt: "",
   appTab: APP_TAB_DASHBOARD,
   mode: "idle",
@@ -499,7 +508,15 @@ let nativeSupabaseRedirectListenerBound = false;
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
   bindEvents();
-  restoreDraft();
+  applyStoredSettings();
+  applyStoredRecurringTemplates();
+  applyStoredHistoryState();
+  if (!isStartupWelcomeModeEnabled() && state.settings.autoRestoreDraft) {
+    restoreDraft();
+  }
+  if (state.mode !== "budget") {
+    setStartupWelcomeMode(true);
+  }
   syncLibraryState();
   setupAppShell();
   void initSupabaseIntegration();
@@ -523,6 +540,204 @@ function createEmptyRecapModel() {
   };
 }
 
+function createDefaultUiSettings() {
+  return {
+    autoRestoreDraft: true,
+    showBudgetFraAlerts: true,
+    showBudgetFraSuggestions: false,
+  };
+}
+
+function createEmptyHistoryState() {
+  return {
+    undoStack: [],
+    recentEvents: [],
+  };
+}
+
+function isStartupWelcomeModeEnabled() {
+  try {
+    return localStorage.getItem(STARTUP_STATE_KEY) === "welcome";
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
+function setStartupWelcomeMode(enabled) {
+  try {
+    if (enabled) {
+      localStorage.setItem(STARTUP_STATE_KEY, "welcome");
+      return;
+    }
+
+    localStorage.removeItem(STARTUP_STATE_KEY);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function readStoredSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function sanitizeUiSettings(rawSettings) {
+  const defaults = createDefaultUiSettings();
+  return {
+    autoRestoreDraft: rawSettings?.autoRestoreDraft !== false,
+    showBudgetFraAlerts: rawSettings?.showBudgetFraAlerts !== false,
+    showBudgetFraSuggestions: rawSettings?.showBudgetFraSuggestions === true,
+  };
+}
+
+function persistUiSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function applyStoredSettings() {
+  state.settings = sanitizeUiSettings(readStoredSettings());
+}
+
+function sanitizeRecurringTemplate(rawTemplate) {
+  const label = String(rawTemplate?.label || rawTemplate?.category || "").trim();
+  const category = String(rawTemplate?.category || rawTemplate?.label || "").trim();
+  const value = normalizeAmountValue(rawTemplate?.value);
+  const period = normalizePlanPeriod(rawTemplate?.period);
+
+  if (!label || !category) {
+    return null;
+  }
+
+  return {
+    id: String(rawTemplate?.id || createId()),
+    label,
+    category,
+    value,
+    period,
+  };
+}
+
+function readStoredRecurringTemplates() {
+  try {
+    const raw = localStorage.getItem(RECURRING_TEMPLATES_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((template) => sanitizeRecurringTemplate(template)).filter(Boolean);
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
+function persistRecurringTemplates() {
+  try {
+    localStorage.setItem(RECURRING_TEMPLATES_KEY, JSON.stringify(state.recurringTemplates));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function applyStoredRecurringTemplates() {
+  state.recurringTemplates = readStoredRecurringTemplates();
+}
+
+function sanitizeHistoryEvent(rawEvent) {
+  const label = String(rawEvent?.label || "").trim();
+  if (!label) {
+    return null;
+  }
+
+  return {
+    id: String(rawEvent?.id || createId()),
+    label,
+    createdAt: String(rawEvent?.createdAt || new Date().toISOString()),
+  };
+}
+
+function sanitizeHistoryEntry(rawEntry) {
+  const kind = String(rawEntry?.kind || "").trim();
+  if (!kind) {
+    return null;
+  }
+
+  return {
+    id: String(rawEntry?.id || createId()),
+    kind,
+    createdAt: String(rawEntry?.createdAt || new Date().toISOString()),
+    record: rawEntry?.record ? sanitizeBudgetRow(rawEntry.record) : null,
+    previousRecord: rawEntry?.previousRecord ? sanitizeBudgetRow(rawEntry.previousRecord) : null,
+    nextRecord: rawEntry?.nextRecord ? sanitizeBudgetRow(rawEntry.nextRecord) : null,
+    index: Number.isInteger(rawEntry?.index) ? rawEntry.index : null,
+    previousTemplate: Array.isArray(rawEntry?.previousTemplate)
+      ? rawEntry.previousTemplate.map((row) => ({
+        label: String(row?.label || "").trim(),
+        plan: normalizeAmountValue(row?.plan),
+        period: normalizePlanPeriod(row?.period),
+        group: normalizePlanGroup(row?.group, row?.label),
+      })).filter((row) => row.label)
+      : [],
+  };
+}
+
+function readStoredHistoryState() {
+  try {
+    const raw = localStorage.getItem(HISTORY_STATE_KEY);
+    if (!raw) {
+      return createEmptyHistoryState();
+    }
+
+    const parsed = JSON.parse(raw);
+    const undoStack = Array.isArray(parsed?.undoStack)
+      ? parsed.undoStack.map((entry) => sanitizeHistoryEntry(entry)).filter(Boolean).slice(0, HISTORY_STACK_LIMIT)
+      : [];
+    const recentEvents = Array.isArray(parsed?.recentEvents)
+      ? parsed.recentEvents.map((entry) => sanitizeHistoryEvent(entry)).filter(Boolean).slice(0, HISTORY_EVENT_LIMIT)
+      : [];
+
+    return {
+      undoStack,
+      recentEvents,
+    };
+  } catch (error) {
+    console.error(error);
+    return createEmptyHistoryState();
+  }
+}
+
+function persistHistoryState() {
+  try {
+    localStorage.setItem(HISTORY_STATE_KEY, JSON.stringify(state.history));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function applyStoredHistoryState() {
+  state.history = readStoredHistoryState();
+}
+
 function createFallbackPlanTemplate() {
   return FALLBACK_PLAN_TEMPLATE.map((row) => ({
     label: String(row.label || "").trim(),
@@ -530,6 +745,132 @@ function createFallbackPlanTemplate() {
     period: normalizePlanPeriod(row.period),
     group: normalizePlanGroup(row.group, row.label),
   }));
+}
+
+function buildLocalStarterPlanTemplate() {
+  return resolvePlanTemplate(createFallbackPlanTemplate());
+}
+
+function buildLocalStarterCategories(planTemplate = buildLocalStarterPlanTemplate()) {
+  const categories = [];
+  const seen = new Set();
+
+  planTemplate
+    .filter((row) => !isDerivedPlanLabel(row.label))
+    .forEach((row) => {
+      const label = String(row.label || "").trim();
+      const key = normalizeHeaderName(label);
+      if (!label || seen.has(key)) {
+        return;
+      }
+
+      categories.push(label);
+      seen.add(key);
+    });
+
+  if (!seen.has("association fees")) {
+    categories.push("Association fees");
+  }
+
+  return categories;
+}
+
+function buildDefaultRecurringTemplatesFromPlan(planTemplate = buildLocalStarterPlanTemplate()) {
+  const editableRows = resolvePlanTemplate(planTemplate).filter((row) => !isDerivedPlanLabel(row.label));
+  const findRow = (keys) => editableRows.find((row) => keys.includes(normalizeHeaderName(row.label)));
+  const recurringRows = [
+    findRow(["income 1", "mon revenu net"]),
+    findRow(["rent", "loyer"]),
+    findRow(["groceries", "epicerie"]),
+    findRow(["savings"]),
+  ].filter(Boolean);
+
+  return recurringRows
+    .map((row) => sanitizeRecurringTemplate({
+      label: row.label,
+      category: row.label,
+      value: row.plan,
+      period: row.period || DEFAULT_PLAN_PERIOD,
+    }))
+    .filter(Boolean);
+}
+
+function buildStartupGuideMarkup(options = {}) {
+  const title = options.title || "Bienvenue dans BUDEGETAPP";
+  const description = options.description || "Commencez avec un modele local, importez votre fichier Excel ou rejoignez un budget partage.";
+  const note = options.note || "Vous pourrez activer le partage plus tard et exporter en Excel a tout moment.";
+  const showRestore = options.showRestore !== false && hasStoredBudgetDraft();
+
+  return `
+    <div class="empty-state-copy">
+      <strong>${escapeHtml(title)}</strong>
+      <p>${escapeHtml(description)}</p>
+    </div>
+    <div class="empty-state-actions">
+      <button type="button" class="button primary" data-empty-action="start-local">Commencer sans fichier</button>
+      <button type="button" class="button ghost" data-empty-action="import-excel">Importer un fichier Excel</button>
+      <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partage</button>
+      ${showRestore ? '<button type="button" class="button ghost" data-empty-action="restore-draft">Restaurer mon brouillon local</button>' : ""}
+    </div>
+    <p class="empty-state-note">${escapeHtml(note)}</p>
+  `;
+}
+
+function buildLocalTransactionsEmptyStateMarkup() {
+  return [
+    "<strong>Votre budget local est pret.</strong>",
+    "<p>Ajoutez maintenant votre premiere transaction depuis le formulaire ou le bouton Nouvelle transaction.</p>",
+  ].join("");
+}
+
+function startLocalBudgetExperience(options = {}) {
+  const targetTab = normalizeAppTab(options.targetTab || APP_TAB_DASHBOARD);
+  const planTemplate = buildLocalStarterPlanTemplate();
+  const categories = buildLocalStarterCategories(planTemplate);
+  const recurringTemplates = state.recurringTemplates.length
+    ? state.recurringTemplates.slice()
+    : buildDefaultRecurringTemplatesFromPlan(planTemplate);
+
+  setStartupWelcomeMode(false);
+  state.mode = "budget";
+  state.workbookName = "BUDEGETAPP local.xlsx";
+  state.workbook = null;
+  state.sourceLink = null;
+  state.sourceSafety = createEmptySourceSafety();
+  state.appTab = targetTab;
+  state.activeView = JOURNAL_SHEET_NAME;
+  state.search = "";
+  state.editingIndex = null;
+  state.editorMode = "create";
+  state.planEditing = false;
+  state.budget = {
+    headers: ["Date", "Categories", "Value"],
+    rows: [],
+    categories,
+    clearEndRow: START_ROW + categories.length + 2,
+  };
+  state.recap = {
+    available: true,
+    snapshotDate: formatDateForDisplay(new Date().toISOString().slice(0, 10)),
+    planTemplate,
+  };
+  state.recapFilters = createEmptyRecapFilters();
+  if (recurringTemplates.length) {
+    state.recurringTemplates = recurringTemplates;
+    persistRecurringTemplates();
+  }
+
+  if (refs.searchInput) {
+    refs.searchInput.value = "";
+  }
+
+  if (refs.fileInput) {
+    refs.fileInput.value = "";
+  }
+
+  setLastAction("Modele local cree. Vous pouvez commencer sans fichier Excel.");
+  persistDraft();
+  renderAll();
 }
 
 function mergeReferenceBudgetTemplateRows(rows) {
@@ -719,6 +1060,51 @@ function ensureBudgetCategoryAvailable(category) {
   if (!exists) {
     state.budget.categories.push(label);
   }
+}
+
+function getRecurringTemplates() {
+  return Array.isArray(state.recurringTemplates) ? state.recurringTemplates : [];
+}
+
+function canSaveCurrentTransactionAsRecurringTemplate() {
+  if (state.mode !== "budget" || state.appTab !== APP_TAB_FORM) {
+    return false;
+  }
+
+  const category = String(document.getElementById("field-categories")?.value || "").trim();
+  const value = String(document.getElementById("field-value")?.value || "").trim();
+  return Boolean(category && value);
+}
+
+function upsertRecurringTemplate(nextTemplate) {
+  const template = sanitizeRecurringTemplate(nextTemplate);
+  if (!template) {
+    return false;
+  }
+
+  const existingIndex = getRecurringTemplates().findIndex(
+    (entry) => normalizeHeaderName(entry.label) === normalizeHeaderName(template.label)
+      || normalizeHeaderName(entry.category) === normalizeHeaderName(template.category)
+  );
+
+  if (existingIndex >= 0) {
+    state.recurringTemplates.splice(existingIndex, 1, {
+      ...state.recurringTemplates[existingIndex],
+      ...template,
+      id: state.recurringTemplates[existingIndex].id,
+    });
+  } else {
+    state.recurringTemplates.unshift(template);
+  }
+
+  state.recurringTemplates = state.recurringTemplates.slice(0, 12);
+  persistRecurringTemplates();
+  return true;
+}
+
+function deleteRecurringTemplate(templateId) {
+  state.recurringTemplates = getRecurringTemplates().filter((template) => template.id !== templateId);
+  persistRecurringTemplates();
 }
 
 function getResolvedBudgetCategoryRule(label, planGroup = "", amountValue = null) {
@@ -1760,6 +2146,8 @@ function setAppTab(nextTab) {
 
 function cacheDom() {
   refs.fileInput = document.getElementById("excel-file");
+  refs.welcomeScreen = document.getElementById("welcome-screen");
+  refs.appNav = document.querySelector(".app-nav");
   refs.toolbar = document.getElementById("workspace-toolbar");
   refs.toolbarPrimary = document.getElementById("toolbar-primary");
   refs.toolbarSide = document.getElementById("toolbar-side");
@@ -1800,10 +2188,21 @@ function cacheDom() {
   refs.budgetAlertEmail = document.getElementById("budget-alert-email");
   refs.budgetAlertCooldown = document.getElementById("budget-alert-cooldown");
   refs.budgetAlertHint = document.getElementById("budget-alert-hint");
+  refs.settingsPanel = document.getElementById("app-settings-panel");
+  refs.settingsStatus = document.getElementById("app-settings-status");
+  refs.settingsHint = document.getElementById("app-settings-hint");
+  refs.settingAutoRestore = document.getElementById("setting-auto-restore");
+  refs.settingShowAlerts = document.getElementById("setting-show-alerts");
+  refs.settingShowSuggestions = document.getElementById("setting-show-suggestions");
+  refs.historyPanel = document.getElementById("history-panel");
+  refs.historyStatus = document.getElementById("history-status");
+  refs.historyList = document.getElementById("history-list");
+  refs.undoLastActionButton = document.getElementById("undo-last-action");
   refs.openSourceButton = document.getElementById("open-source");
   refs.saveSourceButton = document.getElementById("save-source");
   refs.saveDraftButton = document.getElementById("save-draft");
   refs.restoreDraftButton = document.getElementById("restore-draft");
+  refs.restartButton = document.getElementById("restart-app");
   refs.addButton = document.getElementById("add-record");
   refs.exportButton = document.getElementById("export-workbook");
   refs.mobileFab = document.getElementById("mobile-fab");
@@ -1877,6 +2276,7 @@ function bindEvents() {
   });
   refs.saveDraftButton.addEventListener("click", onSaveDraftRequested);
   refs.restoreDraftButton.addEventListener("click", onRestoreDraftRequested);
+  refs.restartButton.addEventListener("click", onRestartRequested);
   refs.recapYearSelect.addEventListener("change", onRecapYearChanged);
   refs.recapMonthTrigger.addEventListener("click", onRecapMonthTriggerClicked);
   refs.recapMonthPanel.addEventListener("click", onRecapMonthPanelClicked);
@@ -1890,8 +2290,18 @@ function bindEvents() {
   refs.form.addEventListener("submit", onSaveRecord);
   refs.form.addEventListener("input", onPlanEditorFieldChanged);
   refs.form.addEventListener("change", onPlanEditorFieldChanged);
+  refs.welcomeScreen.addEventListener("click", onEmptyStateAction);
+  refs.cardsEmpty.addEventListener("click", onEmptyStateAction);
+  refs.formFields.addEventListener("click", onEmptyStateAction);
+  refs.formFields.addEventListener("click", onRecurringTemplateAction);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  refs.settingAutoRestore.addEventListener("change", onAutoRestoreSettingChanged);
+  refs.settingShowAlerts.addEventListener("change", onShowAlertsSettingChanged);
+  refs.settingShowSuggestions.addEventListener("change", onShowSuggestionsSettingChanged);
+  refs.undoLastActionButton.addEventListener("click", () => {
+    void onUndoLastActionRequested();
+  });
   document.addEventListener("click", onDocumentClick);
   document.addEventListener("keydown", onDocumentKeyDown);
 }
@@ -2037,6 +2447,134 @@ function onBudgetAlertCooldownChanged(event) {
   );
   persistDraftIfPossible();
   renderCloudPanel();
+}
+
+function onAutoRestoreSettingChanged(event) {
+  state.settings.autoRestoreDraft = Boolean(event.target.checked);
+  persistUiSettings();
+  if (!state.settings.autoRestoreDraft && state.mode !== "budget") {
+    setStartupWelcomeMode(true);
+  }
+  renderCloudPanel();
+}
+
+function onShowAlertsSettingChanged(event) {
+  state.settings.showBudgetFraAlerts = Boolean(event.target.checked);
+  persistUiSettings();
+  renderAll();
+}
+
+function onShowSuggestionsSettingChanged(event) {
+  state.settings.showBudgetFraSuggestions = Boolean(event.target.checked);
+  persistUiSettings();
+  renderAll();
+}
+
+function clonePlanTemplateRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      label: String(row?.label || "").trim(),
+      plan: normalizeAmountValue(row?.plan),
+      period: normalizePlanPeriod(row?.period),
+      group: normalizePlanGroup(row?.group, row?.label),
+    }))
+    .filter((row) => row.label);
+}
+
+function recordHistoryEvent(label) {
+  const normalizedLabel = String(label || "").trim();
+  if (!normalizedLabel) {
+    return;
+  }
+
+  state.history.recentEvents.unshift({
+    id: createId(),
+    label: normalizedLabel,
+    createdAt: new Date().toISOString(),
+  });
+  state.history.recentEvents = state.history.recentEvents.slice(0, HISTORY_EVENT_LIMIT);
+  persistHistoryState();
+}
+
+function pushUndoEntry(entry, label) {
+  const normalizedEntry = sanitizeHistoryEntry(entry);
+  if (!normalizedEntry) {
+    return;
+  }
+
+  state.history.undoStack.unshift(normalizedEntry);
+  state.history.undoStack = state.history.undoStack.slice(0, HISTORY_STACK_LIMIT);
+  recordHistoryEvent(label);
+  persistHistoryState();
+}
+
+function canUndoLastAction() {
+  return Array.isArray(state.history.undoStack) && state.history.undoStack.length > 0;
+}
+
+async function syncAfterUndo(actionLabel) {
+  if (canUseSupabaseCloud()) {
+    try {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+    } catch (error) {
+      console.error(error);
+      setLastAction(`${actionLabel} - sync cloud en echec`);
+      renderAll();
+    }
+  }
+
+  await enqueueSourceSave({
+    automatic: true,
+    baseAction: actionLabel,
+  });
+}
+
+async function onUndoLastActionRequested() {
+  if (!canUndoLastAction()) {
+    setLastAction("Aucune action recente a annuler.");
+    renderAll();
+    return;
+  }
+
+  const entry = state.history.undoStack.shift();
+  persistHistoryState();
+  if (!entry) {
+    return;
+  }
+
+  let actionLabel = "Derniere action annulee";
+
+  if (entry.kind === "create-record" && entry.record?.__id) {
+    state.budget.rows = state.budget.rows.filter((row) => row.__id !== entry.record.__id);
+    actionLabel = `Creation annulee: ${entry.record.Categories || entry.record.Date || "transaction"}`;
+  } else if (entry.kind === "update-record" && entry.previousRecord?.__id) {
+    const index = state.budget.rows.findIndex((row) => row.__id === entry.previousRecord.__id);
+    if (index >= 0) {
+      state.budget.rows.splice(index, 1, sanitizeBudgetRow(entry.previousRecord));
+    }
+    actionLabel = `Modification annulee: ${entry.previousRecord.Categories || entry.previousRecord.Date || "transaction"}`;
+  } else if (entry.kind === "delete-record" && entry.record) {
+    state.budget.rows.push(sanitizeBudgetRow(entry.record));
+    ensureBudgetCategoryAvailable(entry.record.Categories);
+    actionLabel = `Suppression annulee: ${entry.record.Categories || entry.record.Date || "transaction"}`;
+  } else if (entry.kind === "update-plan" && entry.previousTemplate?.length) {
+    state.recap.available = true;
+    state.recap.planTemplate = resolvePlanTemplate(clonePlanTemplateRows(entry.previousTemplate));
+    state.planEditing = false;
+    actionLabel = "Budget planifie restaure";
+  }
+
+  if (state.budget.rows.length) {
+    sortBudgetRowsInPlace(state.budget.rows);
+  }
+
+  state.editingIndex = null;
+  state.editorMode = "create";
+  persistDraft();
+  recordHistoryEvent(actionLabel);
+  setLastAction(actionLabel);
+  renderAll();
+  await syncAfterUndo(actionLabel);
 }
 
 function hasSupabaseSession() {
@@ -3493,6 +4031,7 @@ function persistDraft() {
     return;
   }
 
+  setStartupWelcomeMode(false);
   const payload = {
     mode: state.mode,
     workbookName: state.workbookName,
@@ -3594,6 +4133,7 @@ function restoreDraft(options = {}) {
   }
 
   applyStoredDraft(draft);
+  setStartupWelcomeMode(false);
   state.lastAction = manual
     ? "Brouillon local restaure. Mode autonome actif avec vos donnees locales."
     : "Brouillon restaure. Mode autonome actif avec vos donnees locales.";
@@ -3615,6 +4155,42 @@ function onSaveDraftRequested() {
 function onRestoreDraftRequested() {
   restoreDraft({ manual: true });
   renderAll();
+}
+
+function onRestartRequested() {
+  restartToWelcomeMode();
+}
+
+function restartToWelcomeMode() {
+  setStartupWelcomeMode(true);
+  state.workbookName = "";
+  state.workbook = null;
+  state.sourceLink = null;
+  state.sourceSafety = createEmptySourceSafety();
+  state.draftSavedAt = "";
+  state.appTab = APP_TAB_DASHBOARD;
+  state.mode = "idle";
+  state.activeView = JOURNAL_SHEET_NAME;
+  state.search = "";
+  state.editingIndex = null;
+  state.editorMode = "create";
+  state.planEditing = false;
+  state.budget = createEmptyBudgetModel();
+  state.recap = createEmptyRecapModel();
+  state.recapFilters = createEmptyRecapFilters();
+
+  if (refs.searchInput) {
+    refs.searchInput.value = "";
+  }
+
+  if (refs.fileInput) {
+    refs.fileInput.value = "";
+  }
+
+  setRecapMonthPickerOpen(false);
+  setLastAction("Ecran de depart restaure. Choisissez comment commencer.");
+  renderAll();
+  void updateCloudPresenceTrack();
 }
 
 async function onFileSelected(event) {
@@ -4166,6 +4742,157 @@ function onDocumentKeyDown(event) {
   setRecapMonthPickerOpen(false);
 }
 
+function onEmptyStateAction(event) {
+  const actionButton = event.target.closest("[data-empty-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  const action = actionButton.dataset.emptyAction;
+
+  if (action === "start-local") {
+    startLocalBudgetExperience({ targetTab: state.appTab });
+    return;
+  }
+
+  if (action === "import-excel") {
+    if (!window.XLSX) {
+      setLastAction("Import impossible: bibliotheque Excel absente");
+      renderAll();
+      return;
+    }
+
+    refs.fileInput?.click();
+    return;
+  }
+
+  if (action === "go-share") {
+    setAppTab(APP_TAB_SHARE);
+    return;
+  }
+
+  if (action === "restore-draft") {
+    restoreDraft({ manual: true });
+    renderAll();
+  }
+}
+
+function captureCurrentTransactionFormSnapshot() {
+  return {
+    Date: String(document.getElementById("field-date")?.value || "").trim(),
+    Categories: String(document.getElementById("field-categories")?.value || "").trim(),
+    Value: String(document.getElementById("field-value")?.value || "").trim(),
+  };
+}
+
+function applyTransactionFormSnapshot(snapshot) {
+  const dateInput = document.getElementById("field-date");
+  const categoryInput = document.getElementById("field-categories");
+  const valueInput = document.getElementById("field-value");
+
+  if (dateInput) {
+    dateInput.value = String(snapshot?.Date || "").trim();
+  }
+
+  if (categoryInput) {
+    categoryInput.value = String(snapshot?.Categories || "").trim();
+  }
+
+  if (valueInput) {
+    valueInput.value = String(snapshot?.Value || "").trim();
+  }
+
+  refreshCategoryParentMeta();
+}
+
+function refreshFormEditorPreservingValues(snapshot = captureCurrentTransactionFormSnapshot()) {
+  if (state.appTab !== APP_TAB_FORM || state.activeView !== JOURNAL_SHEET_NAME) {
+    return;
+  }
+
+  renderEditor();
+  applyTransactionFormSnapshot(snapshot);
+}
+
+function saveCurrentTransactionAsRecurringTemplate() {
+  if (!canSaveCurrentTransactionAsRecurringTemplate()) {
+    setLastAction("Saisissez au moins une categorie et une valeur avant d'enregistrer un modele recurrent.");
+    refreshCategoryParentMeta();
+    return;
+  }
+
+  const snapshot = captureCurrentTransactionFormSnapshot();
+  const saved = upsertRecurringTemplate({
+    label: snapshot.Categories,
+    category: snapshot.Categories,
+    value: snapshot.Value,
+    period: DEFAULT_PLAN_PERIOD,
+  });
+
+  if (!saved) {
+    setLastAction("Le modele recurrent n'a pas pu etre enregistre.");
+    refreshCategoryParentMeta();
+    return;
+  }
+
+  setLastAction(`Modele recurrent enregistre: ${snapshot.Categories}`);
+  refreshFormEditorPreservingValues(snapshot);
+}
+
+function applyRecurringTemplateToForm(templateId) {
+  const template = getRecurringTemplates().find((entry) => entry.id === templateId);
+  if (!template) {
+    return;
+  }
+
+  state.editorMode = "create";
+  state.editingIndex = null;
+  if (state.appTab !== APP_TAB_FORM) {
+    setAppTab(APP_TAB_FORM);
+  } else {
+    renderEditor();
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const current = captureCurrentTransactionFormSnapshot();
+  applyTransactionFormSnapshot({
+    Date: current.Date || today,
+    Categories: template.category,
+    Value: template.value,
+  });
+  setLastAction(`Modele applique: ${template.label}`);
+}
+
+function onRecurringTemplateAction(event) {
+  const actionButton = event.target.closest("[data-recurring-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  const action = String(actionButton.dataset.recurringAction || "").trim();
+  if (action === "save-current") {
+    saveCurrentTransactionAsRecurringTemplate();
+    return;
+  }
+
+  const templateId = String(actionButton.dataset.templateId || "").trim();
+  if (!templateId) {
+    return;
+  }
+
+  if (action === "use") {
+    applyRecurringTemplateToForm(templateId);
+    return;
+  }
+
+  if (action === "delete") {
+    const snapshot = captureCurrentTransactionFormSnapshot();
+    deleteRecurringTemplate(templateId);
+    setLastAction("Modele recurrent supprime.");
+    refreshFormEditorPreservingValues(snapshot);
+  }
+}
+
 function onSearchChanged(event) {
   state.search = event.target.value.trim().toLowerCase();
   renderCards();
@@ -4274,6 +5001,7 @@ async function deleteRecord(index) {
     return;
   }
 
+  const removedRecord = sanitizeBudgetRow(target);
   state.budget.rows.splice(index, 1);
 
   if (state.editingIndex === index) {
@@ -4285,6 +5013,11 @@ async function deleteRecord(index) {
 
   persistDraft();
   const actionLabel = `Transaction supprimee: ${title}`;
+  pushUndoEntry({
+    kind: "delete-record",
+    record: removedRecord,
+    index,
+  }, actionLabel);
   setLastAction(actionLabel);
   renderAll();
   try {
@@ -4330,15 +5063,25 @@ async function onSaveRecord(event) {
   let actionLabel = "Transaction enregistree";
   let collaborationLabel = "une transaction";
   if (state.editorMode === "edit" && state.editingIndex !== null && state.budget.rows[state.editingIndex]) {
+    const previousRecord = sanitizeBudgetRow(state.budget.rows[state.editingIndex]);
     nextRecord.__id = state.budget.rows[state.editingIndex].__id;
     state.budget.rows[state.editingIndex] = nextRecord;
     actionLabel = "Transaction mise a jour";
     collaborationLabel = `la transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
+    pushUndoEntry({
+      kind: "update-record",
+      previousRecord,
+      nextRecord,
+    }, actionLabel);
     setLastAction(actionLabel);
   } else {
     state.budget.rows.push(nextRecord);
     actionLabel = "Nouvelle transaction ajoutee";
     collaborationLabel = `une transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
+    pushUndoEntry({
+      kind: "create-record",
+      record: nextRecord,
+    }, actionLabel);
     setLastAction(actionLabel);
   }
 
@@ -4459,6 +5202,7 @@ async function onSavePlanTemplateRequested() {
   }
 
   const nextEditableTemplate = collectPlanEditorTemplateRows();
+  const previousTemplate = clonePlanTemplateRows(state.recap.planTemplate);
 
   if (!nextEditableTemplate.length) {
     setLastAction("Aucune ligne budget a enregistrer.");
@@ -4472,6 +5216,10 @@ async function onSavePlanTemplateRequested() {
   persistDraft();
 
   const actionLabel = "Budget planifie mis a jour";
+  pushUndoEntry({
+    kind: "update-plan",
+    previousTemplate,
+  }, actionLabel);
   setLastAction(actionLabel);
   renderAll();
   void updateCloudPresenceTrack();
@@ -5026,6 +5774,7 @@ function applyBudgetRowsToWorkbook(workbook, budgetModel) {
 function renderAll() {
   syncActiveViewForCurrentTab();
   renderAppTabs();
+  renderWelcomeScreen();
   syncRecapFilters();
   renderSectionHeading();
   renderStats();
@@ -5035,6 +5784,53 @@ function renderAll() {
   renderCloudPanel();
   renderDraftStatus();
   renderAppShellState();
+}
+
+function shouldShowWelcomeScreen() {
+  return state.mode !== "budget" &&
+    state.appTab !== APP_TAB_SHARE &&
+    isStartupWelcomeModeEnabled();
+}
+
+function buildWelcomeScreenMarkup() {
+  const showRestore = hasStoredBudgetDraft();
+  return `
+    <div class="welcome-screen-grid">
+      <div class="welcome-copy">
+        <p class="section-kicker">Bienvenue</p>
+        <h2>Demarrez votre budget comme vous voulez</h2>
+        <p>
+          Commencez avec un modele local, importez votre fichier Excel ou rejoignez directement un espace partage.
+        </p>
+        <div class="welcome-points">
+          <span class="presence-chip">Hors ligne pret</span>
+          <span class="presence-chip">Partage activable plus tard</span>
+          <span class="presence-chip">Export Excel a tout moment</span>
+        </div>
+      </div>
+      <div class="welcome-actions">
+        <button type="button" class="button primary" data-empty-action="start-local">Commencer sans fichier</button>
+        <button type="button" class="button secondary" data-empty-action="import-excel">Importer un fichier Excel</button>
+        <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partage</button>
+        ${showRestore ? '<button type="button" class="button ghost" data-empty-action="restore-draft">Restaurer mon brouillon local</button>' : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderWelcomeScreen() {
+  if (!refs.welcomeScreen) {
+    return;
+  }
+
+  const visible = shouldShowWelcomeScreen();
+  refs.welcomeScreen.classList.toggle("hidden", !visible);
+  if (!visible) {
+    refs.welcomeScreen.innerHTML = "";
+    return;
+  }
+
+  refs.welcomeScreen.innerHTML = buildWelcomeScreenMarkup();
 }
 
 function renderAppTabs() {
@@ -5071,6 +5867,7 @@ function renderAppTabs() {
   const showForm = state.appTab === APP_TAB_FORM;
   const showAnalysis = state.appTab === APP_TAB_ANALYSIS;
   const showDashboard = state.appTab === APP_TAB_DASHBOARD;
+  const showWelcome = shouldShowWelcomeScreen();
   const showWideContent = !showShare && (showDashboard || showPlan || showForm || showAnalysis || showTransactions);
 
   refs.appTabTitle.textContent = currentMeta.title;
@@ -5081,9 +5878,11 @@ function renderAppTabs() {
     button.setAttribute("aria-selected", active ? "true" : "false");
   });
 
-  refs.cloudPanel.classList.toggle("hidden", !showShare);
-  refs.statusStrip.classList.toggle("hidden", showShare || showPlan);
-  refs.layout.classList.toggle("hidden", showShare);
+  refs.appNav.classList.toggle("hidden", showWelcome);
+  refs.toolbar.classList.toggle("hidden", showWelcome);
+  refs.cloudPanel.classList.toggle("hidden", !showShare || showWelcome);
+  refs.statusStrip.classList.toggle("hidden", showShare || showPlan || showWelcome);
+  refs.layout.classList.toggle("hidden", showShare || showWelcome);
   refs.layout.classList.toggle("layout-wide", showWideContent);
   refs.editorArea.classList.toggle("hidden", !(showForm || showPlan));
   refs.cardsArea.classList.toggle("hidden", showShare || showForm || showPlan);
@@ -5199,6 +5998,7 @@ function renderSectionHeading() {
 
 function renderControls() {
   const hasBudget = state.mode === "budget";
+  const busy = state.cloud.syncBusy;
   const journalActive = hasBudget && state.activeView === JOURNAL_SHEET_NAME;
   const recapActive = hasBudget && state.activeView === RECAP_SHEET_NAME;
   const analysisActive = hasBudget && state.activeView === ANALYSIS_VIEW_NAME;
@@ -5238,6 +6038,8 @@ function renderControls() {
   refs.restoreDraftButton.title = hasStoredDraft
     ? "Recharge le dernier brouillon local memorise dans l'app"
     : "Aucun brouillon local disponible pour le moment";
+  refs.restartButton.disabled = busy;
+  refs.restartButton.title = "Revient a l'ecran de depart sans supprimer le brouillon local";
   refs.filePickerField.classList.toggle("hidden", !shareTab);
   refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab);
   refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
@@ -5254,6 +6056,7 @@ function renderControls() {
   refs.saveSourceButton.classList.toggle("hidden", !shareTab);
   refs.saveDraftButton.classList.toggle("hidden", !shareTab);
   refs.restoreDraftButton.classList.toggle("hidden", !shareTab);
+  refs.restartButton.classList.toggle("hidden", !shareTab);
   refs.exportButton.classList.toggle("hidden", !shareTab);
   refs.addButton.classList.toggle("hidden", !(transactionTab || planTab));
   refs.addButton.textContent = planTab ? "Editer budget" : "Nouvelle transaction";
@@ -5404,6 +6207,29 @@ function renderCloudPanel() {
   refs.budgetAlertHint.textContent = alertSettings.recipientEmail
     ? "Les alertes se basent sur les lignes rouges du comparatif courant."
     : "Laissez l'email vide pour utiliser l'adresse du compte connecte. Les alertes se basent sur les lignes rouges du comparatif courant.";
+
+  refs.settingAutoRestore.checked = state.settings.autoRestoreDraft;
+  refs.settingShowAlerts.checked = state.settings.showBudgetFraAlerts;
+  refs.settingShowSuggestions.checked = state.settings.showBudgetFraSuggestions;
+  refs.settingAutoRestore.disabled = busy;
+  refs.settingShowAlerts.disabled = busy;
+  refs.settingShowSuggestions.disabled = busy;
+  refs.settingsStatus.textContent = state.settings.autoRestoreDraft
+    ? "Le brouillon local se recharge automatiquement au prochain lancement si vous ne recommencez pas."
+    : "Le prochain lancement reviendra a l'ecran de bienvenue tant que vous ne restaurez pas le brouillon.";
+  refs.settingsHint.textContent = state.settings.showBudgetFraSuggestions
+    ? "Les suggestions intelligentes sont visibles dans l'accueil et l'analyse, en plus des alertes."
+    : "Les suggestions restent discretes pour garder l'application legere. Vous pouvez les reactiver ici.";
+
+  refs.undoLastActionButton.disabled = !canUndoLastAction() || busy;
+  refs.historyStatus.textContent = canUndoLastAction()
+    ? "La derniere action peut encore etre annulee sur cet appareil."
+    : "Aucune action recente a annuler pour le moment.";
+  refs.historyList.innerHTML = state.history.recentEvents.length
+    ? state.history.recentEvents
+      .map((entry) => `<span class="presence-chip">${escapeHtml(entry.label)} · ${escapeHtml(formatDraftSavedAt(entry.createdAt) || "a l'instant")}</span>`)
+      .join("")
+    : '<span class="presence-chip">Aucune action memorisee pour le moment.</span>';
 }
 
 function renderDraftStatus() {
@@ -5580,7 +6406,7 @@ function renderCards() {
   if (state.mode !== "budget") {
     refs.cardsGrid.classList.remove("hidden");
     refs.recapView.classList.add("hidden");
-    refs.cardsEmpty.innerHTML = refs.defaultEmptyMarkup;
+    refs.cardsEmpty.innerHTML = buildStartupGuideMarkup();
     refs.cardsEmpty.classList.remove("hidden");
     return;
   }
@@ -5604,10 +6430,12 @@ function renderJournalCards() {
 
   if (!state.budget.rows.length) {
     refs.cardsEmpty.classList.remove("hidden");
-    refs.cardsEmpty.innerHTML = [
-      "<strong>Chargez Budget_2025 Final.xlsx pour demarrer.</strong>",
-      "<p>L'app utilisera Journalier!D:F et la liste de categories de Journalier!B.</p>",
-    ].join("");
+    refs.cardsEmpty.innerHTML = state.workbook
+      ? [
+          "<strong>Chargez Budget_2025 Final.xlsx pour demarrer.</strong>",
+          "<p>L'app utilisera Journalier!D:F et la liste de categories de Journalier!B.</p>",
+        ].join("")
+      : buildLocalTransactionsEmptyStateMarkup();
     return;
   }
 
@@ -5728,6 +6556,7 @@ function buildLiveRecapView() {
     return {
       available: false,
       snapshotDate: "",
+      snapshot: null,
       metrics: [],
       detailRows: [],
       planRows: [],
@@ -5763,6 +6592,7 @@ function buildLiveRecapView() {
   return {
     available: true,
       snapshotDate: state.recap.snapshotDate,
+      snapshot,
       metrics,
       detailRows,
       planRows,
@@ -7154,8 +7984,70 @@ function createRecapMarkup(recapView) {
       <div class="recap-metrics">
         ${recapView.metrics.map((metric) => createRecapMetricMarkup(metric)).join("")}
       </div>
+      ${createSmartDashboardMarkup(recapView)}
+      ${state.settings.showBudgetFraAlerts ? createBudgetFraAlertMarkup(recapView.ruleAlerts.slice(0, 4)) : ""}
       ${createBudgetFraSummaryMarkup(recapView.groupSummaries)}
+      ${state.settings.showBudgetFraSuggestions ? createBudgetFraSuggestionMarkup(recapView.suggestions.slice(0, 3)) : ""}
     </div>
+  `;
+}
+
+function getPrimaryExpenseGroup(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => !["income", "savings"].includes(String(row.key || "").trim()))
+    .sort((left, right) => right.value - left.value)[0] || null;
+}
+
+function createSmartDashboardMarkup(recapView) {
+  if (!recapView?.snapshot) {
+    return "";
+  }
+
+  const topGroup = getPrimaryExpenseGroup(recapView.groupSummaries);
+  const primaryAlert = state.settings.showBudgetFraAlerts && Array.isArray(recapView.ruleAlerts) && recapView.ruleAlerts.length
+    ? recapView.ruleAlerts[0]
+    : null;
+  const primarySuggestion = state.settings.showBudgetFraSuggestions && Array.isArray(recapView.suggestions) && recapView.suggestions.length
+    ? recapView.suggestions[0]
+    : null;
+  const cashPositive = recapView.snapshot.cash >= 0;
+
+  return `
+    <section class="recap-section smart-dashboard-section">
+      <div class="recap-section-head">
+        <h3>Repères rapides</h3>
+        <p>Un mini tableau de bord pour savoir quoi surveiller en premier sur ${escapeHtml(recapView.periodLabel)}.</p>
+      </div>
+      <div class="smart-dashboard-grid">
+        <article class="smart-dashboard-card ${cashPositive ? "tone-positive" : "tone-negative"}">
+          <span class="smart-dashboard-kicker">${cashPositive ? "Reste a orienter" : "Cash a surveiller"}</span>
+          <strong>${escapeHtml(formatSignedCurrency(recapView.snapshot.cash))}</strong>
+          <p>${cashPositive ? "Il vous reste du cash disponible apres depenses et epargne." : "Le cash passe sous zero: il faut reequilibrer revenu, depenses ou epargne."}</p>
+        </article>
+        <article class="smart-dashboard-card tone-neutral">
+          <span class="smart-dashboard-kicker">Poste le plus lourd</span>
+          <strong>${escapeHtml(topGroup?.label || "Aucune depense dominante")}</strong>
+          <p>${topGroup ? `${escapeHtml(formatCurrency(topGroup.value))} sur la periode.` : "Aucune grande categorie de depense n'apparait encore."}</p>
+        </article>
+        <article class="smart-dashboard-card tone-accent">
+          <span class="smart-dashboard-kicker">${primaryAlert ? "Alerte principale" : "Vue simplifiee"}</span>
+          <strong>${escapeHtml(primaryAlert?.title || "Aucune alerte affichee")}</strong>
+          <p>${escapeHtml(primaryAlert?.detail || "Les alertes Budget-fra sont masquees dans les parametres pour garder l'accueil plus epure.")}</p>
+        </article>
+        <article class="smart-dashboard-card tone-default">
+          <span class="smart-dashboard-kicker">Transactions suivies</span>
+          <strong>${escapeHtml(String(recapView.transactionCount || 0))}</strong>
+          <p>${escapeHtml(getBudgetPeriodCountLabel(recapView.budgetPeriodCount))} compare${recapView.budgetPeriodCount > 1 ? "s" : ""} avec le plan sur la meme fenetre.</p>
+        </article>
+        ${primarySuggestion ? `
+          <article class="smart-dashboard-card tone-wide">
+            <span class="smart-dashboard-kicker">Suggestion intelligente</span>
+            <strong>${escapeHtml(primarySuggestion.title)}</strong>
+            <p>${escapeHtml(primarySuggestion.body)}</p>
+          </article>
+        ` : ""}
+      </div>
+    </section>
   `;
 }
 
@@ -7270,7 +8162,9 @@ function createAnalysisMarkup(analysisView) {
         </div>
       </section>
 
-      ${createBudgetFraAlertMarkup(analysisView.ruleAlerts)}
+      ${state.settings.showBudgetFraAlerts ? createBudgetFraAlertMarkup(analysisView.ruleAlerts) : ""}
+
+      ${state.settings.showBudgetFraSuggestions ? createBudgetFraSuggestionMarkup(analysisView.suggestions.slice(0, 4)) : ""}
 
       <section class="recap-section">
         <div class="recap-section-head">
@@ -7642,8 +8536,12 @@ function renderEditor() {
 
   if (state.mode !== "budget") {
     refs.formTitle.textContent = "Nouvelle fiche";
-    refs.formSubtitle.textContent = "Chargez Budget_2025 Final.xlsx pour generer le formulaire Journalier.";
-    refs.formFields.innerHTML = '<div class="empty-form">Le formulaire Date / Categories / Value apparaitra ici.</div>';
+    refs.formSubtitle.textContent = "Demarrez d'abord votre budget local ou importez votre fichier Excel.";
+    refs.formFields.innerHTML = `<div class="empty-form">${buildStartupGuideMarkup({
+      title: "Commencez votre budget",
+      description: "Le formulaire Date / Categories / Value sera active des que vous creez un modele local, importez Excel ou rejoignez un espace partage.",
+      note: "Le modele local suffit pour commencer tout de suite, meme sans fichier Excel.",
+    })}</div>`;
     return;
   }
 
@@ -7698,6 +8596,7 @@ function renderEditor() {
   appendField(renderDateField(editingRow.Date));
   appendField(renderCategoryField(editingRow.Categories));
   appendField(renderValueField(editingRow.Value));
+  refs.formFields.appendChild(renderRecurringTemplatesPanel());
 }
 
 function renderPlanEditor() {
@@ -7706,8 +8605,12 @@ function renderPlanEditor() {
 
   if (state.mode !== "budget") {
     refs.formTitle.textContent = "Budget mensuel";
-    refs.formSubtitle.textContent = "Chargez ou restaurez un budget pour fixer les montants cibles.";
-    refs.formFields.innerHTML = '<div class="empty-form">Les lignes de budget apparaitront ici pour alimenter les comparaisons.</div>';
+    refs.formSubtitle.textContent = "Commencez avec un modele local ou importez votre budget pour fixer les montants cibles.";
+    refs.formFields.innerHTML = `<div class="empty-form">${buildStartupGuideMarkup({
+      title: "Budget mensuel pret a creer",
+      description: "Le plan mensuel peut etre initialise sans fichier Excel. Vous pourrez ensuite ajuster les montants, les periodes et les comparaisons.",
+      note: "Une fois le modele cree, l'onglet Budget sera editable immediatement.",
+    })}</div>`;
     return;
   }
 
@@ -7758,6 +8661,7 @@ function refreshCategoryParentMeta() {
   const select = document.getElementById("field-categories");
   const parentChip = document.querySelector(".field-parent-chip");
   const hint = document.querySelector(".field-hint");
+  const recurringSaveButton = document.querySelector("[data-recurring-action='save-current']");
 
   if (!select || !parentChip || !hint) {
     return;
@@ -7774,6 +8678,9 @@ function refreshCategoryParentMeta() {
   parentChip.textContent = displayLabel;
   parentChip.classList.toggle("is-empty", !selectedValue || !parentLabel);
   hint.textContent = `${getAvailableFormCategoryCount()} categories disponibles depuis l'onglet Budget. Tapez pour filtrer plus vite ou entrez directement le nom complet.`;
+  if (recurringSaveButton) {
+    recurringSaveButton.disabled = !canSaveCurrentTransactionAsRecurringTemplate();
+  }
 }
 
 function renderBudgetSummaryGrid(rows) {
@@ -7941,6 +8848,53 @@ function renderValueField(value) {
   wrapper.append(label, inputRow, hint);
   queueMicrotask(refreshCategoryParentMeta);
   return wrapper;
+}
+
+function renderRecurringTemplatesPanel() {
+  const section = document.createElement("section");
+  section.className = "recurring-panel";
+
+  const templates = getRecurringTemplates();
+  const heading = document.createElement("div");
+  heading.className = "recurring-panel-head";
+  heading.innerHTML = `
+    <div>
+      <span class="section-kicker">Transactions recurrentes</span>
+      <h3>Modeles rapides</h3>
+    </div>
+    <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
+      Enregistrer la transaction comme modele
+    </button>
+  `;
+
+  const list = document.createElement("div");
+  list.className = "recurring-list";
+
+  if (!templates.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-form recurring-empty";
+    empty.textContent = "Aucun modele recurrent pour le moment. Enregistrez une transaction type pour la reutiliser plus vite.";
+    list.appendChild(empty);
+  } else {
+    templates.forEach((template) => {
+      const card = document.createElement("article");
+      card.className = "recurring-card";
+      card.innerHTML = `
+        <div class="recurring-card-copy">
+          <strong>${escapeHtml(template.label)}</strong>
+          <p>${escapeHtml(template.category)} · ${escapeHtml(formatCurrency(parseAmount(template.value) || 0))} · ${escapeHtml(getPlanPeriodLabel(template.period))}</p>
+        </div>
+        <div class="recurring-card-actions">
+          <button type="button" class="button secondary" data-recurring-action="use" data-template-id="${escapeHtml(template.id)}">Utiliser</button>
+          <button type="button" class="button ghost" data-recurring-action="delete" data-template-id="${escapeHtml(template.id)}">Supprimer</button>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  section.append(heading, list);
+  return section;
 }
 
 function renderPlanAmountField(row, index, readOnly = false) {

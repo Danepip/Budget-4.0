@@ -93,6 +93,8 @@
         </div>
       </section>
 
+      <section id="welcome-screen" class="welcome-screen panel hidden"></section>
+
       <section id="workspace-toolbar" class="toolbar panel">
         <div class="toolbar-primary" id="toolbar-primary">
           <label id="file-picker-field" class="file-picker" for="excel-file">
@@ -140,6 +142,7 @@
             <button id="save-source" class="button secondary" type="button" disabled>Enregistrer la source</button>
             <button id="save-draft" class="button ghost" type="button" disabled>Sauvegarde locale</button>
             <button id="restore-draft" class="button ghost" type="button" disabled>Restaurer</button>
+            <button id="restart-app" class="button ghost" type="button">Recommencer</button>
             <button id="add-record" class="button secondary" type="button" disabled>Nouvelle fiche</button>
             <button id="export-workbook" class="button primary" type="button" disabled>Exporter Excel</button>
           </div>
@@ -238,6 +241,59 @@
             Les alertes se basent sur les lignes rouges du comparatif courant.
           </p>
         </div>
+
+        <div id="app-settings-panel" class="alert-settings panel">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Parametres</p>
+              <h2>Preferences de l'application</h2>
+            </div>
+            <p id="app-settings-status" class="section-caption">
+              Choisissez comment BUDEGETAPP se relance et quelles analyses restent visibles.
+            </p>
+          </div>
+
+          <div class="cloud-grid alert-grid">
+            <label class="control-field checkbox-field">
+              <span>Restaurer automatiquement le brouillon</span>
+              <input id="setting-auto-restore" type="checkbox">
+            </label>
+
+            <label class="control-field checkbox-field">
+              <span>Afficher les alertes Budget-fra</span>
+              <input id="setting-show-alerts" type="checkbox">
+            </label>
+
+            <label class="control-field checkbox-field">
+              <span>Afficher les suggestions intelligentes</span>
+              <input id="setting-show-suggestions" type="checkbox">
+            </label>
+          </div>
+
+          <p id="app-settings-hint" class="draft-status cloud-note">
+            Ces preferences sont memorisees localement sur cet appareil.
+          </p>
+        </div>
+
+        <div id="history-panel" class="alert-settings panel">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Historique local</p>
+              <h2>Dernieres actions</h2>
+            </div>
+            <p id="history-status" class="section-caption">
+              Vous pourrez annuler la derniere creation, modification ou suppression.
+            </p>
+          </div>
+
+          <div class="cloud-actions history-actions">
+            <button id="undo-last-action" class="button ghost" type="button">Annuler la derniere action</button>
+          </div>
+
+          <div id="history-list" class="history-list">
+            <span class="presence-chip">Aucune action memorisee pour le moment.</span>
+          </div>
+        </div>
       </section>
 
       <section id="workspace-status" class="status-strip">
@@ -271,14 +327,17 @@
               <h2 id="form-title">Nouvelle fiche</h2>
             </div>
             <p id="form-subtitle" class="section-caption">
-              Chargez d'abord Budget_2025 Final.xlsx pour afficher le formulaire Journalier.
+              Demarrez d'abord votre budget local ou importez votre fichier Excel.
             </p>
           </div>
 
           <form id="record-form" novalidate>
             <div id="form-fields" class="form-fields">
               <div class="empty-form">
-                Les champs Date / Categories / Value apparaitront ici.
+                <div class="empty-state-copy">
+                  <strong>Commencez votre budget</strong>
+                  <p>Le formulaire Date / Categories / Value sera active des que vous creez un modele local, importez Excel ou rejoignez un espace partage.</p>
+                </div>
               </div>
             </div>
 
@@ -301,11 +360,10 @@
           </div>
 
           <div id="cards-empty" class="empty-state">
-            <strong>Chargez Budget_2025 Final.xlsx pour commencer.</strong>
-            <p>
-              Une fois le fichier importe, chaque transaction du journal sera affichee
-              en carte et vous pourrez la modifier dans le formulaire.
-            </p>
+            <div class="empty-state-copy">
+              <strong>Bienvenue dans BUDEGETAPP</strong>
+              <p>Commencez avec un modele local, importez votre fichier Excel ou rejoignez un budget partage.</p>
+            </div>
           </div>
 
           <div id="cards-grid" class="cards-grid"></div>
