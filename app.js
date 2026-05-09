@@ -1,4 +1,4 @@
-const STORAGE_KEY = "budget-2025-card-view-v2";
+﻿const STORAGE_KEY = "budget-2025-card-view-v2";
 const STARTUP_STATE_KEY = "budget-2025-card-view-startup-v1";
 const SETTINGS_KEY = "budget-2025-card-view-settings-v1";
 const RECURRING_TEMPLATES_KEY = "budget-2025-card-view-recurring-v1";
@@ -7,7 +7,7 @@ const HISTORY_STACK_LIMIT = 20;
 const HISTORY_EVENT_LIMIT = 8;
 
 const JOURNAL_SHEET_NAME = "Journalier";
-const RECAP_SHEET_NAME = "Recapitulatif";
+const RECAP_SHEET_NAME = "Récapitulatif";
 const ANALYSIS_VIEW_NAME = "Comparaisons";
 const ANALYSIS_CATEGORY_COLORS = [
   "#78be20",
@@ -66,7 +66,7 @@ const FALLBACK_BUDGET_FRA_GROUP_ORDER = [
   "transportation",
   "childcare",
   "education",
-  "recreation",
+  "recréation",
   "personalcare",
   "clothing",
   "medical",
@@ -79,32 +79,32 @@ const BUDGET_FRA_GROUP_ORDER = BUDGET_RULES_API?.GROUP_ORDER || FALLBACK_BUDGET_
 const FALLBACK_BUDGET_FRA_GROUP_META = {
   income: {
     label: "Revenu",
-    description: "Entrees d'argent du foyer",
+    description: "Entrées d'argent du foyer",
     tone: "positive",
   },
   savings: {
-    label: "Epargnes",
-    description: "Objectifs, reserve et accumulation",
+    label: "Épargnes",
+    description: "Objectifs, réserve et accumulation",
     tone: "neutral",
   },
   debt: {
     label: "Remboursement de dettes",
-    description: "Carte de credit, pret et obligations",
+    description: "Carte de crédit, prêt et obligations",
     tone: "negative",
   },
   housing: {
     label: "Logement",
-    description: "Habitation, loyer, hypotheque et charges",
+    description: "Habitation, loyer, hypothèque et charges",
     tone: "negative",
   },
   communications: {
     label: "Communications",
-    description: "Telephone, internet et services numeriques",
+    description: "Téléphone, internet et services numériques",
     tone: "neutral",
   },
   food: {
     label: "Alimentation",
-    description: "Epicerie et restauration",
+    description: "Épicerie et restauration",
     tone: "neutral",
   },
   insurance: {
@@ -114,42 +114,42 @@ const FALLBACK_BUDGET_FRA_GROUP_META = {
   },
   transportation: {
     label: "Transport",
-    description: "Auto, carburant, stationnement et deplacements",
+    description: "Auto, carburant, stationnement et déplacements",
     tone: "negative",
   },
   childcare: {
     label: "Soins aux enfants",
-    description: "Depenses liees aux enfants",
+    description: "Dépenses liées aux enfants",
     tone: "neutral",
   },
   education: {
-    label: "Etudes",
+    label: "Études",
     description: "Frais scolaires et apprentissage",
     tone: "neutral",
   },
-  recreation: {
+  recréation: {
     label: "Loisirs",
     description: "Sorties, voyage, sport et divertissement",
     tone: "neutral",
   },
   personalcare: {
     label: "Soins personnels",
-    description: "Coiffure, cosmetiques et entretien personnel",
+    description: "Coiffure, cosmétiques et entretien personnel",
     tone: "neutral",
   },
   clothing: {
-    label: "Vetements",
-    description: "Vetements, accessoires et chaussures",
+    label: "Vêtements",
+    description: "Vêtements, accessoires et chaussures",
     tone: "neutral",
   },
   medical: {
-    label: "Soins medicaux",
-    description: "Sante, assurance et soins specialises",
+    label: "Soins médicaux",
+    description: "Santé, assurance et soins spécialisés",
     tone: "negative",
   },
   pets: {
     label: "Animaux",
-    description: "Depenses reliees aux animaux",
+    description: "Dépenses reliées aux animaux",
     tone: "neutral",
   },
   fees: {
@@ -164,7 +164,7 @@ const FALLBACK_BUDGET_FRA_GROUP_META = {
   },
   custom: {
     label: "Autres postes",
-    description: "Lignes a classer ou personnaliser",
+    description: "Lignes à classer ou à personnaliser",
     tone: "default",
   },
 };
@@ -195,7 +195,7 @@ const REFERENCE_BUDGET_TEMPLATE_GROUPS = [
       { label: "Savings", canonical: "savings", aliases: ["Savings"] },
       { label: "Savings for seasonal exp.", canonical: "savings for seasonal exp.", aliases: ["Savings for seasonal exp."] },
       { label: "Retraite" },
-      { label: "Education (epargne)" },
+      { label: "Education (épargne)" },
       { label: "Achat d'une maison" },
       { label: "Renovations de maison" },
       { label: "Achat d'une auto" },
@@ -295,7 +295,7 @@ const REFERENCE_BUDGET_TEMPLATE_GROUPS = [
     ],
   },
   {
-    parent: "recreation",
+    parent: "recréation",
     planGroup: "expenses",
     items: [
       { label: "Vacances et voyages", canonical: "vacations/travel", aliases: ["Vacations/Travel"] },
@@ -402,13 +402,13 @@ const REFERENCE_BUDGET_TEMPLATE_INDEX = (() => {
 const BUDGET_FRA_RULES = [
   {
     key: "savings",
-    title: "Epargnes",
+    title: "Épargnes",
     kind: "min",
     greenMin: 0.05,
     yellowMin: 0,
-    greenLabel: "Au niveau recommande",
-    yellowLabel: "Sous la cible recommandee",
-    redLabel: "Aucune epargne detectee",
+    greenLabel: "Au niveau recommandé",
+    yellowLabel: "Sous la cible recommandée",
+    redLabel: "Aucune épargne détectée",
   },
   {
     key: "debt",
@@ -454,7 +454,7 @@ const BUDGET_FRA_RULES = [
   },
 ];
 const RECAP_RANGE_OPTIONS = [
-  { value: "all", label: "Toute la periode" },
+  { value: "all", label: "Toute la période" },
   { value: "1", label: "1 mois" },
   { value: "2", label: "2 mois" },
   { value: "3", label: "3 mois" },
@@ -797,8 +797,8 @@ function buildDefaultRecurringTemplatesFromPlan(planTemplate = buildLocalStarter
 
 function buildStartupGuideMarkup(options = {}) {
   const title = options.title || "Bienvenue dans BUDEGETAPP";
-  const description = options.description || "Commencez avec un modele local, importez votre fichier Excel ou rejoignez un budget partage.";
-  const note = options.note || "Vous pourrez activer le partage plus tard et exporter en Excel a tout moment.";
+  const description = options.description || "Commencez avec un modèle local, importez votre fichier Excel ou rejoignez un budget partagé.";
+  const note = options.note || "Vous pourrez activer le partage plus tard et exporter en Excel à tout moment.";
   const showRestore = options.showRestore !== false && hasStoredBudgetDraft();
 
   return `
@@ -809,7 +809,7 @@ function buildStartupGuideMarkup(options = {}) {
     <div class="empty-state-actions">
       <button type="button" class="button primary" data-empty-action="start-local">Commencer sans fichier</button>
       <button type="button" class="button ghost" data-empty-action="import-excel">Importer un fichier Excel</button>
-      <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partage</button>
+      <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partagé</button>
       ${showRestore ? '<button type="button" class="button ghost" data-empty-action="restore-draft">Restaurer mon brouillon local</button>' : ""}
     </div>
     <p class="empty-state-note">${escapeHtml(note)}</p>
@@ -818,8 +818,8 @@ function buildStartupGuideMarkup(options = {}) {
 
 function buildLocalTransactionsEmptyStateMarkup() {
   return [
-    "<strong>Votre budget local est pret.</strong>",
-    "<p>Ajoutez maintenant votre premiere transaction depuis le formulaire ou le bouton Nouvelle transaction.</p>",
+    "<strong>Votre budget local est prêt.</strong>",
+    "<p>Ajoutez maintenant votre première transaction depuis le formulaire ou le bouton Nouvelle transaction.</p>",
   ].join("");
 }
 
@@ -868,7 +868,7 @@ function startLocalBudgetExperience(options = {}) {
     refs.fileInput.value = "";
   }
 
-  setLastAction("Modele local cree. Vous pouvez commencer sans fichier Excel.");
+  setLastAction("Modèle local créé. Vous pouvez commencer sans fichier Excel.");
   persistDraft();
   renderAll();
 }
@@ -1233,7 +1233,7 @@ function inferBudgetFraCategory(label, planGroup = "", amountValue = null) {
     normalized === "hobbies (e.g crafts, baking...)" ||
     normalized === "hobbies (e.g crafts, baking…)"
   ) {
-    return "recreation";
+    return "recréation";
   }
 
   if (normalized === "cosmetics" || normalized === "salon services ( haircuts- hair styles)") {
@@ -1390,11 +1390,11 @@ function getBudgetSummaryCardMeta(label) {
   }
 
   if (normalized === "expenses" || normalized === "total expenses") {
-    return { title: "Depenses", tone: "expenses" };
+    return { title: "Dépenses", tone: "expenses" };
   }
 
   if (normalized === "total savings") {
-    return { title: "Epargne", tone: "savings" };
+    return { title: "Épargne", tone: "savings" };
   }
 
   if (normalized === "cash short/extra") {
@@ -1412,15 +1412,15 @@ function getMetricDisplayLabel(label) {
   }
 
   if (normalized === "expenses" || normalized === "total expenses") {
-    return "Depenses";
+    return "Dépenses";
   }
 
   if (normalized === "savings" || normalized === "total savings") {
-    return "Epargne";
+    return "Épargne";
   }
 
   if (normalized === "seasonal savings" || normalized === "savings for seasonal exp.") {
-    return "Epargne saisonniere";
+    return "Épargne saisonnière";
   }
 
   if (normalized === "cash" || normalized === "cash short/extra") {
@@ -1527,25 +1527,25 @@ function renderPlanGroupSection(categoryKey, rows, startIndex, readOnly = false,
   heading.className = "plan-group-header";
   heading.innerHTML = `
     <div>
-      <div class="budget-kind">Grande categorie</div>
+      <div class="budget-kind">Grande catégorie</div>
       <h3 class="plan-group-title">${escapeHtml(meta.label)}</h3>
     </div>
     <div class="budget-summary-side">
       <strong data-plan-group-total="${escapeHtml(categoryKey)}">${escapeHtml(
         formatCurrency(computePlanGroupMonthlyTotal(rows))
       )}</strong>
-      <span>equivalent mensuel</span>
+      <span>Équivalent mensuel</span>
     </div>
   `;
 
   const body = document.createElement("div");
   body.className = "plan-group-body";
   body.innerHTML = `
-    <p class="budget-panel-note">${escapeHtml(meta.description || "Section budgetaire regroupee par parent.")}</p>
+    <p class="budget-panel-note">${escapeHtml(meta.description || "Section budgétaire regroupée par parent.")}</p>
     <div class="budget-head">
       <div>Poste</div>
       <div>Montant</div>
-      <div>Periode</div>
+      <div>Période</div>
       <div>Parent</div>
       <div>Mensuel</div>
     </div>
@@ -1624,8 +1624,8 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
         key: "income",
         title: "Revenu",
         tone: "risk",
-        status: "Income requis",
-        detail: "Ajoutez votre revenu pour activer les alertes budgetaires de type Budget-fra.",
+        status: "Revenu requis",
+        detail: "Ajoutez votre revenu pour activer les alertes budgétaires de type Budget-fra.",
         amountLabel: formatCurrency(0),
         ratioLabel: "-",
       },
@@ -1646,7 +1646,7 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
           title: rule.title,
           tone: "risk",
           status: rule.redLabel,
-          detail: `Cible recommandee: au moins ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
+          detail: `Cible recommandée : au moins ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
           amountLabel: formatCurrency(amount),
           ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
           groupLabel: meta.label,
@@ -1659,7 +1659,7 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
           title: rule.title,
           tone: "good",
           status: rule.greenLabel,
-          detail: `Vous etes au-dessus du seuil recommande de ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
+          detail: `Vous êtes au-dessus du seuil recommandé de ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
           amountLabel: formatCurrency(amount),
           ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
           groupLabel: meta.label,
@@ -1684,7 +1684,7 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
         title: rule.title,
         tone: "good",
         status: "Dans la moyenne",
-        detail: `La cible recommandee reste sous ${(rule.greenMax * 100).toFixed(0)} % du revenu.`,
+        detail: `La cible recommandée reste sous ${(rule.greenMax * 100).toFixed(0)} % du revenu.`,
         amountLabel: formatCurrency(amount),
         ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
         groupLabel: meta.label,
@@ -1696,8 +1696,8 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
         key: rule.key,
         title: rule.title,
         tone: "warn",
-        status: "Legerement au-dessus",
-        detail: `La zone de vigilance va de ${(rule.greenMax * 100).toFixed(0)} % a ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
+        status: "Légèrement au-dessus",
+        detail: `La zone de vigilance va de ${(rule.greenMax * 100).toFixed(0)} % à ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
         amountLabel: formatCurrency(amount),
         ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
         groupLabel: meta.label,
@@ -1709,7 +1709,7 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
       title: rule.title,
       tone: "risk",
       status: "Au-dessus de la cible",
-      detail: `Cette categorie depasse ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
+      detail: `Cette catégorie dépasse ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
       amountLabel: formatCurrency(amount),
       ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
       groupLabel: meta.label,
@@ -1724,55 +1724,55 @@ function buildBudgetFraSuggestions(actualMap, snapshot) {
 
   if (snapshot.cash < 0) {
     suggestions.push({
-      title: "Votre budget finit en negatif",
-      trigger: "Solde global inferieur a zero",
-      body: "Priorisez les categories dette, logement et alimentation pour retrouver un budget respirable.",
+      title: "Votre budget se termine en négatif",
+      trigger: "Solde global inférieur à zéro",
+      body: "Priorisez les catégories dette, logement et alimentation pour retrouver un budget respirable.",
     });
   } else if (snapshot.cash > 0) {
     suggestions.push({
-      title: "Il reste de l'argent a orienter",
-      trigger: "Cash positif sur la periode",
-      body: "Vous pouvez diriger ce surplus vers l'epargne, un remboursement de dettes ou un objectif precis.",
+      title: "Il reste de l'argent à orienter",
+      trigger: "Cash positif sur la période",
+      body: "Vous pouvez diriger ce surplus vers l'épargne, un remboursement de dettes ou un objectif précis.",
     });
   }
 
   if (snapshot.income > 0 && snapshot.totalSavings / snapshot.income < 0.05) {
     suggestions.push({
-      title: "Renforcer l'epargne de securite",
+      title: "Renforcer l'épargne de sécurité",
       trigger: "Savings sous 5 % du revenu",
-      body: "Le fichier Budget-fra suggere de renforcer l'epargne avant d'ajouter de nouvelles depenses discretionnaires.",
+      body: "Le fichier Budget-fra suggère de renforcer l'épargne avant d'ajouter de nouvelles dépenses discrétionnaires.",
     });
   }
 
   if (valueFor("Credit card") > 0) {
     suggestions.push({
-      title: "Carte de credit a surveiller",
+      title: "Carte de crédit à surveiller",
       trigger: "Credit card > 0",
-      body: "Une suggestion utile serait d'afficher un rappel de remboursement prioritaire et une piste pour reduire les interets.",
+      body: "Une suggestion utile serait d'afficher un rappel de remboursement prioritaire et une piste pour réduire les intérêts.",
     });
   }
 
   if (valueFor("Groceries") > 0 || valueFor("Dining out") > 0) {
     suggestions.push({
       title: "Optimiser l'alimentation",
-      trigger: "Epicerie ou restos presents",
-      body: "On peut proposer de revoir l'epicerie, les repas planifies et la frequence des sorties restaurant.",
+      trigger: "Épicerie ou restaurants présents",
+      body: "Nous pouvons suggérer de revoir l'épicerie, les repas planifiés et la fréquence des sorties au restaurant.",
     });
   }
 
   if (valueFor("Mortgage") > 0 || valueFor("Rent") > 0) {
     suggestions.push({
-      title: "Le logement pese dans le budget",
-      trigger: "Loyer ou hypotheque detecte",
-      body: "La future mise a jour peut mettre en avant un rappel sur la cible logement et des conseils adaptes.",
+      title: "Le logement pèse dans le budget",
+      trigger: "Loyer ou hypothèque détecté",
+      body: "Une prochaine mise à jour pourra mettre en avant un rappel sur la cible logement et des conseils adaptés.",
     });
   }
 
   if ((groupTotals.get("transportation") || 0) > 0) {
     suggestions.push({
-      title: "Transport a suivre de pres",
-      trigger: "Depenses transport detectees",
-      body: "Le groupe transport peut porter des suggestions sur location, essence, entretien et arbitrages de mobilite.",
+      title: "Transport à suivre de près",
+      trigger: "Dépenses de transport détectées",
+      body: "Le groupe Transport peut proposer des pistes sur la location, l'essence, l'entretien et les arbitrages de mobilité.",
     });
   }
 
@@ -2000,7 +2000,7 @@ function createEmptyCloudState() {
     ready: false,
     syncBusy: false,
     email: "",
-    status: "Supabase non configure.",
+    status: "Supabase non configuré.",
     session: null,
     user: null,
     space: {
@@ -2539,7 +2539,7 @@ async function onUndoLastActionRequested() {
     return;
   }
 
-  let actionLabel = "Derniere action annulee";
+  let actionLabel = "Dernière action annulée";
 
   if (entry.kind === "create-record" && entry.record?.__id) {
     state.budget.rows = state.budget.rows.filter((row) => row.__id !== entry.record.__id);
@@ -2558,7 +2558,7 @@ async function onUndoLastActionRequested() {
     state.recap.available = true;
     state.recap.planTemplate = resolvePlanTemplate(clonePlanTemplateRows(entry.previousTemplate));
     state.planEditing = false;
-    actionLabel = "Budget planifie restaure";
+    actionLabel = "Budget planifié restaure";
   }
 
   if (state.budget.rows.length) {
@@ -2939,7 +2939,7 @@ function describeSupabaseError(error, fallbackMessage) {
   }
 
   if (haystack.includes("auth_required") || haystack.includes("jwt")) {
-    return `${fallbackMessage} La session Supabase n'est pas reconnue. Deconnectez-vous puis reconnectez-vous avec le lien magique.`;
+    return `${fallbackMessage} La session Supabase n'est pas reconnue. Deconnectéz-vous puis reconnectéz-vous avec le lien magique.`;
   }
 
   if (haystack.includes("function") && haystack.includes("create_budget_space")) {
@@ -3124,7 +3124,7 @@ async function initSupabaseIntegration() {
   if (!runtime || !config.url || !config.anonKey) {
     state.cloud.configured = false;
     state.cloud.ready = false;
-    setCloudStatus("Supabase non configure. Renseignez supabase.config.js pour activer le partage.");
+    setCloudStatus("Supabase non configuré. Renseignez supabase.config.js pour activer le partage.");
     renderAll();
     return;
   }
@@ -3139,7 +3139,7 @@ async function initSupabaseIntegration() {
     });
     state.cloud.configured = true;
     state.cloud.ready = true;
-    setCloudStatus("Supabase configure. Connectez-vous pour partager le budget.");
+    setCloudStatus("Supabase configuré. Connectez-vous pour partager le budget.");
     bindNativeSupabaseRedirectListener();
 
     if (supabaseAuthSubscription?.data?.subscription?.unsubscribe) {
@@ -3155,15 +3155,15 @@ async function initSupabaseIntegration() {
 
       if (!state.cloud.user) {
         stopSupabaseRealtime();
-        setCloudStatus("Supabase configure. Connectez-vous pour partager le budget.");
+        setCloudStatus("Supabase configuré. Connectez-vous pour partager le budget.");
         persistDraftIfPossible();
         renderAll();
         return;
       }
 
       setCloudStatus(hasCloudSpaceSelected()
-        ? `Connecte a Supabase. Espace actif: ${state.cloud.space.name || state.cloud.space.joinCode || "budget partage"}.`
-        : "Connecte a Supabase. Creez ou rejoignez un espace partage.");
+        ? `Connecté à Supabase. Espace actif : ${state.cloud.space.name || state.cloud.space.joinCode || "budget partagé"}.`
+        : "Connecté à Supabase. Créez ou rejoignez un espace partagé.");
       persistDraftIfPossible();
       renderAll();
 
@@ -3179,7 +3179,7 @@ async function initSupabaseIntegration() {
     console.error(error);
     state.cloud.configured = false;
     state.cloud.ready = false;
-    setCloudStatus("Supabase n'a pas pu etre initialise.");
+    setCloudStatus("Supabase n'a pas pu être initialisé.");
     renderAll();
   }
 }
@@ -3205,8 +3205,8 @@ async function syncSupabaseSession() {
 
   if (state.cloud.user) {
     setCloudStatus(hasCloudSpaceSelected()
-      ? `Connecte a Supabase. Espace actif: ${state.cloud.space.name || state.cloud.space.joinCode || "budget partage"}.`
-      : "Connecte a Supabase. Creez ou rejoignez un espace partage.");
+      ? `Connecté à Supabase. Espace actif : ${state.cloud.space.name || state.cloud.space.joinCode || "budget partagé"}.`
+      : "Connecté à Supabase. Créez ou rejoignez un espace partagé.");
     if (hasCloudSpaceSelected()) {
       await attachToCurrentCloudSpace({
         silent: true,
@@ -3243,7 +3243,7 @@ function persistDraftIfPossible() {
 
 async function onCloudMagicLinkRequested() {
   if (!supabaseClient || !state.cloud.ready) {
-    setLastAction("Supabase n'est pas encore configure.");
+    setLastAction("Supabase n'est pas encore configuré.");
     renderAll();
     return;
   }
@@ -3273,12 +3273,12 @@ async function onCloudMagicLinkRequested() {
       }
 
       setCloudStatus(canUseAndroidAuthRedirect()
-      ? `Lien magique envoye a ${email}. Ouvrez votre email puis revenez dans l'app Budget.`
-        : `Lien magique envoye a ${email}. Ouvrez votre email pour terminer la connexion.`);
+      ? `Lien magique envoyé à ${email}. Ouvrez votre email puis revenez dans l'app Budget.`
+        : `Lien magique envoyé à ${email}. Ouvrez votre email pour terminer la connexion.`);
       setLastAction(`Lien magique Supabase envoye a ${email}`);
   } catch (error) {
     console.error(error);
-    const message = describeSupabaseError(error, "Le lien magique n'a pas pu etre envoye.");
+    const message = describeSupabaseError(error, "Le lien magique n'a pas pu être envoyé.");
     setCloudStatus(message);
     setLastAction(message);
   } finally {
@@ -3305,11 +3305,11 @@ async function onCloudSignOutRequested() {
     state.cloud.session = null;
     state.cloud.user = null;
     setCloudStatus("Session Supabase fermee.");
-    setLastAction("Deconnexion Supabase terminee");
+    setLastAction("Déconnexion Supabase terminée");
   } catch (error) {
     console.error(error);
-    setCloudStatus("La deconnexion Supabase a echoue.");
-    setLastAction("Deconnexion Supabase impossible");
+    setCloudStatus("La déconnexion Supabase a échoué.");
+    setLastAction("Déconnexion Supabase impossible");
   } finally {
     setCloudBusy(false);
     renderAll();
@@ -3326,17 +3326,17 @@ async function onCloudCreateSpaceRequested() {
   const suggestedName = state.workbookName
     ? state.workbookName.replace(/\.(xlsx|xls|csv)$/i, "")
     : getSupabaseConfig().defaultSpaceName;
-  const desiredName = String(window.prompt("Nom du budget partage", suggestedName) || "").trim();
+  const desiredName = String(window.prompt("Nom du budget partagé", suggestedName) || "").trim();
 
   if (!desiredName) {
-    setLastAction("Creation d'espace annulee.");
+    setLastAction("Création d'espace annulée.");
     renderAll();
     return;
   }
 
   try {
     setCloudBusy(true);
-    setCloudStatus("Creation de l'espace partage...");
+    setCloudStatus("Création de l'espace partagé...");
     renderAll();
 
     const { data, error } = await supabaseClient.rpc("create_budget_space", {
@@ -3349,7 +3349,7 @@ async function onCloudCreateSpaceRequested() {
 
     const createdSpace = Array.isArray(data) ? data[0] : data;
     applyCloudSpaceRecord(createdSpace);
-    setCloudStatus(`Espace partage cree: ${state.cloud.space.name}.`);
+    setCloudStatus(`Espace partagé créé : ${state.cloud.space.name}.`);
     setLastAction(`Espace cloud cree: ${state.cloud.space.name}`);
 
     await attachToCurrentCloudSpace({
@@ -3360,12 +3360,12 @@ async function onCloudCreateSpaceRequested() {
     if (ensureLocalBudgetDataReady()) {
       await publishLocalBudgetToSupabase();
     } else {
-      setCloudStatus(`Espace partage cree: ${state.cloud.space.name}. Chargez ou restaurez un budget local, puis cliquez sur Publier local.`);
-      setLastAction(`Espace cloud cree: ${state.cloud.space.name} - aucune donnee locale detectee`);
+      setCloudStatus(`Espace partagé créé : ${state.cloud.space.name}. Chargez ou restaurez un budget local, puis cliquez sur Publier local.`);
+      setLastAction(`Espace cloud cree: ${state.cloud.space.name} - aucune donnée locale détectée`);
     }
   } catch (error) {
     console.error(error);
-    const message = describeSupabaseError(error, "L'espace partage n'a pas pu etre cree.");
+    const message = describeSupabaseError(error, "L'espace partagé n'a pas pu être créé.");
     setCloudStatus(message);
     setLastAction(message);
   } finally {
@@ -3383,14 +3383,14 @@ async function onCloudJoinSpaceRequested() {
 
   const joinCode = String(refs.cloudCodeInput.value || "").trim().toLowerCase();
   if (!joinCode) {
-    setLastAction("Saisissez le code de l'espace partage.");
+    setLastAction("Saisissez le code de l'espace partagé.");
     renderAll();
     return;
   }
 
   try {
     setCloudBusy(true);
-    setCloudStatus("Rejointure de l'espace partage...");
+    setCloudStatus("Connexion à l'espace partagé...");
     renderAll();
 
     const { data, error } = await supabaseClient.rpc("join_budget_space", {
@@ -3403,11 +3403,11 @@ async function onCloudJoinSpaceRequested() {
 
     const joinedSpace = Array.isArray(data) ? data[0] : data;
     applyCloudSpaceRecord(joinedSpace);
-    setCloudStatus(`Espace partage rejoint: ${state.cloud.space.name}.`);
+    setCloudStatus(`Espace partagé rejoint : ${state.cloud.space.name}.`);
     setLastAction(`Espace cloud rejoint: ${state.cloud.space.name}`);
 
     const shouldLoadCloud = !hasLocalBudgetData() ||
-      window.confirm("Charger les donnees de cet espace cloud et remplacer les donnees locales visibles ?");
+      window.confirm("Charger les données de cet espace cloud et remplacer les données locales visibles ?");
 
     if (shouldLoadCloud) {
       await loadBudgetFromSupabase(state.cloud.space.id, {
@@ -3422,7 +3422,7 @@ async function onCloudJoinSpaceRequested() {
     }
   } catch (error) {
     console.error(error);
-    const message = describeSupabaseError(error, "Impossible de rejoindre cet espace partage.");
+    const message = describeSupabaseError(error, "Impossible de rejoindre cet espace partagé.");
     setCloudStatus(message);
     setLastAction(message);
   } finally {
@@ -3439,8 +3439,8 @@ async function onCloudPublishRequested() {
   }
 
   if (!ensureLocalBudgetDataReady()) {
-    setLastAction("Aucune donnee locale a publier vers Supabase.");
-    setCloudStatus("Aucune donnee locale detectee. Chargez un budget ou restaurez le brouillon local avant la publication.");
+    setLastAction("Aucune donnée locale à publier vers Supabase.");
+    setCloudStatus("Aucune donnée locale détectée. Chargez un budget ou restaurez le brouillon local avant la publication.");
     renderAll();
     return;
   }
@@ -3640,7 +3640,7 @@ async function publishLocalBudgetToSupabase() {
 
     state.cloud.lastPushedAt = new Date().toISOString();
     setCloudStatus(`Budget publie vers ${state.cloud.space.name}.`);
-    setLastAction(`Donnees locales publiees vers ${state.cloud.space.name}`);
+    setLastAction(`Données locales publiees vers ${state.cloud.space.name}`);
     persistDraftIfPossible();
     void maybeSendBudgetAlertEmails("publication cloud");
   } catch (error) {
@@ -3661,7 +3661,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
 
   try {
     if (!options.silent) {
-      setCloudStatus("Chargement des donnees cloud...");
+      setCloudStatus("Chargement des données cloud...");
       renderAll();
     }
 
@@ -3737,14 +3737,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       setLastAction(`Budget charge depuis ${state.cloud.space.name || "Supabase"}`);
     }
 
-    setCloudStatus(`Espace partage actif: ${state.cloud.space.name || "budget partage"}.`);
+    setCloudStatus(`Espace partage actif: ${state.cloud.space.name || "budget partagé"}.`);
     persistDraft();
     startSupabaseRealtime(spaceId);
     renderAll();
   } catch (error) {
     console.error(error);
     if (!options.silent) {
-      setCloudStatus("Le chargement des donnees cloud a echoue.");
+      setCloudStatus("Le chargement des données cloud a échoué.");
       renderAll();
     }
     throw error;
@@ -3855,7 +3855,7 @@ async function syncSingleTransactionToSupabase(record) {
   }
 
   state.cloud.lastPushedAt = new Date().toISOString();
-  setCloudStatus(`Derniere transaction synchronisee vers ${state.cloud.space.name || "Supabase"}.`);
+  setCloudStatus(`Dernière transaction synchronisée vers ${state.cloud.space.name || "Supabase"}.`);
   persistDraftIfPossible();
   void maybeSendBudgetAlertEmails("transaction");
 }
@@ -4124,7 +4124,7 @@ function restoreDraft(options = {}) {
 
   if (!draft || draft.mode !== "budget" || !Array.isArray(draft.rows)) {
     if (manual) {
-      setLastAction("Aucun brouillon local a restaurer.");
+      setLastAction("Aucun brouillon local à restaurer.");
     }
     return false;
   }
@@ -4132,8 +4132,8 @@ function restoreDraft(options = {}) {
   applyStoredDraft(draft);
   setStartupWelcomeMode(false);
   state.lastAction = manual
-    ? "Brouillon local restaure. Mode autonome actif avec vos donnees locales."
-    : "Brouillon restaure. Mode autonome actif avec vos donnees locales.";
+    ? "Brouillon local restauré. Mode autonome actif avec vos données locales."
+    : "Brouillon restauré. Mode autonome actif avec vos données locales.";
   return true;
 }
 
@@ -4327,7 +4327,7 @@ async function importWorkbookBuffer(buffer, fileName, options = {}) {
   setLastAction(
     state.sourceSafety.allowDirectWrite
       ? options.successMessage || `Classeur charge: ${fileName}`
-      : `${options.successMessage || `Classeur charge: ${fileName}`} - source protegee, export copie uniquement`
+      : `${options.successMessage || `Classeur charge: ${fileName}`} - source protégée, export copie uniquement`
   );
   renderAll();
 }
@@ -4813,7 +4813,7 @@ function refreshFormEditorPreservingValues(snapshot = captureCurrentTransactionF
 
 function saveCurrentTransactionAsRecurringTemplate() {
   if (!canSaveCurrentTransactionAsRecurringTemplate()) {
-    setLastAction("Saisissez au moins une categorie et une valeur avant d'enregistrer un modele recurrent.");
+    setLastAction("Saisissez au moins une categorie et une valeur avant d'enregistrer un modèle récurrent.");
     refreshCategoryParentMeta();
     return;
   }
@@ -4827,12 +4827,12 @@ function saveCurrentTransactionAsRecurringTemplate() {
   });
 
   if (!saved) {
-    setLastAction("Le modele recurrent n'a pas pu etre enregistre.");
+    setLastAction("Le modèle récurrent n'a pas pu être enregistré.");
     refreshCategoryParentMeta();
     return;
   }
 
-  setLastAction(`Modele recurrent enregistre: ${snapshot.Categories}`);
+  setLastAction(`Modèle récurrent enregistre: ${snapshot.Categories}`);
   refreshFormEditorPreservingValues(snapshot);
 }
 
@@ -4857,7 +4857,7 @@ function applyRecurringTemplateToForm(templateId) {
     Categories: template.category,
     Value: template.value,
   });
-  setLastAction(`Modele applique: ${template.label}`);
+  setLastAction(`Modèle appliqué : ${template.label}`);
 }
 
 function onRecurringTemplateAction(event) {
@@ -4885,7 +4885,7 @@ function onRecurringTemplateAction(event) {
   if (action === "delete") {
     const snapshot = captureCurrentTransactionFormSnapshot();
     deleteRecurringTemplate(templateId);
-    setLastAction("Modele recurrent supprime.");
+    setLastAction("Modèle récurrent supprime.");
     refreshFormEditorPreservingValues(snapshot);
   }
 }
@@ -5193,7 +5193,7 @@ async function onSavePlanTemplateRequested() {
   }
 
   if (!state.planEditing) {
-    setLastAction("Cliquez sur Editer budget pour modifier le plan.");
+    setLastAction("Cliquez sur Éditer le budget pour modifier le plan.");
     renderAll();
     return;
   }
@@ -5202,7 +5202,7 @@ async function onSavePlanTemplateRequested() {
   const previousTemplate = clonePlanTemplateRows(state.recap.planTemplate);
 
   if (!nextEditableTemplate.length) {
-    setLastAction("Aucune ligne budget a enregistrer.");
+    setLastAction("Aucune ligne de budget à enregistrer.");
     renderAll();
     return;
   }
@@ -5212,7 +5212,7 @@ async function onSavePlanTemplateRequested() {
   state.planEditing = false;
   persistDraft();
 
-  const actionLabel = "Budget planifie mis a jour";
+  const actionLabel = "Budget planifié mis à jour";
   pushUndoEntry({
     kind: "update-plan",
     previousTemplate,
@@ -5227,7 +5227,7 @@ async function onSavePlanTemplateRequested() {
       await sendCloudActivityBroadcast("saved", "le budget");
     } catch (error) {
       console.error(error);
-      setLastAction(`${actionLabel} - sync cloud en echec`);
+      setLastAction(`${actionLabel} - synchronisation cloud en échec`);
       renderAll();
     }
   }
@@ -5235,13 +5235,13 @@ async function onSavePlanTemplateRequested() {
 
 async function exportWorkbook() {
   if (!window.XLSX) {
-    setLastAction("Export impossible: bibliotheque Excel absente");
+    setLastAction("Export impossible : bibliothèque Excel absente");
     renderStats();
     return;
   }
 
   if (state.mode !== "budget") {
-    setLastAction("Chargez ou restaurez des donnees pour exporter une copie");
+    setLastAction("Chargez ou restaurez des données pour exporter une copie");
     renderStats();
     return;
   }
@@ -5430,7 +5430,7 @@ function buildSimplifiedExportWorkbook() {
     ["Budget"],
     ["Export simplifie du journal"],
     [
-      "Cette copie preserve les transactions Journalier et la liste de categories, sans reecrire le modele Excel source complexe."
+      "Cette copie préserve les transactions Journalier et la liste de catégories, sans réécrire le modèle Excel source complexe."
     ],
     ["Fichier source", state.workbookName || "Budget_2025 Final.xlsx"],
     ["Date export", new Date().toISOString()],
@@ -5564,7 +5564,7 @@ function buildSourceLinkUnavailableMessage() {
     return "Votre navigateur ne permet pas encore de lier directement le fichier source";
   }
 
-  return "Liez d'abord la source avec le bouton dedie";
+  return "Liez d'abord la source avec le bouton dédié";
 }
 
 function buildSourceSaveErrorMessage(error) {
@@ -5795,20 +5795,20 @@ function buildWelcomeScreenMarkup() {
     <div class="welcome-screen-grid">
       <div class="welcome-copy">
         <p class="section-kicker">Bienvenue</p>
-        <h2>Demarrez votre budget comme vous voulez</h2>
+        <h2>Démarrez votre budget comme vous voulez</h2>
         <p>
-          Commencez avec un modele local, importez votre fichier Excel ou rejoignez directement un espace partage.
+          Commencez avec un modèle local, importez votre fichier Excel ou rejoignez directement un espace partagé.
         </p>
         <div class="welcome-points">
-          <span class="presence-chip">Hors ligne pret</span>
+          <span class="presence-chip">Hors ligne prêt</span>
           <span class="presence-chip">Partage activable plus tard</span>
-          <span class="presence-chip">Export Excel a tout moment</span>
+          <span class="presence-chip">Export Excel à tout moment</span>
         </div>
       </div>
       <div class="welcome-actions">
         <button type="button" class="button primary" data-empty-action="start-local">Commencer sans fichier</button>
         <button type="button" class="button secondary" data-empty-action="import-excel">Importer un fichier Excel</button>
-        <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partage</button>
+        <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partagé</button>
         ${showRestore ? '<button type="button" class="button ghost" data-empty-action="restore-draft">Restaurer mon brouillon local</button>' : ""}
       </div>
     </div>
@@ -5834,27 +5834,27 @@ function renderAppTabs() {
   const tabMeta = {
     [APP_TAB_DASHBOARD]: {
       title: "Tableau de bord",
-      description: "Une lecture rapide de votre budget pour voir les soldes, les tendances et la periode active.",
+  description: "Une lecture rapide de votre budget pour voir les soldes, les tendances et la période active.",
     },
     [APP_TAB_PLAN]: {
-      title: "Budget planifie",
-      description: "Fixez ici vos montants cibles pour comparer le plan et le reel sans toucher aux transactions.",
+      title: "Budget planifié",
+      description: "Fixez ici vos montants cibles pour comparer le plan et le réel sans toucher aux transactions.",
     },
     [APP_TAB_TRANSACTIONS]: {
       title: "Transactions",
-      description: "Une liste claire de vos ecritures pour filtrer, relire et choisir rapidement ce que vous voulez corriger.",
+      description: "Une liste claire de vos écritures pour filtrer, relire et choisir rapidement ce que vous voulez corriger.",
     },
     [APP_TAB_FORM]: {
       title: "Formulaire",
-      description: "Un espace dedie a la creation et a la modification d'une transaction, sans distraction autour.",
+      description: "Un espace dédié a la création et a la modification d'une transaction, sans distraction autour.",
     },
     [APP_TAB_ANALYSIS]: {
       title: "Analyse",
-      description: "Des comparaisons claires entre revenu, depenses, epargne et cash pour comprendre votre rythme.",
+      description: "Des comparaisons claires entre revenu, dépenses, épargne et cash pour comprendre votre rythme.",
     },
     [APP_TAB_SHARE]: {
       title: "Partage et sauvegarde",
-      description: "Tout ce qui touche au cloud, a la sauvegarde locale, a la source et aux exports se trouve ici.",
+      description: "Tout ce qui touche au cloud, à la sauvegarde locale, à la source et aux exports se trouve ici.",
     },
   };
   const currentMeta = tabMeta[state.appTab] || tabMeta[APP_TAB_DASHBOARD];
@@ -5910,7 +5910,7 @@ function syncRecapFilters() {
 
 function renderRecapFilterOptions(availableYears, availableMonths) {
   refs.recapYearSelect.innerHTML = "";
-  appendSelectOption(refs.recapYearSelect, "all", "Toutes les annees");
+  appendSelectOption(refs.recapYearSelect, "all", "Toutes les années");
   availableYears.forEach((year) => appendSelectOption(refs.recapYearSelect, year, year));
   refs.recapYearSelect.value = state.recapFilters.year;
 
@@ -5941,7 +5941,7 @@ function renderRecapFilterOptions(availableYears, availableMonths) {
 function renderRecapRangeOptions() {
   state.recapFilters.rangeMonths = "all";
   refs.recapRangeSelect.innerHTML = "";
-  appendSelectOption(refs.recapRangeSelect, "all", "Toute la periode");
+  appendSelectOption(refs.recapRangeSelect, "all", "Toute la période");
   refs.recapRangeSelect.value = state.recapFilters.rangeMonths;
 }
 
@@ -5965,32 +5965,32 @@ function createRecapMonthOptionButton(value, label, active) {
 function renderSectionHeading() {
   if (state.appTab === APP_TAB_PLAN) {
     refs.cardsKicker.textContent = "Budget";
-    refs.cardsTitle.textContent = "Plan vs reel";
+    refs.cardsTitle.textContent = "Plan vs réel";
     refs.cardsCaption.textContent =
-      "Reglez vos montants cibles a gauche, puis verifiez a droite comment ils se comparent au reel sur la periode choisie.";
+      "Réglez vos montants cibles à gauche, puis vérifiez à droite comment ils se comparent au réel sur la période choisie.";
     return;
   }
 
   if (state.activeView === RECAP_SHEET_NAME) {
-    refs.cardsKicker.textContent = "Recapitulatif";
-    refs.cardsTitle.textContent = "Vue recap du budget";
+    refs.cardsKicker.textContent = "Récapitulatif";
+    refs.cardsTitle.textContent = "Vue récap du budget";
     refs.cardsCaption.textContent =
-      "Synthese reconstruite depuis TCD et vos transactions Journalier, avec un filtre par annee et par mois pour comparer les periodes disponibles.";
+      "Synthèse reconstruite depuis TCD et vos transactions Journalier, avec un filtre par année et par mois pour comparer les périodes disponibles.";
     return;
   }
 
   if (state.activeView === ANALYSIS_VIEW_NAME) {
     refs.cardsKicker.textContent = "Comparaisons";
-    refs.cardsTitle.textContent = "Revenu, depenses et epargne en perspective";
+    refs.cardsTitle.textContent = "Revenu, dépenses et épargne en perspective";
     refs.cardsCaption.textContent =
-      "Cette vue ajoute des comparaisons et des graphiques pertinents a partir de Journalier pour suivre l'equilibre entre revenu, depenses, epargne et cash.";
+      "Cette vue ajoute des comparaisons et des graphiques pertinents à partir de Journalier pour suivre l'équilibre entre revenu, dépenses, épargne et cash.";
     return;
   }
 
   refs.cardsKicker.textContent = "Journalier";
-  refs.cardsTitle.textContent = "Les ecritures deviennent des fiches";
+  refs.cardsTitle.textContent = "Les écritures deviennent des fiches";
   refs.cardsCaption.textContent =
-    "Cette vue utilise Journalier!D:F, garde la liste de categories de Journalier!B et reprend le meme filtre annee/mois que le recapitulatif.";
+    "Cette vue utilise Journalier!D:F, garde la liste des catégories de Journalier!B et reprend le même filtre année/mois que le récapitulatif.";
 }
 
 function renderControls() {
@@ -6011,32 +6011,32 @@ function renderControls() {
 
   refs.searchInput.disabled = !hasBudget || shareTab || formTab || planTab;
   refs.searchInput.placeholder = recapActive
-    ? "Chercher un poste ou une categorie du recap..."
+    ? "Chercher un poste ou une catégorie du récap..."
     : analysisActive
-      ? "Periode, indicateur, valeur..."
-      : "Categorie, date, valeur...";
+      ? "Période, indicateur, valeur..."
+      : "Catégorie, date, valeur...";
   refs.openSourceButton.disabled = !window.XLSX || !canUseSourceLinkPicker();
-  refs.openSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite ? "Source protegee" : hasLinkedWritableSource() ? "Relier la source" : "Lier la source";
+  refs.openSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite ? "Source protégée" : hasLinkedWritableSource() ? "Relier la source" : "Lier la source";
   refs.openSourceButton.title = state.mode === "budget" && !state.sourceSafety.allowDirectWrite
     ? state.sourceSafety.reason
     : canUseSourceLinkPicker()
-      ? "Ouvre le classeur avec autorisation d'ecriture directe"
+      ? "Ouvre le classeur avec autorisation d'écriture directe"
       : buildSourceLinkUnavailableMessage();
   refs.saveSourceButton.disabled = !canSaveToSource();
-  refs.saveSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite ? "Source preservee" : "Enregistrer la source";
+  refs.saveSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite ? "Source préservée" : "Enregistrer la source";
   refs.saveSourceButton.title = canSaveToSource()
-    ? "Ecrit les changements dans le fichier d'origine sans passer par une copie exportee"
+    ? "Écrit les changements dans le fichier d'origine sans passer par une copie exportée"
     : buildSourceLinkUnavailableMessage();
   refs.saveDraftButton.disabled = !hasBudget;
   refs.saveDraftButton.title = hasBudget
-    ? "Memorise vos donnees actuelles dans le navigateur pour reprendre plus tard"
+    ? "Mémorise vos données actuelles dans le navigateur pour reprendre plus tard"
     : "Chargez ou restaurez un budget avant d'enregistrer un brouillon local";
   refs.restoreDraftButton.disabled = !hasStoredDraft;
   refs.restoreDraftButton.title = hasStoredDraft
-    ? "Recharge le dernier brouillon local memorise dans l'app"
+    ? "Recharge le dernier brouillon local mémorisé dans l'application"
     : "Aucun brouillon local disponible pour le moment";
   refs.restartButton.disabled = busy;
-  refs.restartButton.title = "Revient a l'ecran de depart sans supprimer le brouillon local";
+  refs.restartButton.title = "Revient à l'écran de départ sans supprimer le brouillon local";
   refs.filePickerField.classList.toggle("hidden", !shareTab);
   refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab);
   refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
@@ -6056,7 +6056,7 @@ function renderControls() {
   refs.restartButton.classList.toggle("hidden", !shareTab);
   refs.exportButton.classList.toggle("hidden", !shareTab);
   refs.addButton.classList.toggle("hidden", !(transactionTab || planTab));
-  refs.addButton.textContent = planTab ? "Editer budget" : "Nouvelle transaction";
+  refs.addButton.textContent = planTab ? "Éditer le budget" : "Nouvelle transaction";
   refs.addButton.disabled = planTab ? !hasBudget || planEditing : !journalActive || !transactionTab;
   refs.mobileFab?.classList.toggle("hidden", !journalActive || !transactionTab);
   if (refs.mobileFab) {
@@ -6105,47 +6105,47 @@ function renderCloudPanel() {
   refs.cloudPullButton.disabled = !canUseSupabaseCloud() || busy;
 
   refs.cloudCodeInput.placeholder = signedIn
-    ? "code a partager"
-    : "entrez le code puis connectez-vous";
+    ? "code à partager"
+    : "entrez le code puis connectéz-vous";
   refs.cloudCodeInput.title = signedIn
-    ? "Collez le code partage recu puis touchez Rejoindre"
-    : "Vous pouvez deja saisir le code. Connectez-vous ensuite avec Lien magique pour rejoindre l'espace";
+    ? "Collez le code de partage reçu, puis touchez Rejoindre"
+    : "Vous pouvez déjà saisir le code. Connectez-vous ensuite avec Lien magique pour rejoindre l'espace";
   refs.cloudJoinSpaceButton.title = !signedIn
     ? "Connectez-vous d'abord avec Lien magique, puis rejoignez l'espace avec ce code"
     : !typedJoinCode
-      ? "Entrez un code partage pour rejoindre un espace"
-      : "Rejoindre cet espace partage";
+      ? "Entrez un code de partage pour rejoindre un espace"
+      : "Rejoindre cet espace partagé";
 
   refs.cloudMagicLinkButton.textContent = busy && !signedIn ? "Connexion..." : "Lien magique";
-  refs.cloudSignOutButton.textContent = busy && signedIn ? "Patientez..." : "Deconnexion";
+  refs.cloudSignOutButton.textContent = busy && signedIn ? "Patientez..." : "Déconnexion";
   refs.cloudPushButton.textContent = publishNeedsRestore ? "Restaurer et publier" : "Publier local";
 
   const identityLabel = signedIn
-    ? `Compte: ${state.cloud.user?.email || state.cloud.email || "connecte"}`
-    : "Compte: non connecte";
+    ? `Compte : ${state.cloud.user?.email || state.cloud.email || "connecté"}`
+    : "Compte : non connecté";
   const spaceLabel = spaceSelected
-    ? `Espace: ${state.cloud.space.name || "budget partage"}`
-    : "Espace: aucun";
+    ? `Espace : ${state.cloud.space.name || "budget partagé"}`
+    : "Espace : aucun";
   const codeLabel = spaceSelected && state.cloud.space.joinCode
-    ? `Code partage: ${state.cloud.space.joinCode}`
-    : "Code partage: a creer ou rejoindre";
+    ? `Code de partage : ${state.cloud.space.joinCode}`
+    : "Code de partage : à créer ou rejoindre";
   const pullLabel = state.cloud.lastPulledAt
-    ? `Dernier chargement: ${formatDraftSavedAt(state.cloud.lastPulledAt)}`
-    : "Dernier chargement: aucun";
+    ? `Dernier chargement : ${formatDraftSavedAt(state.cloud.lastPulledAt)}`
+    : "Dernier chargement : aucun";
   const pushLabel = state.cloud.lastPushedAt
-    ? `Derniere publication: ${formatDraftSavedAt(state.cloud.lastPushedAt)}`
-    : "Derniere publication: aucune";
+    ? `Dernière publication : ${formatDraftSavedAt(state.cloud.lastPushedAt)}`
+    : "Dernière publication : aucune";
 
   refs.cloudSpaceHint.textContent = [identityLabel, spaceLabel, codeLabel, pullLabel, pushLabel].join(" | ");
 
   if (!cloudReady) {
-    refs.cloudCollaborationStatus.textContent = "Supabase doit etre configure pour activer la presence en ligne.";
+    refs.cloudCollaborationStatus.textContent = "Supabase doit être configuré pour activer la présence en ligne.";
   } else if (!signedIn) {
-    refs.cloudCollaborationStatus.textContent = "Connectez-vous a un espace partage pour voir qui est en ligne et qui modifie l'app.";
+    refs.cloudCollaborationStatus.textContent = "Connectez-vous à un espace partagé pour voir qui est en ligne et qui modifie l'application.";
   } else if (!spaceSelected) {
-    refs.cloudCollaborationStatus.textContent = "Presence prete. Creez ou rejoignez un espace partage pour collaborer en direct.";
+    refs.cloudCollaborationStatus.textContent = "Présence prête. Créez ou rejoignez un espace partagé pour collaborer en direct.";
   } else if (!otherOnlineUsers.length) {
-    refs.cloudCollaborationStatus.textContent = "Vous etes seul en ligne pour le moment.";
+    refs.cloudCollaborationStatus.textContent = "Vous êtes seul en ligne pour le moment.";
   } else {
     refs.cloudCollaborationStatus.textContent = `${otherOnlineUsers.length} autre${otherOnlineUsers.length > 1 ? "s" : ""} utilisateur${otherOnlineUsers.length > 1 ? "s" : ""} en ligne maintenant.`;
   }
@@ -6169,11 +6169,11 @@ function renderCloudPanel() {
           </span>
         `;
       }).join("")
-    : '<span class="presence-chip is-empty"><span class="presence-copy"><strong>Aucune presence active</strong><small>Connectez-vous a un espace partage pour lancer la collaboration live.</small></span></span>';
+    : '<span class="presence-chip is-empty"><span class="presence-copy"><strong>Aucune présence active</strong><small>Connectez-vous à un espace partagé pour lancer la collaboration en direct.</small></span></span>';
 
   refs.cloudLiveActivity.textContent = state.cloud.collaboration.liveMessage
-    ? `Activite live: ${state.cloud.collaboration.liveMessage}`
-    : "Aucune activite live pour le moment.";
+    ? `Activité en direct : ${state.cloud.collaboration.liveMessage}`
+    : "Aucune activité en direct pour le moment.";
 
   refs.budgetAlertEnabled.checked = alertSettings.enabled;
   refs.budgetAlertEmail.value = refs.budgetAlertEmail.matches(":focus")
@@ -6186,24 +6186,24 @@ function renderCloudPanel() {
   refs.budgetAlertCooldown.disabled = alertControlsDisabled || !alertSettings.enabled;
 
   if (!alertFunctionReady) {
-    refs.budgetAlertStatus.textContent = "La fonction d'alerte email n'est pas configuree cote Supabase.";
+    refs.budgetAlertStatus.textContent = "La fonction d'alerte email n'est pas configurée côté Supabase.";
   } else if (!cloudReady) {
-    refs.budgetAlertStatus.textContent = "Supabase doit etre configure pour activer les alertes email.";
+    refs.budgetAlertStatus.textContent = "Supabase doit être configuré pour activer les alertes email.";
   } else if (!alertSettings.enabled) {
-    refs.budgetAlertStatus.textContent = "Alertes email desactivees.";
+    refs.budgetAlertStatus.textContent = "Alertes email désactivées.";
   } else if (!signedIn) {
-    refs.budgetAlertStatus.textContent = "Alertes email pretes. Connectez-vous puis publiez un budget pour surveiller les depassements.";
+    refs.budgetAlertStatus.textContent = "Alertes email prêtes. Connectez-vous puis publiez un budget pour surveiller les dépassements.";
   } else if (!spaceSelected) {
-    refs.budgetAlertStatus.textContent = "Alertes email actives. Creez ou rejoignez un espace partage pour lancer la surveillance.";
+    refs.budgetAlertStatus.textContent = "Alertes email actives. Créez ou rejoignez un espace partagé pour lancer la surveillance.";
   } else if (!effectiveAlertRecipient) {
     refs.budgetAlertStatus.textContent = "Alertes email actives. Ajoutez un email destinataire ou laissez la connexion fournir votre adresse.";
   } else {
-    refs.budgetAlertStatus.textContent = `Alertes email actives vers ${effectiveAlertRecipient}. Delai actuel: ${alertSettings.cooldownHours} h.`;
+    refs.budgetAlertStatus.textContent = `Alertes email actives vers ${effectiveAlertRecipient}. Délai actuel : ${alertSettings.cooldownHours} h.`;
   }
 
   refs.budgetAlertHint.textContent = alertSettings.recipientEmail
     ? "Les alertes se basent sur les lignes rouges du comparatif courant."
-    : "Laissez l'email vide pour utiliser l'adresse du compte connecte. Les alertes se basent sur les lignes rouges du comparatif courant.";
+    : "Laissez l'email vide pour utiliser l'adresse du compte connecté. Les alertes se basent sur les lignes rouges du comparatif courant.";
 
   refs.settingAutoRestore.checked = state.settings.autoRestoreDraft;
   refs.settingShowAlerts.checked = state.settings.showBudgetFraAlerts;
@@ -6213,20 +6213,20 @@ function renderCloudPanel() {
   refs.settingShowSuggestions.disabled = busy;
   refs.settingsStatus.textContent = state.settings.autoRestoreDraft
     ? "Le brouillon local se recharge automatiquement au prochain lancement si vous ne recommencez pas."
-    : "Le prochain lancement reviendra a l'ecran de bienvenue tant que vous ne restaurez pas le brouillon.";
+    : "Le prochain lancement reviendra à l'écran de bienvenue tant que vous ne restaurez pas le brouillon.";
   refs.settingsHint.textContent = state.settings.showBudgetFraSuggestions
     ? "Les suggestions intelligentes sont visibles dans l'accueil et l'analyse, en plus des alertes."
-    : "Les suggestions restent discretes pour garder l'application legere. Vous pouvez les reactiver ici.";
+    : "Les suggestions restent discrètes pour garder l'application légère. Vous pouvez les réactiver ici.";
 
   refs.undoLastActionButton.disabled = !canUndoLastAction() || busy;
   refs.historyStatus.textContent = canUndoLastAction()
-    ? "La derniere action peut encore etre annulee sur cet appareil."
-    : "Aucune action recente a annuler pour le moment.";
+    ? "La dernière action peut encore être annulée sur cet appareil."
+    : "Aucune action récente à annuler pour le moment.";
   refs.historyList.innerHTML = state.history.recentEvents.length
     ? state.history.recentEvents
-      .map((entry) => `<span class="presence-chip">${escapeHtml(entry.label)} · ${escapeHtml(formatDraftSavedAt(entry.createdAt) || "a l'instant")}</span>`)
+      .map((entry) => `<span class="presence-chip">${escapeHtml(entry.label)} · ${escapeHtml(formatDraftSavedAt(entry.createdAt) || "à l'instant")}</span>`)
       .join("")
-    : '<span class="presence-chip">Aucune action memorisee pour le moment.</span>';
+    : '<span class="presence-chip">Aucune action mémorisée pour le moment.</span>';
 }
 
 function renderDraftStatus() {
@@ -6234,15 +6234,15 @@ function renderDraftStatus() {
   const hasStoredDraft = Boolean(draft && draft.mode === "budget" && Array.isArray(draft.rows));
 
   if (!hasStoredDraft) {
-    refs.draftStatus.textContent = "Aucun brouillon local memorise.";
+    refs.draftStatus.textContent = "Aucun brouillon local mémorisé.";
     return;
   }
 
   const savedAtLabel = formatDraftSavedAt(draft.savedAt);
-  const suffix = savedAtLabel ? ` Derniere sauvegarde ${savedAtLabel}.` : "";
+  const suffix = savedAtLabel ? ` Dernière sauvegarde ${savedAtLabel}.` : "";
 
   if (canUseSupabaseCloud()) {
-    refs.draftStatus.textContent = `Mode cloud partage actif.${suffix}`;
+    refs.draftStatus.textContent = `Mode cloud partagé actif.${suffix}`;
     return;
   }
 
@@ -6252,11 +6252,11 @@ function renderDraftStatus() {
   }
 
   if (state.mode === "budget") {
-    refs.draftStatus.textContent = `Brouillon local pret en secours.${suffix}`;
+    refs.draftStatus.textContent = `Brouillon local prêt en secours.${suffix}`;
     return;
   }
 
-  refs.draftStatus.textContent = `Brouillon local disponible.${suffix} Cliquez sur Restaurer pour reprendre vos donnees.`;
+  refs.draftStatus.textContent = `Brouillon local disponible.${suffix} Cliquez sur Restaurer pour reprendre vos données.`;
 }
 
 function renderStats() {
@@ -6267,9 +6267,9 @@ function renderStats() {
     refs.columnsCount.textContent = "0";
     refs.activeSheet.textContent = "Aucune";
     refs.lastAction.textContent = state.lastAction;
-    refs.metricMode.textContent = "Pret pour l'import";
+    refs.metricMode.textContent = "Prêt pour l'import";
     refs.metricFile.textContent = buildWorkbookLabel();
-    refs.metricSave.textContent = canUseSourceLinkPicker() ? "Chargez ou liez la source" : "Chargez le fichier";
+    refs.metricSave.textContent = canUseSourceLinkPicker() ? "Chargez ou liez la source" : "Chargez un fichier";
     return;
   }
 
@@ -6277,11 +6277,11 @@ function renderStats() {
     const recapView = buildLiveRecapView();
     refs.recordsLabel.textContent = "Transactions";
     refs.recordsCount.textContent = String(recapView.transactionCount);
-    refs.columnsLabel.textContent = "Mois dispo";
+    refs.columnsLabel.textContent = "Mois disponibles";
     refs.columnsCount.textContent = String(recapView.availableMonthCount);
     refs.activeSheet.textContent = RECAP_SHEET_NAME;
     refs.lastAction.textContent = state.lastAction;
-    refs.metricMode.textContent = `Vue recap - ${recapView.periodLabel}`;
+    refs.metricMode.textContent = `Vue récap - ${recapView.periodLabel}`;
     refs.metricFile.textContent = buildWorkbookLabel();
     refs.metricSave.textContent = getSaveCapabilityLabel();
     return;
@@ -6289,7 +6289,7 @@ function renderStats() {
 
   if (state.activeView === ANALYSIS_VIEW_NAME) {
     const analysisView = buildLiveAnalysisView();
-    refs.recordsLabel.textContent = "Periodes";
+    refs.recordsLabel.textContent = "Périodes";
     refs.recordsCount.textContent = String(analysisView.seriesRows.length);
     refs.columnsLabel.textContent = "Graphiques";
     refs.columnsCount.textContent = String(analysisView.chartCount);
@@ -6309,8 +6309,8 @@ function renderStats() {
   refs.activeSheet.textContent = JOURNAL_SHEET_NAME;
   refs.lastAction.textContent = state.lastAction;
   refs.metricMode.textContent = hasActiveRecapPeriodFilter()
-    ? `Journalier card view - ${buildRecapPeriodLabel()}`
-    : "Journalier card view";
+    ? `Vue Journalier - ${buildRecapPeriodLabel()}`
+    : "Vue Journalier";
   refs.metricFile.textContent = buildWorkbookLabel();
   refs.metricSave.textContent = getSaveCapabilityLabel();
 }
@@ -6325,7 +6325,7 @@ function getSaveCapabilityLabel() {
   }
 
   if (canSaveToSource()) {
-    return "Source liee - auto-save actif";
+    return "Source liée - sauvegarde automatique active";
   }
 
   if (state.mode === "budget" && !state.workbook) {
@@ -6333,7 +6333,7 @@ function getSaveCapabilityLabel() {
   }
 
   if (state.mode === "budget" && !state.sourceSafety.allowDirectWrite) {
-    return "Source preservee - export copie uniquement";
+    return "Source préservée - export copie uniquement";
   }
 
   if (canUseBrowserSourcePicker() || canUseAndroidSourcePicker()) {
@@ -6354,15 +6354,15 @@ function buildWorkbookLabel() {
   }
 
   if (!state.workbookName) {
-    return state.mode === "budget" ? "Donnees locales" : "Aucun fichier";
+    return state.mode === "budget" ? "Données locales" : "Aucun fichier";
   }
 
   if (state.mode === "budget" && !state.workbook) {
-    return `${state.workbookName} - donnees locales`;
+    return `${state.workbookName} - données locales`;
   }
 
   if (state.mode === "budget" && !state.sourceSafety.allowDirectWrite) {
-    return `${state.workbookName} - source protegee`;
+    return `${state.workbookName} - source protégée`;
   }
 
   return hasLinkedWritableSource() ? `${state.workbookName} - source liee` : state.workbookName;
@@ -6458,7 +6458,7 @@ function renderJournalCards() {
     ? `<span class="card-parent-chip">${escapeHtml(parentLabel)}</span>`
     : "";
   const parentDetailMarkup = parentLabel
-    ? createDetailMarkup("Grande categorie", parentLabel)
+    ? createDetailMarkup("Grande catégorie", parentLabel)
     : "";
 
   card.innerHTML = `
@@ -6497,8 +6497,8 @@ function renderRecapView() {
     refs.cardsEmpty.classList.remove("hidden");
     refs.recapView.classList.add("hidden");
     refs.cardsEmpty.innerHTML = [
-      "<strong>La vue Recapitulatif n'est pas disponible.</strong>",
-      "<p>Importez une premiere fois votre budget ou restaurez vos donnees locales pour reconstruire la synthese.</p>",
+      "<strong>La vue Récapitulatif n'est pas disponible.</strong>",
+      "<p>Importez une première fois votre budget ou restaurez vos données locales pour reconstruire la synthèse.</p>",
     ].join("");
     return;
   }
@@ -6518,7 +6518,7 @@ function renderAnalysisView() {
     refs.recapView.classList.add("hidden");
     refs.cardsEmpty.innerHTML = [
       "<strong>La vue Comparaisons n'est pas disponible.</strong>",
-      "<p>Importez une premiere fois votre budget ou restaurez vos donnees locales pour construire les graphiques et comparaisons.</p>",
+      "<p>Importez une première fois votre budget ou restaurez vos données locales pour construire les graphiques et comparaisons.</p>",
     ].join("");
     return;
   }
@@ -6530,21 +6530,21 @@ function renderAnalysisView() {
 function buildJournalEmptyStateMarkup() {
   if (hasActiveRecapPeriodFilter() && state.search) {
     return [
-      "<strong>Aucune transaction ne correspond a la recherche pour cette periode.</strong>",
-      "<p>Essayez un autre mot-cle ou elargissez le filtre annee/mois.</p>",
+      "<strong>Aucune transaction ne correspond à la recherche pour cette période.</strong>",
+      "<p>Essayez un autre mot-clé ou élargissez le filtre année/mois.</p>",
     ].join("");
   }
 
   if (hasActiveRecapPeriodFilter()) {
     return [
-      "<strong>Aucune transaction pour la periode choisie.</strong>",
-      "<p>Changez le filtre annee/mois ou ajoutez une nouvelle fiche datee dans cette periode.</p>",
+      "<strong>Aucune transaction pour la période choisie.</strong>",
+      "<p>Changez le filtre année/mois ou ajoutez une nouvelle fiche datée dans cette période.</p>",
     ].join("");
   }
 
   return [
-    "<strong>Aucune transaction ne correspond a la recherche.</strong>",
-    "<p>Essayez un autre mot-cle ou ajoutez une nouvelle fiche.</p>",
+    "<strong>Aucune transaction ne correspond à la recherche.</strong>",
+    "<p>Essayez un autre mot-clé ou ajoutez une nouvelle fiche.</p>",
   ].join("");
 }
 
@@ -6565,7 +6565,7 @@ function buildLiveRecapView() {
       availableMonthLabels: [],
       availabilityLabel: "",
       availabilityScopeLabel: "",
-      periodLabel: "Toutes les donnees",
+      periodLabel: "Toutes les données",
       budgetPeriodCount: 1,
       filteredUndatedCount: 0,
     };
@@ -6613,7 +6613,7 @@ function buildLiveAnalysisView() {
   if (state.mode !== "budget") {
     return {
       available: false,
-      periodLabel: "Toutes les donnees",
+      periodLabel: "Toutes les données",
       chartCount: 0,
       metricCards: [],
       comparisonRows: [],
@@ -6790,16 +6790,16 @@ function buildRecapPeriodLabel() {
   const selectedMonths = getSelectedRecapMonths();
 
   if (year === "all" && !selectedMonths.length) {
-    return "Toutes les donnees";
+    return "Toutes les données";
   }
 
   if (year !== "all" && !selectedMonths.length) {
-    return `Annee ${year}`;
+    return `Année ${year}`;
   }
 
   if (year === "all" && selectedMonths.length) {
     const labels = selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ");
-    return `${labels} - toutes les annees`;
+    return `${labels} - toutes les années`;
   }
 
   const labels = selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ");
@@ -6812,18 +6812,18 @@ function buildRecapAvailabilityLabel(availableYears, availableMonths, availableP
   }
 
   if (state.recapFilters.year === "all") {
-    return `${availableYears.length} annee(s) avec donnees et ${availablePeriods.length} periode(s) couvertes.`;
+    return `${availableYears.length} année(s) avec données et ${availablePeriods.length} période(s) couvertes.`;
   }
 
-  return `${availableMonths.length} mois avec donnees en ${state.recapFilters.year}.`;
+  return `${availableMonths.length} mois avec données en ${state.recapFilters.year}.`;
 }
 
 function buildRecapAvailabilityScopeLabel() {
   if (state.recapFilters.year === "all") {
-    return "Periodes disponibles toutes annees confondues";
+    return "Périodes disponibles toutes années confondues";
   }
 
-  return `Mois disponibles en ${state.recapFilters.year}`;
+  return `Mois disponiblesnibles en ${state.recapFilters.year}`;
 }
 
 function buildRecapPeriodKeys(rows) {
@@ -7044,28 +7044,28 @@ function buildAnalysisComparisonRows(snapshot) {
       value: snapshot.income,
       displayValue: formatCurrency(snapshot.income),
       tone: "positive",
-      caption: "Volume des revenus retenus pour la periode filtree.",
+      caption: "Volume des revenus retenus pour la période filtrée.",
     },
     {
       label: "Expenses",
       value: snapshot.expenses,
       displayValue: formatCurrency(snapshot.expenses),
       tone: "negative",
-      caption: "Somme des depenses hors postes d'epargne.",
+      caption: "Somme des dépenses hors postes d'épargne.",
     },
     {
       label: "Savings",
       value: snapshot.totalSavings,
       displayValue: formatCurrency(snapshot.totalSavings),
       tone: "neutral",
-      caption: "Epargne totale incluant l'epargne saisonniere.",
+      caption: "Epargne totale incluant l'épargne saisonniere.",
     },
     {
       label: "Cash",
       value: Math.abs(snapshot.cash),
       displayValue: formatSignedCurrency(snapshot.cash),
       tone: snapshot.cash >= 0 ? "positive" : "negative",
-      caption: "Disponible net apres depenses et epargne.",
+      caption: "Disponible net apres dépenses et épargne.",
     },
   ];
 
@@ -7506,24 +7506,24 @@ function buildAnalysisTrendTitle() {
     return `Comparaison des mois selectionnes`;
   }
 
-  return "Dernieres periodes disponibles";
+  return "Dernières périodes disponibles";
 }
 
 function buildAnalysisTrendSubtitle(totalCount, visibleCount) {
   const mode = getAnalysisSeriesMode();
-  let baseSubtitle = "Revenu, depenses et epargne totale sont compares periode par periode.";
+  let baseSubtitle = "Revenu, dépenses et épargne totale sont comparés période par période.";
   const selectedMonths = getSelectedRecapMonths();
 
   if (mode === "year_months") {
-    baseSubtitle = "Chaque groupe compare les mois de l'annee filtree.";
+    baseSubtitle = "Chaque groupe compare les mois de l'année filtrée.";
   } else if (mode === "month_across_years") {
-    baseSubtitle = "Le meme mois est compare d'une annee a l'autre.";
+    baseSubtitle = "Le même mois est comparé d'une année à l'autre.";
   } else if (mode === "filtered_months") {
-    baseSubtitle = `Les mois selectionnes sont compares sur les periodes disponibles${selectedMonths.length ? ` (${selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ")})` : ""}.`;
+    baseSubtitle = `Les mois sélectionnés sont comparés sur les périodes disponibles${selectedMonths.length ? ` (${selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ")})` : ""}.`;
   }
 
   if (state.search && totalCount !== visibleCount) {
-    return `${baseSubtitle} Recherche active: ${visibleCount} periode(s) visibles sur ${totalCount}.`;
+    return `${baseSubtitle} Recherche active : ${visibleCount} période(s) visibles sur ${totalCount}.`;
   }
 
   return baseSubtitle;
@@ -7809,7 +7809,7 @@ function buildBudgetComparisonStatus(planAmount, actualAmount, rowLabel = "", ro
 
   if (isSavingsLike) {
     return {
-      label: delta > 0 ? "Plus d'epargne que prevu" : "Moins d'epargne que prevu",
+      label: delta > 0 ? "Plus d'épargne que prevu" : "Moins d'épargne que prevu",
       tone: delta > 0 ? "below-budget" : "above-budget",
       delta,
     };
@@ -8013,28 +8013,28 @@ function createSmartDashboardMarkup(recapView) {
     <section class="recap-section smart-dashboard-section">
       <div class="recap-section-head">
         <h3>Repères rapides</h3>
-        <p>Un mini tableau de bord pour savoir quoi surveiller en premier sur ${escapeHtml(recapView.periodLabel)}.</p>
+        <p>Un mini tableau de bord pour savoir quoi surveiller en priorité sur ${escapeHtml(recapView.periodLabel)}.</p>
       </div>
       <div class="smart-dashboard-grid">
         <article class="smart-dashboard-card ${cashPositive ? "tone-positive" : "tone-negative"}">
-          <span class="smart-dashboard-kicker">${cashPositive ? "Reste a orienter" : "Cash a surveiller"}</span>
+          <span class="smart-dashboard-kicker">${cashPositive ? "Reste à orienter" : "Cash à surveiller"}</span>
           <strong>${escapeHtml(formatSignedCurrency(recapView.snapshot.cash))}</strong>
-          <p>${cashPositive ? "Il vous reste du cash disponible apres depenses et epargne." : "Le cash passe sous zero: il faut reequilibrer revenu, depenses ou epargne."}</p>
+          <p>${cashPositive ? "Il vous reste du cash disponible après les dépenses et l'épargne." : "Le cash passe sous zéro : il faut rééquilibrer le revenu, les dépenses ou l'épargne."}</p>
         </article>
         <article class="smart-dashboard-card tone-neutral">
           <span class="smart-dashboard-kicker">Poste le plus lourd</span>
-          <strong>${escapeHtml(topGroup?.label || "Aucune depense dominante")}</strong>
-          <p>${topGroup ? `${escapeHtml(formatCurrency(topGroup.value))} sur la periode.` : "Aucune grande categorie de depense n'apparait encore."}</p>
+          <strong>${escapeHtml(topGroup?.label || "Aucune dépense dominante")}</strong>
+          <p>${topGroup ? `${escapeHtml(formatCurrency(topGroup.value))} sur la période.` : "Aucune grande catégorie de dépense n'apparaît encore."}</p>
         </article>
         <article class="smart-dashboard-card tone-accent">
-          <span class="smart-dashboard-kicker">${primaryAlert ? "Alerte principale" : "Vue simplifiee"}</span>
-          <strong>${escapeHtml(primaryAlert?.title || "Aucune alerte affichee")}</strong>
-          <p>${escapeHtml(primaryAlert?.detail || "Les alertes Budget-fra sont masquees dans les parametres pour garder l'accueil plus epure.")}</p>
+          <span class="smart-dashboard-kicker">${primaryAlert ? "Alerte principale" : "Vue simplifiée"}</span>
+          <strong>${escapeHtml(primaryAlert?.title || "Aucune alerte affichée")}</strong>
+          <p>${escapeHtml(primaryAlert?.detail || "Les alertes Budget-fra sont masquées dans les paramètres pour garder l'accueil plus épuré.")}</p>
         </article>
         <article class="smart-dashboard-card tone-default">
           <span class="smart-dashboard-kicker">Transactions suivies</span>
           <strong>${escapeHtml(String(recapView.transactionCount || 0))}</strong>
-          <p>${escapeHtml(getBudgetPeriodCountLabel(recapView.budgetPeriodCount))} compare${recapView.budgetPeriodCount > 1 ? "s" : ""} avec le plan sur la meme fenetre.</p>
+          <p>${escapeHtml(getBudgetPeriodCountLabel(recapView.budgetPeriodCount))} comparé${recapView.budgetPeriodCount > 1 ? "s" : ""} au plan sur la même période.</p>
         </article>
         ${primarySuggestion ? `
           <article class="smart-dashboard-card tone-wide">
@@ -8107,7 +8107,7 @@ function createBudgetFraSuggestionMarkup(rows) {
     <section class="recap-section">
       <div class="recap-section-head">
         <h3>Suggestions du moment</h3>
-        <p>Premiere couche de suggestions inspirees de Budget-fra pour vous orienter sans surcharger l'application.</p>
+        <p>Première couche de suggestions inspirées de Budget-fra pour vous orienter sans surcharger l'application.</p>
       </div>
       <div class="fra-suggestion-grid">
         ${rows.map((row) => `
@@ -8140,7 +8140,7 @@ function createAnalysisMarkup(analysisView) {
       <section class="recap-section">
         <div class="recap-section-head">
           <h3>Graphiques budgetaires</h3>
-          <p>Une lecture plus visuelle de vos flux, de vos categories de depenses et de vos habitudes mensuelles.</p>
+          <p>Une lecture plus visuelle de vos flux, de vos categories de dépenses et de vos habitudes mensuelles.</p>
         </div>
         <div class="analysis-visual-grid">
           ${createAnalysisCashFlowMarkup(analysisView.cashFlow)}
@@ -8152,7 +8152,7 @@ function createAnalysisMarkup(analysisView) {
       <section class="recap-section">
         <div class="recap-section-head">
           <h3>Comparaison des indicateurs</h3>
-          <p>Lecture rapide des masses budgetaires sur la periode filtree.</p>
+          <p>Lecture rapide des masses budgétaires sur la période filtrée.</p>
         </div>
         <div class="analysis-bar-list">
           ${analysisView.comparisonRows.map((row) => createAnalysisMetricBarMarkup(row, comparisonMaxValue)).join("")}
@@ -8174,8 +8174,8 @@ function createAnalysisMarkup(analysisView) {
           </div>
           <div class="analysis-legend">
             <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Revenu</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Depenses</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Epargne</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Dépenses</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Épargne</span>
           </div>
         ` : `
           <div class="empty-form">
@@ -8186,8 +8186,8 @@ function createAnalysisMarkup(analysisView) {
 
       ${createRecapTableMarkup(
         "Tableau de comparaison",
-        "Resume periode par periode pour comparer Revenu, Depenses, Epargne et Cash.",
-        ["Periode", "Revenu", "Depenses", "Epargne", "Cash"],
+        "Résumé période par période pour comparer Revenu, Dépenses, Épargne et Cash.",
+        ["Période", "Revenu", "Dépenses", "Épargne", "Cash"],
         analysisView.seriesRows.map((row) => ({
           cells: [
             { value: row.label, numeric: false },
@@ -8210,10 +8210,10 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
     return `
       <section class="recap-section">
         <div class="recap-section-head">
-          <h3>Plan vs reel</h3>
-          <p>Le budget mensuel est projete sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester coherent avec la periode reelle filtree.</p>
+          <h3>Plan vs réel</h3>
+          <p>Le budget mensuel est projeté sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester cohérent avec la période réelle filtrée.</p>
         </div>
-        <div class="empty-form">Aucune grande categorie a comparer pour cette periode.</div>
+        <div class="empty-form">Aucune grande catégorie à comparer pour cette période.</div>
       </section>
     `;
   }
@@ -8221,8 +8221,8 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
   return `
     <section class="recap-section">
       <div class="recap-section-head">
-        <h3>Plan vs reel</h3>
-        <p>Le budget mensuel est projete sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester coherent avec la periode reelle filtree. Cliquez sur une grande categorie pour ouvrir le detail des sous-categories.</p>
+        <h3>Plan vs réel</h3>
+        <p>Le budget mensuel est projeté sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester cohérent avec la période réelle filtrée. Cliquez sur une grande catégorie pour ouvrir le détail des sous-catégories.</p>
       </div>
       <div class="analysis-plan-groups">
         ${groups.map((group, index) => createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index)).join("")}
@@ -8236,7 +8236,7 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
     <details class="analysis-plan-group">
       <summary class="analysis-plan-group-summary">
         <div class="analysis-plan-group-copy">
-          <span class="analysis-plan-group-kicker">Grande categorie</span>
+          <span class="analysis-plan-group-kicker">Grande catégorie</span>
           <strong>${escapeHtml(group.label)}</strong>
           <span class="analysis-plan-group-meta">${escapeHtml(group.rows.length)} sous-categorie${group.rows.length > 1 ? "s" : ""}</span>
         </div>
@@ -8246,7 +8246,7 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
             <strong>${escapeHtml(formatCurrency(group.plan))}</strong>
           </div>
           <div class="analysis-plan-stat">
-            <span>Reel</span>
+            <span>Réel</span>
             <strong>${escapeHtml(formatCurrency(group.actual))}</strong>
           </div>
           <div class="analysis-plan-status-wrap">
@@ -8261,7 +8261,7 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
               <tr>
                 <th>Categorie</th>
                 <th class="numeric">Budget (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</th>
-                <th class="numeric">Reel</th>
+                <th class="numeric">Réel</th>
                 <th>Statut</th>
               </tr>
             </thead>
@@ -8314,7 +8314,7 @@ function createAnalysisCashFlowMarkup(cashFlow) {
     <article class="analysis-visual-card">
       <div class="analysis-visual-head">
         <h4>Entrees et sorties d'argent</h4>
-        <p>Revenu en face de l'utilisation reelle: depenses, epargne et cash restant.</p>
+        <p>Revenu en face de l'utilisation réelle: dépenses, épargne et cash restant.</p>
       </div>
       <div class="analysis-cash-chart">
         <div class="analysis-cash-column">
@@ -8336,8 +8336,8 @@ function createAnalysisCashFlowMarkup(cashFlow) {
       </div>
       <div class="analysis-cash-legend">
         <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Revenu</span>
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Depenses</span>
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Epargne</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Dépenses</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Épargne</span>
         <span class="analysis-legend-item"><span class="analysis-legend-swatch cash"></span>Cash</span>
       </div>
       <p class="analysis-visual-note">
@@ -8355,9 +8355,9 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
       <article class="analysis-visual-card">
         <div class="analysis-visual-head">
           <h4>Ou va votre argent</h4>
-          <p>Repartition des depenses par categorie.</p>
+          <p>Repartition des dépenses par categorie.</p>
         </div>
-        <div class="empty-form">Aucune depense datee n'est disponible pour construire ce graphique.</div>
+        <div class="empty-form">Aucune depense datée n'est disponible pour construire ce graphique.</div>
       </article>
     `;
   }
@@ -8372,7 +8372,7 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
         <div class="analysis-donut-chart" style="--analysis-donut:${expenseBreakdown.gradient};">
           <div class="analysis-donut-center">
             <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
-            <span>Depenses</span>
+            <span>Dépenses</span>
           </div>
         </div>
         <div class="analysis-donut-legend">
@@ -8426,7 +8426,7 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
       </div>
       <div class="analysis-benchmark-legend">
         <span class="analysis-legend-item"><span class="analysis-legend-swatch average"></span>Moyenne mensuelle</span>
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch current"></span>Periode de reference</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch current"></span>Période de reference</span>
       </div>
     </article>
   `;
@@ -8518,7 +8518,7 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
 function renderEditor() {
   if (state.appTab === APP_TAB_PLAN) {
     if (refs.formKicker) {
-      refs.formKicker.textContent = "Budget planifie";
+      refs.formKicker.textContent = "Budget planifié";
     }
     renderPlanEditor();
     return;
@@ -8533,42 +8533,42 @@ function renderEditor() {
 
   if (state.mode !== "budget") {
     refs.formTitle.textContent = "Nouvelle fiche";
-    refs.formSubtitle.textContent = "Demarrez d'abord votre budget local ou importez votre fichier Excel.";
+    refs.formSubtitle.textContent = "Démarrez d'abord votre budget local ou importez votre fichier Excel.";
     refs.formFields.innerHTML = `<div class="empty-form">${buildStartupGuideMarkup({
       title: "Commencez votre budget",
-      description: "Le formulaire Date / Categories / Value sera active des que vous creez un modele local, importez Excel ou rejoignez un espace partage.",
-      note: "Le modele local suffit pour commencer tout de suite, meme sans fichier Excel.",
+      description: "Le formulaire Date / Categories / Value sera activé dès que vous créerez un modèle local, importerez Excel ou rejoindrez un espace partagé.",
+      note: "Le modèle local suffit pour commencer tout de suite, même sans fichier Excel.",
     })}</div>`;
     return;
   }
 
   if (state.activeView !== JOURNAL_SHEET_NAME) {
     const isRecapView = state.activeView === RECAP_SHEET_NAME;
-    refs.formTitle.textContent = isRecapView ? "Vue recap" : "Vue comparaisons";
-    refs.formSubtitle.textContent = "Lecture seule dans l'app.";
+    refs.formTitle.textContent = isRecapView ? "Vue récap" : "Vue comparaisons";
+    refs.formSubtitle.textContent = "Lecture seule dans l'application.";
     refs.formFields.innerHTML = isRecapView
       ? `
         <div class="empty-form">
-          Cette vue n'edite pas directement la feuille Recapitulatif d'Excel.
-          Elle reconstruit une synthese lisible a partir de ${RECAP_SHEET_NAME}, ${TCD_SHEET_NAME}
-          et de vos transactions ${JOURNAL_SHEET_NAME}. Pour modifier les donnees, revenez sur
+          Cette vue n'édite pas directement la feuille Récapitulatif d'Excel.
+          Elle reconstruit une synthèse lisible à partir de ${RECAP_SHEET_NAME}, ${TCD_SHEET_NAME}
+          et de vos transactions ${JOURNAL_SHEET_NAME}. Pour modifier les données, revenez sur
           la vue Journalier.
         </div>
       `
       : `
         <div class="empty-form">
-          Cette vue ajoute des comparaisons et des graphiques a partir des ecritures de ${JOURNAL_SHEET_NAME}.
-          Elle est destinee a l'analyse. Pour modifier les donnees, revenez sur la vue Journalier.
+          Cette vue ajoute des comparaisons et des graphiques à partir des écritures de ${JOURNAL_SHEET_NAME}.
+          Elle est destinée à l'analyse. Pour modifier les données, revenez sur la vue Journalier.
         </div>
       `;
     return;
   }
 
   refs.formSubtitle.textContent = state.workbook
-    ? "Ajoutez ou modifiez vos transactions. Les vues de recap et de comparaison se recalculent aussitot."
+    ? "Ajoutez ou modifiez vos transactions. Les vues de récap et de comparaison se recalculent aussitôt."
     : canUseSupabaseCloud()
-      ? "Mode cloud partage. Ajoutez ou modifiez vos transactions, Supabase les republie pour les autres personnes."
-      : "Mode autonome local. Ajoutez ou modifiez vos transactions, les graphiques se mettent a jour aussitot et l'export reste disponible.";
+      ? "Mode cloud partagé. Ajoutez ou modifiez vos transactions, Supabase les republie pour les autres personnes."
+      : "Mode autonome local. Ajoutez ou modifiez vos transactions, les graphiques se mettent à jour aussitôt et l'export reste disponible.";
 
   const editingRow =
     state.editorMode === "edit" &&
@@ -8584,10 +8584,10 @@ function renderEditor() {
 
   refs.formTitle.textContent = state.editorMode === "edit" ? "Modifier la transaction" : "Nouvelle transaction";
   refs.formSubtitle.textContent = state.workbook
-    ? "Saisie directe de Journalier!D:F avec categories predefinies depuis la colonne B."
+    ? "Saisie directe de Journalier!D:F avec catégories prédéfinies depuis la colonne B."
     : canUseSupabaseCloud()
-      ? "Mode cloud partage: chaque enregistrement met a jour vos vues locales et synchronise Supabase."
-      : "Mode autonome local: vos categories, recapitulatifs et graphiques se mettent a jour a chaque enregistrement.";
+      ? "Mode cloud partagé : chaque enregistrement met à jour vos vues locales et synchronise Supabase."
+      : "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.";
   refs.formFields.innerHTML = "";
 
   appendField(renderDateField(editingRow.Date));
@@ -8602,11 +8602,11 @@ function renderPlanEditor() {
 
   if (state.mode !== "budget") {
     refs.formTitle.textContent = "Budget mensuel";
-    refs.formSubtitle.textContent = "Commencez avec un modele local ou importez votre budget pour fixer les montants cibles.";
+    refs.formSubtitle.textContent = "Commencez avec un modèle local ou importez votre budget pour fixer les montants cibles.";
     refs.formFields.innerHTML = `<div class="empty-form">${buildStartupGuideMarkup({
-      title: "Budget mensuel pret a creer",
-      description: "Le plan mensuel peut etre initialise sans fichier Excel. Vous pourrez ensuite ajuster les montants, les periodes et les comparaisons.",
-      note: "Une fois le modele cree, l'onglet Budget sera editable immediatement.",
+      title: "Budget mensuel prêt à créer",
+      description: "Le plan mensuel peut être initialisé sans fichier Excel. Vous pourrez ensuite ajuster les montants, les périodes et les comparaisons.",
+      note: "Une fois le modèle créé, l'onglet Budget sera modifiable immédiatement.",
     })}</div>`;
     return;
   }
@@ -8614,12 +8614,12 @@ function renderPlanEditor() {
   const planTemplate = ensurePlanTemplateSeeded();
   refs.formTitle.textContent = "Budget mensuel";
   refs.formSubtitle.textContent = state.planEditing
-    ? "Edition active. Choisissez le montant et la periode de chaque ligne, puis l'app calcule l'equivalent mensuel."
-    : "Budget en lecture seule. Cliquez sur Editer budget pour modifier le montant ou la periode de chaque ligne.";
+    ? "Édition active. Choisissez le montant et la période de chaque ligne, puis l'application calcule l'équivalent mensuel."
+    : "Budget en lecture seule. Cliquez sur Éditer le budget pour modifier le montant ou la période de chaque ligne.";
   refs.formFields.innerHTML = "";
 
   if (!planTemplate.length) {
-    refs.formFields.innerHTML = '<div class="empty-form">Aucune ligne budget n\'est disponible pour le moment.</div>';
+    refs.formFields.innerHTML = '<div class="empty-form">Aucune ligne de budget n\'est disponible pour le moment.</div>';
     return;
   }
 
@@ -8774,7 +8774,7 @@ function renderCategoryField(value) {
 
   const parentLabelCaption = document.createElement("span");
   parentLabelCaption.className = "field-parent-label";
-  parentLabelCaption.textContent = "Grande categorie";
+  parentLabelCaption.textContent = "Grande catégorie";
 
   const parentChip = document.createElement("span");
   parentChip.className = "field-parent-chip";
@@ -8815,7 +8815,7 @@ function renderValueField(value) {
   toggleButton.type = "button";
   toggleButton.className = "value-sign-toggle";
   toggleButton.textContent = "- / +";
-  toggleButton.setAttribute("aria-label", "Basculer entre montant negatif et positif");
+  toggleButton.setAttribute("aria-label", "Basculer entre un montant négatif et positif");
   toggleButton.addEventListener("click", () => {
     const currentValue = String(input.value || "").trim();
     if (!currentValue) {
@@ -8839,7 +8839,7 @@ function renderValueField(value) {
 
   const hint = document.createElement("p");
   hint.className = "field-hint";
-  hint.textContent = "Utilisez - / + si le clavier du telephone n'affiche pas le signe negatif.";
+  hint.textContent = "Utilisez - / + si le clavier du téléphone n'affiche pas le signe négatif.";
 
   inputRow.append(input, toggleButton);
   wrapper.append(label, inputRow, hint);
@@ -8856,11 +8856,11 @@ function renderRecurringTemplatesPanel() {
   heading.className = "recurring-panel-head";
   heading.innerHTML = `
     <div>
-      <span class="section-kicker">Transactions recurrentes</span>
-      <h3>Modeles rapides</h3>
+      <span class="section-kicker">Transactions récurrentes</span>
+      <h3>Modèles rapides</h3>
     </div>
     <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
-      Enregistrer la transaction comme modele
+      Enregistrer la transaction comme modèle
     </button>
   `;
 
@@ -8870,7 +8870,7 @@ function renderRecurringTemplatesPanel() {
   if (!templates.length) {
     const empty = document.createElement("div");
     empty.className = "empty-form recurring-empty";
-    empty.textContent = "Aucun modele recurrent pour le moment. Enregistrez une transaction type pour la reutiliser plus vite.";
+    empty.textContent = "Aucun modèle récurrent pour le moment. Enregistrez une transaction type pour la réutiliser plus vite.";
     list.appendChild(empty);
   } else {
     templates.forEach((template) => {
@@ -8910,10 +8910,10 @@ function renderPlanAmountField(row, index, readOnly = false) {
       <label class="item-label" for="plan-field-${index}">${escapeHtml(row.label)}</label>
       <span class="item-code">${escapeHtml(
         derived
-          ? "Valeur calculee automatiquement"
+          ? "Valeur calculée automatiquement"
           : readOnly
-            ? "Lecture seule. Cliquez sur Editer budget pour modifier."
-            : "Le budget sera converti en equivalent mensuel."
+            ? "Lecture seule. Cliquez sur Éditer le budget pour modifier."
+            : "Le budget sera converti en équivalent mensuel."
       )}</span>
     </div>
   `;
@@ -8942,7 +8942,7 @@ function renderPlanAmountField(row, index, readOnly = false) {
   if (!derived) {
     periodGroup = document.createElement("div");
     periodGroup.className = "budget-row-cell";
-    periodGroup.innerHTML = `<span class="budget-mobile-label">Periode</span>`;
+    periodGroup.innerHTML = `<span class="budget-mobile-label">Période</span>`;
     const select = document.createElement("select");
     select.id = `plan-period-${index}`;
     select.setAttribute("data-plan-period", "true");

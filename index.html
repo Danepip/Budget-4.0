@@ -34,14 +34,14 @@
 
         <div class="hero-main">
           <div class="hero-intro">
-            <p class="hero-kicker">Vue simple</p>
+            <p class="hero-kicker">Vue simplifiée</p>
             <h1>BUDEGETAPP</h1>
           </div>
 
           <div class="hero-summary">
             <article class="hero-pill">
-              <span class="hero-pill-label">Periode active</span>
-              <strong id="metric-mode">Pret pour l'import</strong>
+              <span class="hero-pill-label">Période active</span>
+              <strong id="metric-mode">Prêt pour l'import</strong>
             </article>
             <article class="hero-pill">
               <span class="hero-pill-label">Fichier actif</span>
@@ -49,7 +49,7 @@
             </article>
             <article class="hero-pill">
               <span class="hero-pill-label">Mode</span>
-              <strong id="metric-save">Chargez le fichier</strong>
+              <strong id="metric-save">Chargez un fichier</strong>
             </article>
           </div>
         </div>
@@ -62,7 +62,7 @@
           <p class="section-kicker">Navigation simple</p>
           <h2 id="app-tab-title">Tableau de bord</h2>
           <p id="app-tab-description" class="section-caption">
-            Une lecture rapide de votre budget pour voir les soldes, les tendances et la periode active.
+            Une lecture rapide de votre budget pour voir les soldes, les tendances et la période active.
           </p>
         </div>
         <div class="app-tab-list" role="tablist" aria-label="Sections principales du budget">
@@ -76,7 +76,7 @@
           </button>
           <button id="app-tab-transactions" class="app-tab" type="button" data-app-tab="transactions" role="tab" aria-selected="false">
             <span class="app-tab-label">Transactions</span>
-            <span class="app-tab-meta">Liste des ecritures</span>
+            <span class="app-tab-meta">Liste des écritures</span>
           </button>
           <button id="app-tab-form" class="app-tab" type="button" data-app-tab="form" role="tab" aria-selected="false">
             <span class="app-tab-label">Formulaire</span>
@@ -104,9 +104,9 @@
           <input id="excel-file" type="file" accept=".xlsx,.xls,.csv">
 
           <label class="control-field hidden" id="recap-year-field">
-            <span>Annee</span>
+            <span>Année</span>
             <select id="recap-year-select" disabled>
-              <option value="all">Toutes les annees</option>
+              <option value="all">Toutes les années</option>
             </select>
           </label>
 
@@ -120,19 +120,19 @@
                 <select id="recap-month-select" class="hidden" multiple disabled aria-hidden="true">
                 </select>
               </div>
-              <small class="control-hint">Tous les mois par defaut</small>
+              <small class="control-hint">Tous les mois par défaut</small>
             </label>
 
             <label class="control-field hidden" id="recap-range-field">
-              <span>Periode</span>
+              <span>Période</span>
               <select id="recap-range-select" disabled>
-                <option value="all">Toute la periode</option>
+                <option value="all">Toute la période</option>
               </select>
             </label>
 
             <label id="search-field" class="control-field search-field">
               <span>Recherche</span>
-            <input id="search-input" type="search" placeholder="Categorie, date, valeur..." disabled>
+            <input id="search-input" type="search" placeholder="Catégorie, date, valeur..." disabled>
           </label>
         </div>
 
@@ -147,7 +147,7 @@
             <button id="export-workbook" class="button primary" type="button" disabled>Exporter Excel</button>
           </div>
           <p id="draft-status" class="draft-status">
-            Aucun brouillon local memorise.
+            Aucun brouillon local mémorisé.
           </p>
         </div>
       </section>
@@ -159,7 +159,7 @@
             <h2>Budget partage en ligne</h2>
           </div>
           <p id="cloud-status" class="section-caption">
-            Supabase non configure. Renseignez supabase.config.js pour activer le partage.
+            Supabase non configuré. Renseignez supabase.config.js pour activer le partage.
           </p>
         </div>
 
@@ -170,14 +170,14 @@
           </label>
 
           <label class="control-field">
-            <span>Code espace partage</span>
-            <input id="cloud-code" type="text" placeholder="code a partager" spellcheck="false" autocomplete="off">
+            <span>Code de l'espace partagé</span>
+            <input id="cloud-code" type="text" placeholder="code à partager" spellcheck="false" autocomplete="off">
           </label>
 
           <div class="cloud-actions">
             <button id="cloud-magic-link" class="button secondary" type="button">Lien magique</button>
-            <button id="cloud-sign-out" class="button ghost" type="button" disabled>Deconnexion</button>
-            <button id="cloud-create-space" class="button secondary" type="button" disabled>Creer espace</button>
+            <button id="cloud-sign-out" class="button ghost" type="button" disabled>Déconnexion</button>
+            <button id="cloud-create-space" class="button secondary" type="button" disabled>Créer un espace</button>
             <button id="cloud-join-space" class="button ghost" type="button" disabled>Rejoindre</button>
             <button id="cloud-push" class="button primary" type="button" disabled>Publier local</button>
             <button id="cloud-pull" class="button ghost" type="button" disabled>Recharger cloud</button>
@@ -186,33 +186,33 @@
         </div>
 
         <p id="cloud-space-hint" class="draft-status cloud-note">
-          Compte: non connecte | Espace: aucun | Code partage: a creer ou rejoindre | Dernier chargement: aucun | Derniere publication: aucune
+          Compte : non connecté | Espace : aucun | Code de partage : à créer ou rejoindre | Dernier chargement : aucun | Dernière publication : aucune
         </p>
 
         <div id="cloud-collaboration-panel" class="alert-settings panel">
           <div class="section-heading">
             <div>
               <p class="section-kicker">Collaboration live</p>
-              <h2>Presence en ligne</h2>
+              <h2>Présence en ligne</h2>
             </div>
             <p id="cloud-collaboration-status" class="section-caption">
-              Connectez-vous a un espace partage pour voir qui est en ligne et qui modifie l'app.
+              Connectez-vous à un espace partagé pour voir qui est en ligne et qui modifie l'application.
             </p>
           </div>
 
           <div id="cloud-presence-list" class="presence-list">
-            <span class="presence-chip">Aucune presence active</span>
+            <span class="presence-chip">Aucune présence active</span>
           </div>
 
           <p id="cloud-live-activity" class="draft-status cloud-note">
-            Aucune activite live pour le moment.
+            Aucune activité en direct pour le moment.
           </p>
         </div>
 
         <div id="budget-alert-panel" class="alert-settings panel">
           <div class="section-heading">
             <div>
-              <p class="section-kicker">Alertes email</p>
+              <p class="section-kicker">Alertes par e-mail</p>
               <h2>Surveillance du budget</h2>
             </div>
             <p id="budget-alert-status" class="section-caption">
@@ -232,7 +232,7 @@
             </label>
 
             <label class="control-field">
-              <span>Delai anti-spam (heures)</span>
+              <span>Délai anti-spam (heures)</span>
               <input id="budget-alert-cooldown" type="number" min="1" max="168" step="1" value="12" inputmode="numeric">
             </label>
           </div>
@@ -245,8 +245,8 @@
         <div id="app-settings-panel" class="alert-settings panel">
           <div class="section-heading">
             <div>
-              <p class="section-kicker">Parametres</p>
-              <h2>Preferences de l'application</h2>
+              <p class="section-kicker">Paramètres</p>
+              <h2>Préférences de l'application</h2>
             </div>
             <p id="app-settings-status" class="section-caption">
               Choisissez comment BUDEGETAPP se relance et quelles analyses restent visibles.
@@ -271,7 +271,7 @@
           </div>
 
           <p id="app-settings-hint" class="draft-status cloud-note">
-            Ces preferences sont memorisees localement sur cet appareil.
+            Ces préférences sont mémorisées localement sur cet appareil.
           </p>
         </div>
 
@@ -279,19 +279,19 @@
           <div class="section-heading">
             <div>
               <p class="section-kicker">Historique local</p>
-              <h2>Dernieres actions</h2>
+              <h2>Dernières actions</h2>
             </div>
             <p id="history-status" class="section-caption">
-              Vous pourrez annuler la derniere creation, modification ou suppression.
+              Vous pourrez annuler la dernière création, modification ou suppression.
             </p>
           </div>
 
           <div class="cloud-actions history-actions">
-            <button id="undo-last-action" class="button ghost" type="button">Annuler la derniere action</button>
+            <button id="undo-last-action" class="button ghost" type="button">Annuler la dernière action</button>
           </div>
 
           <div id="history-list" class="history-list">
-            <span class="presence-chip">Aucune action memorisee pour le moment.</span>
+            <span class="presence-chip">Aucune action mémorisée pour le moment.</span>
           </div>
         </div>
       </section>
@@ -310,13 +310,13 @@
           <strong id="active-sheet">Aucune</strong>
         </article>
         <article class="status-card panel">
-          <span class="status-label">Derniere action</span>
+          <span class="status-label">Dernière action</span>
           <strong id="last-action">En attente</strong>
         </article>
       </section>
 
       <p id="library-warning" class="library-warning hidden">
-        La bibliotheque Excel n'est pas chargee. Verifiez que les fichiers du dossier <code>vendor</code> sont bien presents puis rechargez la page.
+        La bibliothèque Excel n'est pas chargée. Vérifiez que les fichiers du dossier <code>vendor</code> sont bien présents, puis rechargez la page.
       </p>
 
       <div id="workspace-layout" class="layout">
@@ -327,7 +327,7 @@
               <h2 id="form-title">Nouvelle fiche</h2>
             </div>
             <p id="form-subtitle" class="section-caption">
-              Demarrez d'abord votre budget local ou importez votre fichier Excel.
+              Démarrez d'abord votre budget local ou importez votre fichier Excel.
             </p>
           </div>
 
@@ -336,14 +336,14 @@
               <div class="empty-form">
                 <div class="empty-state-copy">
                   <strong>Commencez votre budget</strong>
-                  <p>Le formulaire Date / Categories / Value sera active des que vous creez un modele local, importez Excel ou rejoignez un espace partage.</p>
+                  <p>Le formulaire Date / Categories / Value sera activé dès que vous créerez un modèle local, importerez Excel ou rejoindrez un espace partagé.</p>
                 </div>
               </div>
             </div>
 
             <div id="form-actions" class="form-actions">
               <button class="button primary" type="submit" id="save-record" disabled>Enregistrer</button>
-              <button class="button ghost" type="button" id="cancel-edit" disabled>Reinitialiser</button>
+              <button class="button ghost" type="button" id="cancel-edit" disabled>Réinitialiser</button>
             </div>
           </form>
         </aside>
@@ -352,17 +352,17 @@
           <div class="section-heading">
             <div>
               <p class="section-kicker" id="cards-kicker">Journalier</p>
-              <h2 id="cards-title">Les ecritures deviennent des fiches</h2>
+              <h2 id="cards-title">Les écritures deviennent des fiches</h2>
             </div>
             <p class="section-caption" id="cards-caption">
-              Cette vue utilise Journalier!D:F et garde la liste de categories de Journalier!B.
+              Cette vue utilise Journalier!D:F et garde la liste des catégories de Journalier!B.
             </p>
           </div>
 
           <div id="cards-empty" class="empty-state">
             <div class="empty-state-copy">
               <strong>Bienvenue dans BUDEGETAPP</strong>
-              <p>Commencez avec un modele local, importez votre fichier Excel ou rejoignez un budget partage.</p>
+              <p>Commencez avec un modèle local, importez votre fichier Excel ou rejoignez un budget partagé.</p>
             </div>
           </div>
 

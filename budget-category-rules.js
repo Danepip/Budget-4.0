@@ -23,32 +23,32 @@
   const GROUP_META = {
     income: {
       label: "Revenu",
-      description: "Entrees d'argent du foyer",
+      description: "Entrées d'argent du foyer",
       tone: "positive",
     },
     savings: {
-      label: "Epargnes",
-      description: "Reserve, objectifs et accumulation",
+      label: "Épargnes",
+      description: "Réserve, objectifs et accumulation",
       tone: "neutral",
     },
     debt: {
       label: "Remboursement de dettes",
-      description: "Carte de credit, pret et obligations",
+      description: "Carte de crédit, prêt et obligations",
       tone: "negative",
     },
     housing: {
       label: "Logement",
-      description: "Loyer, hypotheque et habitation",
+      description: "Loyer, hypothèque et habitation",
       tone: "negative",
     },
     communications: {
       label: "Communications",
-      description: "Telephone, internet et services numeriques",
+      description: "Téléphone, internet et services numériques",
       tone: "neutral",
     },
     food: {
       label: "Alimentation",
-      description: "Epicerie et restauration",
+      description: "Épicerie et restauration",
       tone: "neutral",
     },
     insurance: {
@@ -58,16 +58,16 @@
     },
     transportation: {
       label: "Transport",
-      description: "Auto, carburant et deplacements",
+      description: "Auto, carburant et déplacements",
       tone: "negative",
     },
     childcare: {
       label: "Soins aux enfants",
-      description: "Depenses reliees aux enfants",
+      description: "Dépenses reliées aux enfants",
       tone: "neutral",
     },
     education: {
-      label: "Etudes",
+      label: "Études",
       description: "Frais scolaires et apprentissage",
       tone: "neutral",
     },
@@ -78,22 +78,22 @@
     },
     personalcare: {
       label: "Soins personnels",
-      description: "Coiffure, cosmetiques et entretien personnel",
+      description: "Coiffure, cosmétiques et entretien personnel",
       tone: "neutral",
     },
     clothing: {
-      label: "Vetements",
-      description: "Vetements, accessoires et chaussures",
+      label: "Vêtements",
+      description: "Vêtements, accessoires et chaussures",
       tone: "neutral",
     },
     medical: {
-      label: "Soins medicaux",
-      description: "Sante et soins specialises",
+      label: "Soins médicaux",
+      description: "Santé et soins spécialisés",
       tone: "negative",
     },
     pets: {
       label: "Animaux",
-      description: "Depenses reliees aux animaux",
+      description: "Dépenses reliées aux animaux",
       tone: "neutral",
     },
     fees: {
@@ -108,7 +108,7 @@
     },
     custom: {
       label: "Autres postes",
-      description: "Lignes a classer ou personnaliser",
+      description: "Lignes à classer ou à personnaliser",
       tone: "default",
     },
   };
