@@ -7184,7 +7184,7 @@ function buildAnalysisCategoryBenchmark() {
       averagePercent: buildChartScale(row.average, maxValue, 10),
     })),
     currentLabel: referenceProfile.label,
-    subtitle: `Reference: ${referenceProfile.label}. Comparee a votre moyenne sur ${monthlyProfiles.length} mois date(s).`,
+    subtitle: `Référence : ${referenceProfile.label}. Comparée à votre moyenne sur ${monthlyProfiles.length} mois daté${monthlyProfiles.length > 1 ? "s" : ""}.`,
     monthCount: monthlyProfiles.length,
   };
 }
@@ -8139,8 +8139,8 @@ function createAnalysisMarkup(analysisView) {
 
       <section class="recap-section">
         <div class="recap-section-head">
-          <h3>Graphiques budgetaires</h3>
-          <p>Une lecture plus visuelle de vos flux, de vos categories de dépenses et de vos habitudes mensuelles.</p>
+          <h3>Graphiques budgétaires</h3>
+          <p>Une lecture plus visuelle de vos flux, de vos catégories de dépenses et de vos habitudes mensuelles.</p>
         </div>
         <div class="analysis-visual-grid">
           ${createAnalysisCashFlowMarkup(analysisView.cashFlow)}
@@ -8179,7 +8179,7 @@ function createAnalysisMarkup(analysisView) {
           </div>
         ` : `
           <div class="empty-form">
-            Aucun groupe de comparaison ne correspond a la recherche ou au filtre actif.
+            Aucun groupe de comparaison ne correspond à la recherche ou au filtre actif.
           </div>
         `}
       </section>
@@ -8238,7 +8238,7 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
         <div class="analysis-plan-group-copy">
           <span class="analysis-plan-group-kicker">Grande catégorie</span>
           <strong>${escapeHtml(group.label)}</strong>
-          <span class="analysis-plan-group-meta">${escapeHtml(group.rows.length)} sous-categorie${group.rows.length > 1 ? "s" : ""}</span>
+          <span class="analysis-plan-group-meta">${escapeHtml(group.rows.length)} sous-catégorie${group.rows.length > 1 ? "s" : ""}</span>
         </div>
         <div class="analysis-plan-group-stats">
           <div class="analysis-plan-stat">
@@ -8259,7 +8259,7 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
           <table class="recap-table analysis-plan-table">
             <thead>
               <tr>
-                <th>Categorie</th>
+                <th>Catégorie</th>
                 <th class="numeric">Budget (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</th>
                 <th class="numeric">Réel</th>
                 <th>Statut</th>
@@ -8313,8 +8313,8 @@ function createAnalysisCashFlowMarkup(cashFlow) {
   return `
     <article class="analysis-visual-card">
       <div class="analysis-visual-head">
-        <h4>Entrees et sorties d'argent</h4>
-        <p>Revenu en face de l'utilisation réelle: dépenses, épargne et cash restant.</p>
+        <h4>Entrées et sorties d'argent</h4>
+        <p>Le revenu en regard de l'utilisation réelle : dépenses, épargne et cash restant.</p>
       </div>
       <div class="analysis-cash-chart">
         <div class="analysis-cash-column">
@@ -8342,8 +8342,8 @@ function createAnalysisCashFlowMarkup(cashFlow) {
       </div>
       <p class="analysis-visual-note">
         ${cashFlow.overflow > 0
-          ? `Deficit observe: ${escapeHtml(formatCurrency(cashFlow.overflow))} au-dela du revenu.`
-          : `Cash disponible apres arbitrage: ${escapeHtml(formatSignedCurrency(cashFlow.cash))}.`}
+          ? `Déficit observé : ${escapeHtml(formatCurrency(cashFlow.overflow))} au-delà du revenu.`
+          : `Cash disponible après arbitrage : ${escapeHtml(formatSignedCurrency(cashFlow.cash))}.`}
       </p>
     </article>
   `;
@@ -8354,10 +8354,10 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
     return `
       <article class="analysis-visual-card">
         <div class="analysis-visual-head">
-          <h4>Ou va votre argent</h4>
-          <p>Repartition des dépenses par categorie.</p>
+          <h4>Où va votre argent</h4>
+          <p>Répartition des dépenses par catégorie.</p>
         </div>
-        <div class="empty-form">Aucune depense datée n'est disponible pour construire ce graphique.</div>
+        <div class="empty-form">Aucune dépense datée n'est disponible pour construire ce graphique.</div>
       </article>
     `;
   }
@@ -8365,8 +8365,8 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
   return `
     <article class="analysis-visual-card">
       <div class="analysis-visual-head">
-        <h4>Ou va votre argent</h4>
-        <p>Les categories les plus lourdes prennent visuellement plus de place.</p>
+        <h4>Où va votre argent</h4>
+        <p>Les catégories les plus lourdes prennent visuellement plus de place.</p>
       </div>
       <div class="analysis-donut-layout">
         <div class="analysis-donut-chart" style="--analysis-donut:${expenseBreakdown.gradient};">
@@ -8397,9 +8397,9 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
       <article class="analysis-visual-card">
         <div class="analysis-visual-head">
           <h4>Comparaison avec votre moyenne</h4>
-          <p>Lecture categorie par categorie sur une base mensuelle.</p>
+          <p>Lecture catégorie par catégorie sur une base mensuelle.</p>
         </div>
-        <div class="empty-form">Pas assez de mois dates pour calculer une moyenne de comparaison.</div>
+        <div class="empty-form">Pas assez de mois datés pour calculer une moyenne de comparaison.</div>
       </article>
     `;
   }
@@ -8426,7 +8426,7 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
       </div>
       <div class="analysis-benchmark-legend">
         <span class="analysis-legend-item"><span class="analysis-legend-swatch average"></span>Moyenne mensuelle</span>
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch current"></span>Période de reference</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch current"></span>Période de référence</span>
       </div>
     </article>
   `;
@@ -8476,7 +8476,7 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
           <h3>${escapeHtml(title)}</h3>
           <p>${escapeHtml(subtitle)}</p>
         </div>
-        <div class="empty-form">Aucune ligne a afficher pour cette vue.</div>
+        <div class="empty-form">Aucune ligne à afficher pour cette vue.</div>
       </section>
     `;
   }
