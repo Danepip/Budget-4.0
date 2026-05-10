@@ -32,6 +32,7 @@ const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
 const SUPPORTED_UI_LANGUAGES = ["fr", "en"];
 const SUPPORTED_UI_THEMES = ["auto", "light", "dark"];
+const SUPPORTED_TRANSACTION_VIEWS = ["cards", "compact"];
 const UI_STRINGS = {
   fr: {
     "hero.badge": "Budget",
@@ -58,6 +59,9 @@ const UI_STRINGS = {
     "tab.plan.description": "Fixez ici vos montants cibles pour comparer le plan et le réel sans toucher aux transactions.",
     "tab.transactions.title": "Transactions",
     "tab.transactions.description": "Une liste claire de vos écritures pour filtrer, relire et choisir rapidement ce que vous voulez corriger.",
+    "tab.transactions.viewLabel": "Mode d'affichage",
+    "tab.transactions.viewCards": "Cartes",
+    "tab.transactions.viewCompact": "Compacte",
     "tab.form.title": "Formulaire",
     "tab.form.description": "Un espace dédié à la création et à la modification d'une transaction, sans distraction autour.",
     "tab.analysis.title": "Analyse",
@@ -288,6 +292,9 @@ const UI_STRINGS = {
     "tab.plan.description": "Set your target amounts here to compare plan and actual without touching transactions.",
     "tab.transactions.title": "Transactions",
     "tab.transactions.description": "A clear list of your entries to filter, review, and quickly choose what you want to correct.",
+    "tab.transactions.viewLabel": "View mode",
+    "tab.transactions.viewCards": "Cards",
+    "tab.transactions.viewCompact": "Compact",
     "tab.form.title": "Form",
     "tab.form.description": "A dedicated space to create and edit a transaction without distractions.",
     "tab.analysis.title": "Analysis",
@@ -1012,6 +1019,7 @@ function createDefaultUiSettings() {
   return {
     language: "fr",
     theme: "auto",
+    transactionView: "cards",
     autoRestoreDraft: true,
     showBudgetFraAlerts: true,
     showBudgetFraSuggestions: false,
@@ -1028,12 +1036,21 @@ function normalizeUiTheme(value) {
   return SUPPORTED_UI_THEMES.includes(nextValue) ? nextValue : "auto";
 }
 
+function normalizeTransactionView(value) {
+  const nextValue = String(value || "").trim().toLowerCase();
+  return SUPPORTED_TRANSACTION_VIEWS.includes(nextValue) ? nextValue : "cards";
+}
+
 function getCurrentLanguage() {
   return normalizeUiLanguage(state?.settings?.language || "fr");
 }
 
 function getCurrentThemePreference() {
   return normalizeUiTheme(state?.settings?.theme || "auto");
+}
+
+function getCurrentTransactionView() {
+  return normalizeTransactionView(state?.settings?.transactionView || "cards");
 }
 
 function getResolvedTheme() {
@@ -1180,6 +1197,7 @@ function sanitizeUiSettings(rawSettings) {
   return {
     language: normalizeUiLanguage(rawSettings?.language || defaults.language),
     theme: normalizeUiTheme(rawSettings?.theme || defaults.theme),
+    transactionView: normalizeTransactionView(rawSettings?.transactionView || defaults.transactionView),
     autoRestoreDraft: rawSettings?.autoRestoreDraft !== false,
     showBudgetFraAlerts: rawSettings?.showBudgetFraAlerts !== false,
     showBudgetFraSuggestions: rawSettings?.showBudgetFraSuggestions === true,
@@ -2903,6 +2921,7 @@ function cacheDom() {
   refs.layout = document.getElementById("workspace-layout");
   refs.editorArea = document.getElementById("editor-area");
   refs.cardsArea = document.getElementById("cards-area");
+  refs.transactionsViewToggle = document.getElementById("transactions-view-toggle");
   refs.form = document.getElementById("record-form");
   refs.formFields = document.getElementById("form-fields");
   refs.formActions = document.getElementById("form-actions");
@@ -2985,6 +3004,7 @@ function bindEvents() {
   refs.formFields.addEventListener("click", onRecurringTemplateAction);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  refs.transactionsViewToggle?.addEventListener("click", onTransactionsViewToggleClicked);
   refs.settingTheme.addEventListener("change", onThemeSettingChanged);
   refs.settingAutoRestore.addEventListener("change", onAutoRestoreSettingChanged);
   refs.settingLanguage.addEventListener("change", onLanguageSettingChanged);
@@ -3172,6 +3192,23 @@ function onShowSuggestionsSettingChanged(event) {
   state.settings.showBudgetFraSuggestions = Boolean(event.target.checked);
   persistUiSettings();
   renderAll();
+}
+
+function onTransactionsViewToggleClicked(event) {
+  const button = event.target.closest("[data-transaction-view]");
+  if (!button) {
+    return;
+  }
+
+  const nextView = normalizeTransactionView(button.dataset.transactionView);
+  if (nextView === getCurrentTransactionView()) {
+    return;
+  }
+
+  state.settings.transactionView = nextView;
+  persistUiSettings();
+  renderCards();
+  renderControls();
 }
 
 function clonePlanTemplateRows(rows) {
@@ -5660,13 +5697,13 @@ function onCardAction(event) {
 
   const deleteButton = event.target.closest("[data-action='delete']");
   const editButton = event.target.closest("[data-action='edit']");
-  const card = event.target.closest(".data-card");
+  const entry = event.target.closest("[data-entry-index]");
 
-  if (!card) {
+  if (!entry) {
     return;
   }
 
-  const index = Number(card.dataset.index);
+  const index = Number(entry.dataset.entryIndex);
   if (Number.isNaN(index)) {
     return;
   }
@@ -5676,7 +5713,7 @@ function onCardAction(event) {
     return;
   }
 
-  if (editButton || card) {
+  if (editButton || entry) {
     openEditor(index);
   }
 }
@@ -6861,6 +6898,34 @@ function renderControls() {
   refs.saveButton.classList.toggle("hidden", planTab && !planEditing);
   refs.cancelButton.classList.toggle("hidden", planTab && !planEditing);
   refs.formActions.classList.toggle("hidden", planTab && !planEditing);
+  renderTransactionsViewToggle(transactionTab);
+}
+
+function renderTransactionsViewToggle(isVisible) {
+  if (!refs.transactionsViewToggle) {
+    return;
+  }
+
+  refs.transactionsViewToggle.classList.toggle("hidden", !isVisible);
+  if (!isVisible) {
+    refs.transactionsViewToggle.innerHTML = "";
+    return;
+  }
+
+  const currentView = getCurrentTransactionView();
+  refs.transactionsViewToggle.innerHTML = `
+    <span class="view-toggle-label">${escapeHtml(t("tab.transactions.viewLabel"))}</span>
+    ${SUPPORTED_TRANSACTION_VIEWS.map((view) => `
+      <button
+        type="button"
+        class="view-toggle-button${currentView === view ? " is-active" : ""}"
+        data-transaction-view="${escapeHtml(view)}"
+        aria-pressed="${currentView === view ? "true" : "false"}"
+      >
+        ${escapeHtml(t(`tab.transactions.view${view === "cards" ? "Cards" : "Compact"}`))}
+      </button>
+    `).join("")}
+  `;
 }
 
 function renderCloudPanel() {
@@ -7229,6 +7294,7 @@ function renderCards() {
 function renderJournalCards() {
   refs.cardsGrid.classList.remove("hidden");
   refs.recapView.classList.add("hidden");
+  refs.cardsGrid.classList.toggle("compact-mode", getCurrentTransactionView() === "compact");
   const english = isEnglishUi();
 
   if (!state.budget.rows.length) {
@@ -7252,44 +7318,84 @@ function renderJournalCards() {
 
   refs.cardsEmpty.classList.add("hidden");
 
-    filteredRows.forEach(({ row, index }) => {
-      const card = document.createElement("article");
-      card.className = `data-card${index === state.editingIndex ? " active" : ""}`;
-      card.dataset.index = String(index);
+  if (getCurrentTransactionView() === "compact") {
+    renderJournalCompactRows(filteredRows, english);
+    return;
+  }
 
-  const amountLabel = formatCurrency(row.Value) || row.Value || "-";
-  const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
-  const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
-  const parentChipMarkup = parentLabel
-    ? `<span class="card-parent-chip">${escapeHtml(parentLabel)}</span>`
-    : "";
-  const parentDetailMarkup = parentLabel
-    ? createDetailMarkup(english ? "Main category" : "Grande catégorie", parentLabel)
-    : "";
+  filteredRows.forEach(({ row, index }) => {
+    const card = document.createElement("article");
+    card.className = `data-card${index === state.editingIndex ? " active" : ""}`;
+    card.dataset.entryIndex = String(index);
 
-  card.innerHTML = `
-        <div class="card-topline">
-          <span class="card-index">${escapeHtml(dateLabel)}</span>
-          <div class="card-actions">
+    const amountLabel = formatCurrency(row.Value) || row.Value || "-";
+    const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
+    const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
+    const parentChipMarkup = parentLabel
+      ? `<span class="card-parent-chip">${escapeHtml(parentLabel)}</span>`
+      : "";
+    const parentDetailMarkup = parentLabel
+      ? createDetailMarkup(english ? "Main category" : "Grande catégorie", parentLabel)
+      : "";
+
+    card.innerHTML = `
+      <div class="card-topline">
+        <span class="card-index">${escapeHtml(dateLabel)}</span>
+        <div class="card-actions">
           <button class="card-action" type="button" data-action="edit" aria-label="${english ? "Edit" : "Modifier"}">${english ? "Edit" : "Modifier"}</button>
           <button class="card-action delete" type="button" data-action="delete" aria-label="${english ? "Delete" : "Supprimer"}">X</button>
         </div>
-        </div>
-        <div>
-          ${parentChipMarkup}
-          <h3 class="card-title">${escapeHtml(getDisplayCategoryLabel(row.Categories || "") || (english ? "Undefined category" : "Catégorie non définie"))}</h3>
-          <p class="card-subtitle">${english ? "Sheet" : "Feuille"} ${JOURNAL_SHEET_NAME}</p>
-          <p class="card-amount">${escapeHtml(amountLabel)}</p>
-        </div>
-        <div class="card-details">
-          ${createDetailMarkup(english ? "Date" : "Date", dateLabel)}
-          ${createDetailMarkup(english ? "Category" : "Catégorie", getDisplayCategoryLabel(row.Categories || "") || "-")}
-          ${parentDetailMarkup}
-          ${createDetailMarkup(english ? "Amount" : "Montant", amountLabel)}
-        </div>
-      `;
+      </div>
+      <div>
+        ${parentChipMarkup}
+        <h3 class="card-title">${escapeHtml(getDisplayCategoryLabel(row.Categories || "") || (english ? "Undefined category" : "Catégorie non définie"))}</h3>
+        <p class="card-subtitle">${english ? "Sheet" : "Feuille"} ${JOURNAL_SHEET_NAME}</p>
+        <p class="card-amount">${escapeHtml(amountLabel)}</p>
+      </div>
+      <div class="card-details">
+        ${createDetailMarkup(english ? "Date" : "Date", dateLabel)}
+        ${createDetailMarkup(english ? "Category" : "Catégorie", getDisplayCategoryLabel(row.Categories || "") || "-")}
+        ${parentDetailMarkup}
+        ${createDetailMarkup(english ? "Amount" : "Montant", amountLabel)}
+      </div>
+    `;
 
     refs.cardsGrid.appendChild(card);
+  });
+}
+
+function renderJournalCompactRows(filteredRows, english) {
+  filteredRows.forEach(({ row, index }) => {
+    const entry = document.createElement("article");
+    const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
+    const amountLabel = formatCurrency(row.Value) || row.Value || "-";
+    const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
+    const categoryLabel = getDisplayCategoryLabel(row.Categories || "") || (english ? "Undefined category" : "Catégorie non définie");
+    const subtitleParts = [];
+
+    if (parentLabel) {
+      subtitleParts.push(parentLabel);
+    }
+    subtitleParts.push(`${english ? "Sheet" : "Feuille"} ${JOURNAL_SHEET_NAME}`);
+
+    entry.className = `compact-entry${index === state.editingIndex ? " active" : ""}`;
+    entry.dataset.entryIndex = String(index);
+    entry.innerHTML = `
+      <div class="compact-entry-main">
+        <div class="compact-entry-top">
+          <span class="compact-entry-date">${escapeHtml(dateLabel)}</span>
+          ${parentLabel ? `<span class="card-parent-chip compact-entry-parent">${escapeHtml(parentLabel)}</span>` : ""}
+        </div>
+        <strong class="compact-entry-title">${escapeHtml(categoryLabel)}</strong>
+        <p class="compact-entry-meta">${escapeHtml(subtitleParts.join(" · "))}</p>
+      </div>
+      <div class="compact-entry-amount">${escapeHtml(amountLabel)}</div>
+      <div class="compact-entry-actions">
+        <button class="card-action" type="button" data-action="edit" aria-label="${english ? "Edit" : "Modifier"}">${english ? "Edit" : "Modifier"}</button>
+        <button class="card-action delete" type="button" data-action="delete" aria-label="${english ? "Delete" : "Supprimer"}">X</button>
+      </div>
+    `;
+    refs.cardsGrid.appendChild(entry);
   });
 }
 
