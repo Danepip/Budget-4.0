@@ -2072,16 +2072,23 @@ textarea {
 }
 
 .card-action {
-  width: 38px;
+  width: auto;
+  min-width: 44px;
   height: 38px;
+  padding: 0 14px;
   border-radius: 999px;
   border: 0;
   cursor: pointer;
   color: var(--ink);
   background: rgba(24, 51, 59, 0.07);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .card-action.delete {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
   color: #8f3519;
   background: rgba(213, 106, 63, 0.12);
 }
