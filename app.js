@@ -30,6 +30,470 @@ const APP_TAB_TRANSACTIONS = "transactions";
 const APP_TAB_FORM = "form";
 const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
+const SUPPORTED_UI_LANGUAGES = ["fr", "en"];
+const SUPPORTED_UI_THEMES = ["auto", "light", "dark"];
+const UI_STRINGS = {
+  fr: {
+    "hero.badge": "Budget",
+    "hero.kicker": "Vue simplifiée",
+    "hero.periodActive": "Période active",
+    "hero.fileActive": "Fichier actif",
+    "hero.mode": "Mode",
+    "nav.kicker": "Navigation simple",
+    "tab.dashboard.label": "Accueil",
+    "tab.dashboard.meta": "Vue budget",
+    "tab.plan.label": "Budget",
+    "tab.plan.meta": "Plan mensuel",
+    "tab.transactions.label": "Transactions",
+    "tab.transactions.meta": "Liste des écritures",
+    "tab.form.label": "Formulaire",
+    "tab.form.meta": "Nouvelle transaction",
+    "tab.analysis.label": "Analyse",
+    "tab.analysis.meta": "Comparaisons",
+    "tab.share.label": "Paramètres",
+    "tab.share.meta": "Cloud et options",
+    "tab.dashboard.title": "Tableau de bord",
+    "tab.dashboard.description": "Une lecture rapide de votre budget pour voir les soldes, les tendances et la période active.",
+    "tab.plan.title": "Budget planifié",
+    "tab.plan.description": "Fixez ici vos montants cibles pour comparer le plan et le réel sans toucher aux transactions.",
+    "tab.transactions.title": "Transactions",
+    "tab.transactions.description": "Une liste claire de vos écritures pour filtrer, relire et choisir rapidement ce que vous voulez corriger.",
+    "tab.form.title": "Formulaire",
+    "tab.form.description": "Un espace dédié à la création et à la modification d'une transaction, sans distraction autour.",
+    "tab.analysis.title": "Analyse",
+    "tab.analysis.description": "Des comparaisons claires entre revenu, dépenses, épargne et cash pour comprendre votre rythme.",
+    "tab.share.title": "Paramètres",
+    "tab.share.description": "Langue, cloud, installation, sauvegardes et préférences de l'application.",
+    "startup.title": "Bienvenue dans BUDEGETAPP",
+    "startup.description": "Commencez avec un modèle local, importez votre fichier Excel ou rejoignez un budget partagé.",
+    "startup.note": "Vous pourrez activer le partage plus tard et exporter en Excel à tout moment.",
+    "startup.startLocal": "Commencer sans fichier",
+    "startup.importExcel": "Importer un fichier Excel",
+    "startup.joinShared": "Rejoindre un espace partagé",
+    "startup.restoreDraft": "Restaurer mon brouillon local",
+    "startup.localReadyTitle": "Votre budget local est prêt.",
+    "startup.localReadyBody": "Ajoutez maintenant votre première transaction depuis le formulaire ou le bouton Nouvelle transaction.",
+    "welcome.kicker": "Bienvenue",
+    "welcome.title": "Démarrez votre budget comme vous voulez",
+    "welcome.description": "Commencez avec un modèle local, importez votre fichier Excel ou rejoignez directement un espace partagé.",
+    "welcome.pointOffline": "Hors ligne prêt",
+    "welcome.pointShareLater": "Partage activable plus tard",
+    "welcome.pointExportAnytime": "Export Excel à tout moment",
+    "toolbar.filePickerLabel": "Charger Budget_2025 Final",
+    "toolbar.filePickerHint": ".xlsx recommandé",
+    "toolbar.year": "Année",
+    "toolbar.month": "Mois",
+    "toolbar.period": "Période",
+    "toolbar.search": "Recherche",
+    "toolbar.monthHint": "Tous les mois par défaut",
+    "toolbar.searchPlaceholderJournal": "Catégorie, date, valeur...",
+    "toolbar.searchPlaceholderRecap": "Chercher un poste ou une catégorie du récap...",
+    "toolbar.searchPlaceholderAnalysis": "Période, indicateur, valeur...",
+    "toolbar.openSource": "Lier la source",
+    "toolbar.sourceProtected": "Source protégée",
+    "toolbar.sourceLinked": "Relier la source",
+    "toolbar.saveSource": "Enregistrer la source",
+    "toolbar.sourcePreserved": "Source préservée",
+    "toolbar.saveDraft": "Sauvegarde locale",
+    "toolbar.restoreDraft": "Restaurer",
+    "toolbar.restart": "Recommencer",
+    "toolbar.addRecord": "Nouvelle fiche",
+    "toolbar.newTransaction": "Nouvelle transaction",
+    "toolbar.editBudget": "Éditer le budget",
+    "toolbar.exportExcel": "Exporter Excel",
+    "toolbar.openSourceTitleReady": "Ouvre le classeur avec autorisation d'écriture directe",
+    "toolbar.saveSourceTitleReady": "Écrit les changements dans le fichier d'origine sans passer par une copie exportée",
+    "toolbar.saveDraftTitleReady": "Mémorise vos données actuelles dans le navigateur pour reprendre plus tard",
+    "toolbar.saveDraftTitleMissing": "Chargez ou restaurez un budget avant d'enregistrer un brouillon local",
+    "toolbar.restoreDraftTitleReady": "Recharge le dernier brouillon local mémorisé dans l'application",
+    "toolbar.restoreDraftTitleMissing": "Aucun brouillon local disponible pour le moment",
+    "toolbar.restartTitle": "Revient à l'écran de départ sans supprimer le brouillon local",
+    "share.kicker": "Supabase Beta",
+    "share.title": "Budget partagé en ligne",
+    "share.emailLabel": "Email pour lien magique",
+    "share.codeLabel": "Code de l'espace partagé",
+    "share.collaborationKicker": "Collaboration live",
+    "share.collaborationTitle": "Présence en ligne",
+    "share.alertsKicker": "Alertes par e-mail",
+    "share.alertsTitle": "Surveillance du budget",
+    "share.alertsEnable": "Activer les alertes",
+    "share.alertsRecipient": "Email destinataire",
+    "share.alertsCooldown": "Délai anti-spam (heures)",
+    "share.settingsKicker": "Paramètres",
+    "share.settingsTitle": "Préférences de l'application",
+    "share.historyKicker": "Historique local",
+    "share.historyTitle": "Dernières actions",
+    "share.install": "Installer l'app",
+    "share.installed": "App installée",
+    "share.magicLink": "Lien magique",
+    "share.signOut": "Déconnexion",
+    "share.createSpace": "Créer un espace",
+    "share.join": "Rejoindre",
+    "share.publishLocal": "Publier local",
+    "share.restoreAndPublish": "Restaurer et publier",
+    "share.reloadCloud": "Recharger cloud",
+    "share.connecting": "Connexion...",
+    "share.pleaseWait": "Patientez...",
+    "settings.autoRestore": "Restaurer automatiquement le brouillon",
+    "settings.showAlerts": "Afficher les alertes Budget-fra",
+    "settings.showSuggestions": "Afficher les suggestions intelligentes",
+    "settings.language": "Langue",
+    "settings.theme": "Thème",
+    "settings.statusOn": "Le brouillon local se recharge automatiquement au prochain lancement si vous ne recommencez pas.",
+    "settings.statusOff": "Le prochain lancement reviendra à l'écran de bienvenue tant que vous ne restaurez pas le brouillon.",
+    "settings.hintOn": "Les suggestions intelligentes sont visibles dans l'accueil et l'analyse, en plus des alertes.",
+    "settings.hintOff": "Les suggestions restent discrètes pour garder l'application légère. Vous pouvez les réactiver ici.",
+    "history.undo": "Annuler la dernière action",
+    "history.statusReady": "La dernière action peut encore être annulée sur cet appareil.",
+    "history.statusEmpty": "Aucune action récente à annuler pour le moment.",
+    "history.empty": "Aucune action mémorisée pour le moment.",
+    "cloud.codePlaceholderSignedIn": "code à partager",
+    "cloud.codePlaceholderSignedOut": "entrez le code puis connectez-vous",
+    "cloud.codeTitleSignedIn": "Collez le code de partage reçu, puis touchez Rejoindre",
+    "cloud.codeTitleSignedOut": "Vous pouvez déjà saisir le code. Connectez-vous ensuite avec Lien magique pour rejoindre l'espace",
+    "cloud.joinTitleSignedOut": "Connectez-vous d'abord avec Lien magique, puis rejoignez l'espace avec ce code",
+    "cloud.joinTitleNoCode": "Entrez un code de partage pour rejoindre un espace",
+    "cloud.joinTitleReady": "Rejoindre cet espace partagé",
+    "cloud.identityConnected": "Compte : {email}",
+    "cloud.identityDisconnected": "Compte : non connecté",
+    "cloud.spaceSelected": "Espace : {name}",
+    "cloud.spaceNone": "Espace : aucun",
+    "cloud.joinCodeSelected": "Code de partage : {code}",
+    "cloud.joinCodeNone": "Code de partage : à créer ou rejoindre",
+    "cloud.lastPull": "Dernier chargement : {value}",
+    "cloud.lastPullNone": "Dernier chargement : aucun",
+    "cloud.lastPush": "Dernière publication : {value}",
+    "cloud.lastPushNone": "Dernière publication : aucune",
+    "cloud.collabNotReady": "Supabase doit être configuré pour activer la présence en ligne.",
+    "cloud.collabNotSignedIn": "Connectez-vous à un espace partagé pour voir qui est en ligne et qui modifie l'application.",
+    "cloud.collabNoSpace": "Présence prête. Créez ou rejoignez un espace partagé pour collaborer en direct.",
+    "cloud.collabAlone": "Vous êtes seul en ligne pour le moment.",
+    "cloud.collabOthers": "{count} autre{plural} utilisateur{plural} en ligne maintenant.",
+    "cloud.presenceYou": "Vous",
+    "cloud.presenceInTab": "dans {tab}",
+    "cloud.presenceEmptyTitle": "Aucune présence active",
+    "cloud.presenceEmptyBody": "Connectez-vous à un espace partagé pour lancer la collaboration en direct.",
+    "cloud.livePrefix": "Activité en direct : {message}",
+    "cloud.liveEmpty": "Aucune activité en direct pour le moment.",
+    "alerts.statusNotConfigured": "La fonction d'alerte email n'est pas configurée côté Supabase.",
+    "alerts.statusNotReady": "Supabase doit être configuré pour activer les alertes email.",
+    "alerts.statusDisabled": "Alertes email désactivées.",
+    "alerts.statusSignIn": "Alertes email prêtes. Connectez-vous puis publiez un budget pour surveiller les dépassements.",
+    "alerts.statusNoSpace": "Alertes email actives. Créez ou rejoignez un espace partagé pour lancer la surveillance.",
+    "alerts.statusNoRecipient": "Alertes email actives. Ajoutez un email destinataire ou laissez la connexion fournir votre adresse.",
+    "alerts.statusRecipient": "Alertes email actives vers {email}. Délai actuel : {hours} h.",
+    "alerts.hintRecipient": "Les alertes se basent sur les lignes rouges du comparatif courant.",
+    "alerts.hintNoRecipient": "Laissez l'email vide pour utiliser l'adresse du compte connecté. Les alertes se basent sur les lignes rouges du comparatif courant.",
+    "draft.none": "Aucun brouillon local mémorisé.",
+    "draft.cloud": "Mode cloud partagé actif.{suffix}",
+    "draft.local": "Mode autonome local actif.{suffix}",
+    "draft.backup": "Brouillon local prêt en secours.{suffix}",
+    "draft.available": "Brouillon local disponible.{suffix} Cliquez sur Restaurer pour reprendre vos données.",
+    "stats.transactions": "Transactions",
+    "stats.fields": "Champs",
+    "stats.periods": "Périodes",
+    "stats.charts": "Graphiques",
+    "stats.monthsAvailable": "Mois disponibles",
+    "stats.noSheet": "Aucune",
+    "stats.readyImport": "Prêt pour l'import",
+    "stats.loadOrLinkSource": "Chargez ou liez la source",
+    "stats.loadFile": "Chargez un fichier",
+    "stats.recapView": "Vue récap - {period}",
+    "stats.analysisView": "Vue analyse - {period}",
+    "stats.journalView": "Vue Journalier",
+    "stats.journalViewPeriod": "Vue Journalier - {period}",
+    "capability.nativeExcelShare": "Partage natif Excel",
+    "capability.exportWorkbook": "Export vers le classeur",
+    "capability.supabaseActive": "Supabase partagé actif",
+    "capability.sourceLinkedAuto": "Source liée - sauvegarde automatique active",
+    "capability.localStandaloneExport": "Mode autonome - export copie locale",
+    "capability.sourcePreservedCopy": "Source préservée - export copie uniquement",
+    "capability.exportOrLink": "Export ou liaison source",
+    "workbook.sharedCloud": "{name} - cloud partagé",
+    "workbook.localData": "Données locales",
+    "workbook.noFile": "Aucun fichier",
+    "workbook.localDataNamed": "{name} - données locales",
+    "workbook.protectedSource": "{name} - source protégée",
+    "workbook.linkedSource": "{name} - source liée",
+    "cards.kickerBudget": "Budget",
+    "cards.titlePlanVsActual": "Plan vs réel",
+    "cards.captionPlanVsActual": "Réglez vos montants cibles à gauche, puis vérifiez à droite comment ils se comparent au réel sur la période choisie.",
+    "cards.kickerRecap": "Récapitulatif",
+    "cards.titleRecap": "Vue récap du budget",
+    "cards.captionRecap": "Synthèse reconstruite depuis TCD et vos transactions Journalier, avec un filtre par année et par mois pour comparer les périodes disponibles.",
+    "cards.kickerAnalysis": "Comparaisons",
+    "cards.titleAnalysis": "Revenu, dépenses et épargne en perspective",
+    "cards.captionAnalysis": "Cette vue ajoute des comparaisons et des graphiques pertinents à partir de Journalier pour suivre l'équilibre entre revenu, dépenses, épargne et cash.",
+    "cards.kickerJournal": "Journalier",
+    "cards.titleJournal": "Les écritures deviennent des fiches",
+    "cards.captionJournal": "Cette vue utilise Journalier!D:F, garde la liste des catégories de Journalier!B et reprend le même filtre année/mois que le récapitulatif.",
+    "filters.allYears": "Toutes les années",
+    "filters.allMonths": "Tous les mois",
+    "filters.allPeriod": "Toute la période",
+    "filter.monthsTrigger.all": "Tous les mois",
+    "form.kickerPlannedBudget": "Budget planifié",
+    "form.kickerForm": "Formulaire",
+    "form.save": "Enregistrer",
+    "form.reset": "Réinitialiser",
+    "form.newRecord": "Nouvelle fiche",
+    "form.startFirst": "Démarrez d'abord votre budget local ou importez votre fichier Excel.",
+    "form.readOnlyRecap": "Vue récap",
+    "form.readOnlyAnalysis": "Vue comparaisons",
+    "form.readOnlySubtitle": "Lecture seule dans l'application.",
+    "form.editTransaction": "Modifier la transaction",
+    "form.newTransaction": "Nouvelle transaction",
+    "form.saveBudget": "Enregistrer le budget",
+    "form.reloadValues": "Recharger les valeurs",
+    "form.monthlyBudget": "Budget mensuel",
+    "form.monthlyBudgetEmpty": "Commencez avec un modèle local ou importez votre budget pour fixer les montants cibles.",
+    "form.startBudgetTitle": "Commencez votre budget",
+    "form.startBudgetDescription": "Le formulaire Date / Categories / Value sera activé dès que vous créerez un modèle local, importerez Excel ou rejoindrez un espace partagé.",
+    "form.startBudgetNote": "Le modèle local suffit pour commencer tout de suite, même sans fichier Excel.",
+    "form.readOnlyRecapBody": "Cette vue n'édite pas directement la feuille récapitulative d'Excel. Elle reconstruit une synthèse lisible à partir de {recap}, {tcd} et de vos transactions {journal}. Pour modifier les données, revenez sur la vue Journalier.",
+    "form.readOnlyAnalysisBody": "Cette vue ajoute des comparaisons et des graphiques à partir des écritures de {journal}. Elle est destinée à l'analyse. Pour modifier les données, revenez sur la vue Journalier.",
+    "form.subtitleWorkbook": "Ajoutez ou modifiez vos transactions. Les vues de récapitulatif et de comparaison se recalculent aussitôt.",
+    "form.subtitleCloud": "Mode cloud partagé. Ajoutez ou modifiez vos transactions, Supabase les republie pour les autres personnes.",
+    "form.subtitleLocal": "Mode autonome local. Ajoutez ou modifiez vos transactions, les graphiques se mettent à jour aussitôt et l'export reste disponible.",
+    "form.editingWorkbook": "Saisie directe de Journalier!D:F avec catégories prédéfinies depuis la colonne B.",
+    "form.editingCloud": "Mode cloud partagé : chaque enregistrement met à jour vos vues locales et synchronise Supabase.",
+    "form.editingLocal": "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.",
+    "language.fr": "Français",
+    "language.en": "English",
+    "theme.auto": "Auto",
+    "theme.light": "Clair",
+    "theme.dark": "Sombre",
+  },
+  en: {
+    "hero.badge": "Budget",
+    "hero.kicker": "Simplified view",
+    "hero.periodActive": "Active period",
+    "hero.fileActive": "Active file",
+    "hero.mode": "Mode",
+    "nav.kicker": "Simple navigation",
+    "tab.dashboard.label": "Home",
+    "tab.dashboard.meta": "Budget view",
+    "tab.plan.label": "Budget",
+    "tab.plan.meta": "Monthly plan",
+    "tab.transactions.label": "Transactions",
+    "tab.transactions.meta": "Entries list",
+    "tab.form.label": "Form",
+    "tab.form.meta": "New transaction",
+    "tab.analysis.label": "Analysis",
+    "tab.analysis.meta": "Comparisons",
+    "tab.share.label": "Settings",
+    "tab.share.meta": "Cloud and options",
+    "tab.dashboard.title": "Dashboard",
+    "tab.dashboard.description": "A quick view of your budget to see balances, trends, and the active period.",
+    "tab.plan.title": "Planned budget",
+    "tab.plan.description": "Set your target amounts here to compare plan and actual without touching transactions.",
+    "tab.transactions.title": "Transactions",
+    "tab.transactions.description": "A clear list of your entries to filter, review, and quickly choose what you want to correct.",
+    "tab.form.title": "Form",
+    "tab.form.description": "A dedicated space to create and edit a transaction without distractions.",
+    "tab.analysis.title": "Analysis",
+    "tab.analysis.description": "Clear comparisons between income, expenses, savings, and cash to understand your rhythm.",
+    "tab.share.title": "Settings",
+    "tab.share.description": "Language, cloud, install, backups, and app preferences live here.",
+    "startup.title": "Welcome to BUDEGETAPP",
+    "startup.description": "Start with a local template, import your Excel file, or join a shared budget.",
+    "startup.note": "You can enable sharing later and export to Excel at any time.",
+    "startup.startLocal": "Start without a file",
+    "startup.importExcel": "Import an Excel file",
+    "startup.joinShared": "Join a shared space",
+    "startup.restoreDraft": "Restore my local draft",
+    "startup.localReadyTitle": "Your local budget is ready.",
+    "startup.localReadyBody": "Now add your first transaction from the form or the New transaction button.",
+    "welcome.kicker": "Welcome",
+    "welcome.title": "Start your budget your way",
+    "welcome.description": "Begin with a local template, import your Excel file, or jump straight into a shared space.",
+    "welcome.pointOffline": "Offline ready",
+    "welcome.pointShareLater": "Sharing can be enabled later",
+    "welcome.pointExportAnytime": "Excel export anytime",
+    "toolbar.filePickerLabel": "Load Budget_2025 Final",
+    "toolbar.filePickerHint": ".xlsx recommended",
+    "toolbar.year": "Year",
+    "toolbar.month": "Month",
+    "toolbar.period": "Period",
+    "toolbar.search": "Search",
+    "toolbar.monthHint": "All months by default",
+    "toolbar.searchPlaceholderJournal": "Category, date, value...",
+    "toolbar.searchPlaceholderRecap": "Search a recap item or category...",
+    "toolbar.searchPlaceholderAnalysis": "Period, metric, value...",
+    "toolbar.openSource": "Link source",
+    "toolbar.sourceProtected": "Protected source",
+    "toolbar.sourceLinked": "Relink source",
+    "toolbar.saveSource": "Save source",
+    "toolbar.sourcePreserved": "Source preserved",
+    "toolbar.saveDraft": "Local backup",
+    "toolbar.restoreDraft": "Restore",
+    "toolbar.restart": "Restart",
+    "toolbar.addRecord": "New record",
+    "toolbar.newTransaction": "New transaction",
+    "toolbar.editBudget": "Edit budget",
+    "toolbar.exportExcel": "Export Excel",
+    "toolbar.openSourceTitleReady": "Open the workbook with direct write permission",
+    "toolbar.saveSourceTitleReady": "Write changes into the original file without exporting a copy first",
+    "toolbar.saveDraftTitleReady": "Save your current data in the browser so you can continue later",
+    "toolbar.saveDraftTitleMissing": "Load or restore a budget before saving a local draft",
+    "toolbar.restoreDraftTitleReady": "Reload the latest local draft saved in the app",
+    "toolbar.restoreDraftTitleMissing": "No local draft available right now",
+    "toolbar.restartTitle": "Return to the welcome screen without deleting the local draft",
+    "share.kicker": "Supabase Beta",
+    "share.title": "Shared budget online",
+    "share.emailLabel": "Email for magic link",
+    "share.codeLabel": "Shared space code",
+    "share.collaborationKicker": "Live collaboration",
+    "share.collaborationTitle": "Online presence",
+    "share.alertsKicker": "Email alerts",
+    "share.alertsTitle": "Budget monitoring",
+    "share.alertsEnable": "Enable alerts",
+    "share.alertsRecipient": "Recipient email",
+    "share.alertsCooldown": "Anti-spam delay (hours)",
+    "share.settingsKicker": "Settings",
+    "share.settingsTitle": "App preferences",
+    "share.historyKicker": "Local history",
+    "share.historyTitle": "Recent actions",
+    "share.install": "Install app",
+    "share.installed": "App installed",
+    "share.magicLink": "Magic link",
+    "share.signOut": "Sign out",
+    "share.createSpace": "Create a space",
+    "share.join": "Join",
+    "share.publishLocal": "Publish local",
+    "share.restoreAndPublish": "Restore and publish",
+    "share.reloadCloud": "Reload cloud",
+    "share.connecting": "Connecting...",
+    "share.pleaseWait": "Please wait...",
+    "settings.autoRestore": "Automatically restore the draft",
+    "settings.showAlerts": "Show Budget-fra alerts",
+    "settings.showSuggestions": "Show smart suggestions",
+    "settings.language": "Language",
+    "settings.theme": "Theme",
+    "settings.statusOn": "The local draft will reload automatically on next launch if you do not restart.",
+    "settings.statusOff": "The next launch will return to the welcome screen until you restore the draft.",
+    "settings.hintOn": "Smart suggestions are visible in Home and Analysis in addition to alerts.",
+    "settings.hintOff": "Suggestions stay discreet to keep the app light. You can re-enable them here.",
+    "history.undo": "Undo last action",
+    "history.statusReady": "The last action can still be undone on this device.",
+    "history.statusEmpty": "No recent action to undo right now.",
+    "history.empty": "No action recorded yet.",
+    "cloud.codePlaceholderSignedIn": "share code",
+    "cloud.codePlaceholderSignedOut": "enter the code then sign in",
+    "cloud.codeTitleSignedIn": "Paste the received share code, then tap Join",
+    "cloud.codeTitleSignedOut": "You can already enter the code. Then sign in with Magic link to join the space",
+    "cloud.joinTitleSignedOut": "Sign in first with Magic link, then join the space with this code",
+    "cloud.joinTitleNoCode": "Enter a share code to join a space",
+    "cloud.joinTitleReady": "Join this shared space",
+    "cloud.identityConnected": "Account: {email}",
+    "cloud.identityDisconnected": "Account: not connected",
+    "cloud.spaceSelected": "Space: {name}",
+    "cloud.spaceNone": "Space: none",
+    "cloud.joinCodeSelected": "Share code: {code}",
+    "cloud.joinCodeNone": "Share code: create or join one",
+    "cloud.lastPull": "Last load: {value}",
+    "cloud.lastPullNone": "Last load: none",
+    "cloud.lastPush": "Last publish: {value}",
+    "cloud.lastPushNone": "Last publish: none",
+    "cloud.collabNotReady": "Supabase must be configured to enable online presence.",
+    "cloud.collabNotSignedIn": "Sign in to a shared space to see who is online and who is editing the app.",
+    "cloud.collabNoSpace": "Presence is ready. Create or join a shared space to collaborate live.",
+    "cloud.collabAlone": "You are the only one online right now.",
+    "cloud.collabOthers": "{count} other user{plural} online right now.",
+    "cloud.presenceYou": "You",
+    "cloud.presenceInTab": "in {tab}",
+    "cloud.presenceEmptyTitle": "No active presence",
+    "cloud.presenceEmptyBody": "Sign in to a shared space to start live collaboration.",
+    "cloud.livePrefix": "Live activity: {message}",
+    "cloud.liveEmpty": "No live activity at the moment.",
+    "alerts.statusNotConfigured": "The email alert function is not configured on the Supabase side.",
+    "alerts.statusNotReady": "Supabase must be configured to enable email alerts.",
+    "alerts.statusDisabled": "Email alerts are disabled.",
+    "alerts.statusSignIn": "Email alerts are ready. Sign in and publish a budget to watch for overruns.",
+    "alerts.statusNoSpace": "Email alerts are active. Create or join a shared space to start monitoring.",
+    "alerts.statusNoRecipient": "Email alerts are active. Add a recipient email or let the signed-in account provide one.",
+    "alerts.statusRecipient": "Email alerts are active for {email}. Current delay: {hours} h.",
+    "alerts.hintRecipient": "Alerts rely on the red rows in the current comparison.",
+    "alerts.hintNoRecipient": "Leave the email blank to use the signed-in account address. Alerts rely on the red rows in the current comparison.",
+    "draft.none": "No local draft saved.",
+    "draft.cloud": "Shared cloud mode active.{suffix}",
+    "draft.local": "Local standalone mode active.{suffix}",
+    "draft.backup": "Local draft ready as backup.{suffix}",
+    "draft.available": "Local draft available.{suffix} Click Restore to resume your data.",
+    "stats.transactions": "Transactions",
+    "stats.fields": "Fields",
+    "stats.periods": "Periods",
+    "stats.charts": "Charts",
+    "stats.monthsAvailable": "Available months",
+    "stats.noSheet": "None",
+    "stats.readyImport": "Ready to import",
+    "stats.loadOrLinkSource": "Load or link the source",
+    "stats.loadFile": "Load a file",
+    "stats.recapView": "Recap view - {period}",
+    "stats.analysisView": "Analysis view - {period}",
+    "stats.journalView": "Journal view",
+    "stats.journalViewPeriod": "Journal view - {period}",
+    "capability.nativeExcelShare": "Native Excel sharing",
+    "capability.exportWorkbook": "Export to workbook",
+    "capability.supabaseActive": "Supabase sharing active",
+    "capability.sourceLinkedAuto": "Linked source - automatic saving active",
+    "capability.localStandaloneExport": "Standalone mode - local copy export",
+    "capability.sourcePreservedCopy": "Source preserved - copy export only",
+    "capability.exportOrLink": "Export or link source",
+    "workbook.sharedCloud": "{name} - shared cloud",
+    "workbook.localData": "Local data",
+    "workbook.noFile": "No file",
+    "workbook.localDataNamed": "{name} - local data",
+    "workbook.protectedSource": "{name} - protected source",
+    "workbook.linkedSource": "{name} - linked source",
+    "cards.kickerBudget": "Budget",
+    "cards.titlePlanVsActual": "Plan vs actual",
+    "cards.captionPlanVsActual": "Set your target amounts on the left, then check on the right how they compare with the actual figures for the selected period.",
+    "cards.kickerRecap": "Recap",
+    "cards.titleRecap": "Budget recap view",
+    "cards.captionRecap": "Summary rebuilt from TCD and your Journalier transactions, with year and month filters to compare available periods.",
+    "cards.kickerAnalysis": "Comparisons",
+    "cards.titleAnalysis": "Income, expenses, and savings in perspective",
+    "cards.captionAnalysis": "This view adds useful comparisons and charts from Journalier to track the balance between income, expenses, savings, and cash.",
+    "cards.kickerJournal": "Journal",
+    "cards.titleJournal": "Entries become cards",
+    "cards.captionJournal": "This view uses Journalier!D:F, keeps the category list from Journalier!B, and uses the same year/month filter as the recap.",
+    "filters.allYears": "All years",
+    "filters.allMonths": "All months",
+    "filters.allPeriod": "Whole period",
+    "filter.monthsTrigger.all": "All months",
+    "form.kickerPlannedBudget": "Planned budget",
+    "form.kickerForm": "Form",
+    "form.save": "Save",
+    "form.reset": "Reset",
+    "form.newRecord": "New record",
+    "form.startFirst": "Start your local budget first or import your Excel file.",
+    "form.readOnlyRecap": "Recap view",
+    "form.readOnlyAnalysis": "Comparison view",
+    "form.readOnlySubtitle": "Read-only in the app.",
+    "form.editTransaction": "Edit transaction",
+    "form.newTransaction": "New transaction",
+    "form.saveBudget": "Save budget",
+    "form.reloadValues": "Reload values",
+    "form.monthlyBudget": "Monthly budget",
+    "form.monthlyBudgetEmpty": "Start with a local template or import your budget to set target amounts.",
+    "form.startBudgetTitle": "Start your budget",
+    "form.startBudgetDescription": "The Date / Categories / Value form will become active as soon as you create a local template, import Excel, or join a shared space.",
+    "form.startBudgetNote": "The local template is enough to get started right away, even without an Excel file.",
+    "form.readOnlyRecapBody": "This view does not edit the Excel recap sheet directly. It rebuilds a readable summary from {recap}, {tcd}, and your {journal} transactions. To modify the data, go back to the Journal view.",
+    "form.readOnlyAnalysisBody": "This view adds comparisons and charts from the entries in {journal}. It is meant for analysis. To modify the data, go back to the Journal view.",
+    "form.subtitleWorkbook": "Add or edit your transactions. Recap and comparison views update right away.",
+    "form.subtitleCloud": "Shared cloud mode. Add or edit your transactions and Supabase republishes them for other people.",
+    "form.subtitleLocal": "Local standalone mode. Add or edit your transactions, charts refresh instantly, and export remains available.",
+    "form.editingWorkbook": "Direct entry into Journalier!D:F with predefined categories from column B.",
+    "form.editingCloud": "Shared cloud mode: each save updates your local views and syncs with Supabase.",
+    "form.editingLocal": "Local standalone mode: your categories, recaps, and charts update every time you save.",
+    "language.fr": "Français",
+    "language.en": "English",
+    "theme.auto": "Auto",
+    "theme.light": "Light",
+    "theme.dark": "Dark",
+  },
+};
 const FALLBACK_PLAN_TEMPLATE = [
   { label: "Income 1", plan: "7873,58", period: "monthly", group: "income" },
   { label: "Income 2", plan: "0", period: "monthly", group: "income" },
@@ -504,11 +968,15 @@ let supabaseRealtimeChannel = null;
 let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
 let nativeSupabaseRedirectListenerBound = false;
+let colorSchemeMedia = null;
+let colorSchemeListenerBound = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
   bindEvents();
   applyStoredSettings();
+  applyUiTheme();
+  bindColorSchemePreferenceListener();
   applyStoredRecurringTemplates();
   applyStoredHistoryState();
   if (!isStartupWelcomeModeEnabled() && state.settings.autoRestoreDraft) {
@@ -542,10 +1010,125 @@ function createEmptyRecapModel() {
 
 function createDefaultUiSettings() {
   return {
+    language: "fr",
+    theme: "auto",
     autoRestoreDraft: true,
     showBudgetFraAlerts: true,
     showBudgetFraSuggestions: false,
   };
+}
+
+function normalizeUiLanguage(value) {
+  const nextValue = String(value || "").trim().toLowerCase();
+  return SUPPORTED_UI_LANGUAGES.includes(nextValue) ? nextValue : "fr";
+}
+
+function normalizeUiTheme(value) {
+  const nextValue = String(value || "").trim().toLowerCase();
+  return SUPPORTED_UI_THEMES.includes(nextValue) ? nextValue : "auto";
+}
+
+function getCurrentLanguage() {
+  return normalizeUiLanguage(state?.settings?.language || "fr");
+}
+
+function getCurrentThemePreference() {
+  return normalizeUiTheme(state?.settings?.theme || "auto");
+}
+
+function getResolvedTheme() {
+  const themePreference = getCurrentThemePreference();
+  if (themePreference === "auto") {
+    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+  }
+
+  return themePreference;
+}
+
+function updateThemeMetaColor(theme) {
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) {
+    metaTheme.setAttribute("content", theme === "dark" ? "#102228" : "#18333b");
+  }
+}
+
+function applyUiTheme() {
+  const resolvedTheme = getResolvedTheme();
+  if (document?.body) {
+    document.body.dataset.theme = resolvedTheme;
+    document.body.dataset.themePreference = getCurrentThemePreference();
+  }
+
+  if (document?.documentElement) {
+    document.documentElement.style.colorScheme = resolvedTheme;
+  }
+
+  updateThemeMetaColor(resolvedTheme);
+}
+
+function onSystemThemePreferenceChanged() {
+  if (getCurrentThemePreference() === "auto") {
+    applyUiTheme();
+  }
+}
+
+function bindColorSchemePreferenceListener() {
+  if (!window.matchMedia || colorSchemeListenerBound) {
+    return;
+  }
+
+  colorSchemeMedia = window.matchMedia("(prefers-color-scheme: dark)");
+  if (typeof colorSchemeMedia.addEventListener === "function") {
+    colorSchemeMedia.addEventListener("change", onSystemThemePreferenceChanged);
+    colorSchemeListenerBound = true;
+    return;
+  }
+
+  if (typeof colorSchemeMedia.addListener === "function") {
+    colorSchemeMedia.addListener(onSystemThemePreferenceChanged);
+    colorSchemeListenerBound = true;
+  }
+}
+
+function isEnglishUi() {
+  return getCurrentLanguage() === "en";
+}
+
+function getUiLocale() {
+  return isEnglishUi() ? "en-CA" : "fr-CA";
+}
+
+function translateTemplate(template, variables = {}) {
+  return String(template || "").replace(/\{(\w+)\}/g, (_, key) => {
+    const value = variables[key];
+    return value === undefined || value === null ? "" : String(value);
+  });
+}
+
+function t(key, variables = {}) {
+  const lang = getCurrentLanguage();
+  const dictionary = UI_STRINGS[lang] || UI_STRINGS.fr;
+  const fallback = UI_STRINGS.fr[key];
+  const template = dictionary[key] ?? fallback ?? key;
+  return translateTemplate(template, variables);
+}
+
+function setNodeText(target, value) {
+  if (target) {
+    target.textContent = value;
+  }
+}
+
+function setNodePlaceholder(target, value) {
+  if (target) {
+    target.placeholder = value;
+  }
+}
+
+function setDocumentLanguage() {
+  if (document?.documentElement) {
+    document.documentElement.lang = getCurrentLanguage();
+  }
 }
 
 function createEmptyHistoryState() {
@@ -595,6 +1178,8 @@ function readStoredSettings() {
 function sanitizeUiSettings(rawSettings) {
   const defaults = createDefaultUiSettings();
   return {
+    language: normalizeUiLanguage(rawSettings?.language || defaults.language),
+    theme: normalizeUiTheme(rawSettings?.theme || defaults.theme),
     autoRestoreDraft: rawSettings?.autoRestoreDraft !== false,
     showBudgetFraAlerts: rawSettings?.showBudgetFraAlerts !== false,
     showBudgetFraSuggestions: rawSettings?.showBudgetFraSuggestions === true,
@@ -796,9 +1381,9 @@ function buildDefaultRecurringTemplatesFromPlan(planTemplate = buildLocalStarter
 }
 
 function buildStartupGuideMarkup(options = {}) {
-  const title = options.title || "Bienvenue dans BUDEGETAPP";
-  const description = options.description || "Commencez avec un modèle local, importez votre fichier Excel ou rejoignez un budget partagé.";
-  const note = options.note || "Vous pourrez activer le partage plus tard et exporter en Excel à tout moment.";
+  const title = options.title || t("startup.title");
+  const description = options.description || t("startup.description");
+  const note = options.note || t("startup.note");
   const showRestore = options.showRestore !== false && hasStoredBudgetDraft();
 
   return `
@@ -807,10 +1392,10 @@ function buildStartupGuideMarkup(options = {}) {
       <p>${escapeHtml(description)}</p>
     </div>
     <div class="empty-state-actions">
-      <button type="button" class="button primary" data-empty-action="start-local">Commencer sans fichier</button>
-      <button type="button" class="button ghost" data-empty-action="import-excel">Importer un fichier Excel</button>
-      <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partagé</button>
-      ${showRestore ? '<button type="button" class="button ghost" data-empty-action="restore-draft">Restaurer mon brouillon local</button>' : ""}
+      <button type="button" class="button primary" data-empty-action="start-local">${escapeHtml(t("startup.startLocal"))}</button>
+      <button type="button" class="button ghost" data-empty-action="import-excel">${escapeHtml(t("startup.importExcel"))}</button>
+      <button type="button" class="button ghost" data-empty-action="go-share">${escapeHtml(t("startup.joinShared"))}</button>
+      ${showRestore ? `<button type="button" class="button ghost" data-empty-action="restore-draft">${escapeHtml(t("startup.restoreDraft"))}</button>` : ""}
     </div>
     <p class="empty-state-note">${escapeHtml(note)}</p>
   `;
@@ -818,8 +1403,8 @@ function buildStartupGuideMarkup(options = {}) {
 
 function buildLocalTransactionsEmptyStateMarkup() {
   return [
-    "<strong>Votre budget local est prêt.</strong>",
-    "<p>Ajoutez maintenant votre première transaction depuis le formulaire ou le bouton Nouvelle transaction.</p>",
+    `<strong>${escapeHtml(t("startup.localReadyTitle"))}</strong>`,
+    `<p>${escapeHtml(t("startup.localReadyBody"))}</p>`,
   ].join("");
 }
 
@@ -909,7 +1494,18 @@ function normalizePlanPeriod(value) {
 }
 
 function getPlanPeriodLabel(value) {
-  return PLAN_PERIOD_OPTIONS.find((option) => option.value === normalizePlanPeriod(value))?.label || "Par mois";
+  const normalized = normalizePlanPeriod(value);
+  if (getCurrentLanguage() === "en") {
+    if (normalized === "weekly") {
+      return "Per week";
+    }
+    if (normalized === "biweekly") {
+      return "Every 2 weeks";
+    }
+    return "Per month";
+  }
+
+  return PLAN_PERIOD_OPTIONS.find((option) => option.value === normalized)?.label || "Par mois";
 }
 
 function inferPlanGroupFromLabel(label) {
@@ -1039,7 +1635,7 @@ function buildAvailableFormCategories() {
   );
 
   return fallbackItems.length
-    ? [{ key: "fallback", label: "Categories du budget", items: fallbackItems }]
+    ? [{ key: "fallback", label: isEnglishUi() ? "Budget categories" : "Catégories du budget", items: fallbackItems }]
     : [];
 }
 
@@ -1275,12 +1871,74 @@ function getBudgetFraCategoryMeta(categoryKey) {
       tone: "default",
     };
   }
-  return BUDGET_FRA_GROUP_META[categoryKey] || BUDGET_FRA_GROUP_META.custom;
+  const meta = BUDGET_FRA_GROUP_META[categoryKey] || BUDGET_FRA_GROUP_META.custom;
+  if (!isEnglishUi()) {
+    return meta;
+  }
+
+  const englishMetaMap = {
+    income: { label: "Income", description: "Household money coming in" },
+    savings: { label: "Savings", description: "Reserve, goals, and accumulation" },
+    debt: { label: "Debt repayment", description: "Credit cards, loans, and obligations" },
+    housing: { label: "Housing", description: "Rent, mortgage, and home costs" },
+    communications: { label: "Communications", description: "Phone, internet, and digital services" },
+    food: { label: "Food", description: "Groceries and dining" },
+    insurance: { label: "Insurance", description: "Protection and coverage" },
+    transportation: { label: "Transportation", description: "Car, fuel, and travel" },
+    childcare: { label: "Childcare", description: "Child-related expenses" },
+    education: { label: "Education", description: "School costs and learning" },
+    "recréation": { label: "Recreation", description: "Going out, sports, travel, and entertainment" },
+    recreation: { label: "Recreation", description: "Going out, sports, travel, and entertainment" },
+    personalcare: { label: "Personal care", description: "Hair, cosmetics, and personal upkeep" },
+    clothing: { label: "Clothing", description: "Clothes, accessories, and shoes" },
+    medical: { label: "Medical care", description: "Health and specialized care" },
+    pets: { label: "Pets", description: "Pet-related expenses" },
+    fees: { label: "Fees", description: "Memberships and miscellaneous charges" },
+    gifts: { label: "Gifts and donations", description: "Gifts, hosting, and donations" },
+    custom: { label: "Other items", description: "Items to classify or customize" },
+  };
+
+  const localized = englishMetaMap[categoryKey];
+  return localized ? { ...meta, ...localized } : meta;
+}
+
+function getBudgetFraRuleDisplayTitle(ruleKey) {
+  if (isEnglishUi()) {
+    const englishTitles = {
+      income: "Income",
+      savings: "Savings",
+      debt: "Debt",
+      housing: "Housing",
+      communications: "Communications",
+      food: "Food",
+      insurance: "Insurance",
+      transportation: "Transportation",
+    };
+    return englishTitles[ruleKey] || getBudgetFraCategoryMeta(ruleKey).label || "";
+  }
+
+  const frenchTitles = {
+    income: "Revenu",
+    savings: "Épargnes",
+    debt: "Dettes",
+    housing: "Logement",
+    communications: "Communications",
+    food: "Alimentation",
+    insurance: "Assurances",
+    transportation: "Transport",
+  };
+  return frenchTitles[ruleKey] || getBudgetFraCategoryMeta(ruleKey).label || "";
+}
+
+function formatBudgetFraRatioLabel(ratio) {
+  const percentage = `${(ratio * 100).toFixed(1)} %`;
+  return isEnglishUi() ? `${percentage} of income` : `${percentage} du revenu`;
 }
 
 function getBudgetFraCategoryLabel(label, planGroup = "", amountValue = null) {
   if (BUDGET_RULES_API?.resolveBudgetCategoryRule) {
-    return getResolvedBudgetCategoryRule(label, planGroup, amountValue).parentLabel || "";
+    const rule = getResolvedBudgetCategoryRule(label, planGroup, amountValue);
+    return getBudgetFraCategoryMeta(rule.parent).label || "";
   }
 
   return getBudgetFraCategoryMeta(inferBudgetFraCategory(label, planGroup, amountValue)).label;
@@ -1385,16 +2043,16 @@ function sortBudgetSummaryRows(rows) {
 function getBudgetSummaryCardMeta(label) {
   const normalized = normalizeHeaderName(label);
 
-  if (normalized === "income") {
-    return { title: "Revenu", tone: "income" };
+  if (normalized === "income" || normalized === "total income") {
+    return { title: isEnglishUi() ? "Income" : "Revenu", tone: "income" };
   }
 
   if (normalized === "expenses" || normalized === "total expenses") {
-    return { title: "Dépenses", tone: "expenses" };
+    return { title: isEnglishUi() ? "Expenses" : "Dépenses", tone: "expenses" };
   }
 
   if (normalized === "total savings") {
-    return { title: "Épargne", tone: "savings" };
+    return { title: isEnglishUi() ? "Savings" : "Épargne", tone: "savings" };
   }
 
   if (normalized === "cash short/extra") {
@@ -1408,19 +2066,19 @@ function getMetricDisplayLabel(label) {
   const normalized = normalizeHeaderName(label);
 
   if (normalized === "income") {
-    return "Revenu";
+    return isEnglishUi() ? "Income" : "Revenu";
   }
 
   if (normalized === "expenses" || normalized === "total expenses") {
-    return "Dépenses";
+    return isEnglishUi() ? "Expenses" : "Dépenses";
   }
 
   if (normalized === "savings" || normalized === "total savings") {
-    return "Épargne";
+    return isEnglishUi() ? "Savings" : "Épargne";
   }
 
   if (normalized === "seasonal savings" || normalized === "savings for seasonal exp.") {
-    return "Épargne saisonnière";
+    return isEnglishUi() ? "Seasonal savings" : "Épargne saisonnière";
   }
 
   if (normalized === "cash" || normalized === "cash short/extra") {
@@ -1518,6 +2176,7 @@ function computePlanGroupMonthlyTotal(rows) {
 }
 
 function renderPlanGroupSection(categoryKey, rows, startIndex, readOnly = false, groupIndex = 0) {
+  const english = getCurrentLanguage() === "en";
   const section = document.createElement("details");
   section.className = "plan-group-section budget-panel";
   section.setAttribute("data-budget-group", categoryKey);
@@ -1527,27 +2186,27 @@ function renderPlanGroupSection(categoryKey, rows, startIndex, readOnly = false,
   heading.className = "plan-group-header";
   heading.innerHTML = `
     <div>
-      <div class="budget-kind">Grande catégorie</div>
+      <div class="budget-kind">${english ? "Main category" : "Grande catégorie"}</div>
       <h3 class="plan-group-title">${escapeHtml(meta.label)}</h3>
     </div>
     <div class="budget-summary-side">
       <strong data-plan-group-total="${escapeHtml(categoryKey)}">${escapeHtml(
         formatCurrency(computePlanGroupMonthlyTotal(rows))
       )}</strong>
-      <span>Équivalent mensuel</span>
+      <span>${english ? "Monthly equivalent" : "Équivalent mensuel"}</span>
     </div>
   `;
 
   const body = document.createElement("div");
   body.className = "plan-group-body";
   body.innerHTML = `
-    <p class="budget-panel-note">${escapeHtml(meta.description || "Section budgétaire regroupée par parent.")}</p>
+    <p class="budget-panel-note">${escapeHtml(meta.description || (english ? "Budget section grouped by parent category." : "Section budgétaire regroupée par parent."))}</p>
     <div class="budget-head">
-      <div>Poste</div>
-      <div>Montant</div>
-      <div>Période</div>
+      <div>${english ? "Item" : "Poste"}</div>
+      <div>${english ? "Amount" : "Montant"}</div>
+      <div>${english ? "Period" : "Période"}</div>
       <div>Parent</div>
-      <div>Mensuel</div>
+      <div>${english ? "Monthly" : "Mensuel"}</div>
     </div>
   `;
 
@@ -1617,17 +2276,21 @@ function buildBudgetFraGroupSummaries(actualMap) {
 }
 
 function buildBudgetFraRuleAlerts(actualMap, snapshot) {
+  const english = isEnglishUi();
   const income = Math.max(0, roundCurrencyValue(snapshot.income));
   if (!income) {
     return [
       {
         key: "income",
-        title: "Revenu",
+        title: getBudgetFraRuleDisplayTitle("income"),
         tone: "risk",
-        status: "Revenu requis",
-        detail: "Ajoutez votre revenu pour activer les alertes budgétaires de type Budget-fra.",
+        status: english ? "Income required" : "Revenu requis",
+        detail: english
+          ? "Add your income to activate Budget-fra alerts."
+          : "Ajoutez votre revenu pour activer les alertes budgétaires de type Budget-fra.",
         amountLabel: formatCurrency(0),
         ratioLabel: "-",
+        groupLabel: getBudgetFraCategoryMeta("income").label,
       },
     ];
   }
@@ -1643,12 +2306,14 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
       if (amount <= 0) {
         return {
           key: rule.key,
-          title: rule.title,
+          title: getBudgetFraRuleDisplayTitle(rule.key),
           tone: "risk",
-          status: rule.redLabel,
-          detail: `Cible recommandée : au moins ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
+          status: english ? "No savings detected" : rule.redLabel,
+          detail: english
+            ? `Recommended target: at least ${(rule.greenMin * 100).toFixed(0)}% of income.`
+            : `Cible recommandée : au moins ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
           amountLabel: formatCurrency(amount),
-          ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+          ratioLabel: formatBudgetFraRatioLabel(ratio),
           groupLabel: meta.label,
         };
       }
@@ -1656,24 +2321,28 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
       if (ratio >= rule.greenMin) {
         return {
           key: rule.key,
-          title: rule.title,
+          title: getBudgetFraRuleDisplayTitle(rule.key),
           tone: "good",
-          status: rule.greenLabel,
-          detail: `Vous êtes au-dessus du seuil recommandé de ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
+          status: english ? "At recommended level" : rule.greenLabel,
+          detail: english
+            ? `You are above the recommended threshold of ${(rule.greenMin * 100).toFixed(0)}% of income.`
+            : `Vous êtes au-dessus du seuil recommandé de ${(rule.greenMin * 100).toFixed(0)} % du revenu.`,
           amountLabel: formatCurrency(amount),
-          ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+          ratioLabel: formatBudgetFraRatioLabel(ratio),
           groupLabel: meta.label,
         };
       }
 
       return {
         key: rule.key,
-        title: rule.title,
+        title: getBudgetFraRuleDisplayTitle(rule.key),
         tone: "warn",
-        status: rule.yellowLabel,
-        detail: `Essayez de viser ${(rule.greenMin * 100).toFixed(0)} % du revenu ou plus.`,
+        status: english ? "Below the recommended target" : rule.yellowLabel,
+        detail: english
+          ? `Try to reach ${(rule.greenMin * 100).toFixed(0)}% of income or more.`
+          : `Essayez de viser ${(rule.greenMin * 100).toFixed(0)} % du revenu ou plus.`,
         amountLabel: formatCurrency(amount),
-        ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+        ratioLabel: formatBudgetFraRatioLabel(ratio),
         groupLabel: meta.label,
       };
     }
@@ -1681,12 +2350,14 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
     if (ratio <= rule.greenMax) {
       return {
         key: rule.key,
-        title: rule.title,
+        title: getBudgetFraRuleDisplayTitle(rule.key),
         tone: "good",
-        status: "Dans la moyenne",
-        detail: `La cible recommandée reste sous ${(rule.greenMax * 100).toFixed(0)} % du revenu.`,
+        status: english ? "Within range" : "Dans la moyenne",
+        detail: english
+          ? `The recommended target stays below ${(rule.greenMax * 100).toFixed(0)}% of income.`
+          : `La cible recommandée reste sous ${(rule.greenMax * 100).toFixed(0)} % du revenu.`,
         amountLabel: formatCurrency(amount),
-        ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+        ratioLabel: formatBudgetFraRatioLabel(ratio),
         groupLabel: meta.label,
       };
     }
@@ -1694,85 +2365,104 @@ function buildBudgetFraRuleAlerts(actualMap, snapshot) {
     if (ratio <= rule.yellowMax) {
       return {
         key: rule.key,
-        title: rule.title,
+        title: getBudgetFraRuleDisplayTitle(rule.key),
         tone: "warn",
-        status: "Légèrement au-dessus",
-        detail: `La zone de vigilance va de ${(rule.greenMax * 100).toFixed(0)} % à ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
+        status: english ? "Slightly above" : "Légèrement au-dessus",
+        detail: english
+          ? `The watch zone runs from ${(rule.greenMax * 100).toFixed(0)}% to ${(rule.yellowMax * 100).toFixed(0)}% of income.`
+          : `La zone de vigilance va de ${(rule.greenMax * 100).toFixed(0)} % à ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
         amountLabel: formatCurrency(amount),
-        ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+        ratioLabel: formatBudgetFraRatioLabel(ratio),
         groupLabel: meta.label,
       };
     }
 
     return {
       key: rule.key,
-      title: rule.title,
+      title: getBudgetFraRuleDisplayTitle(rule.key),
       tone: "risk",
-      status: "Au-dessus de la cible",
-      detail: `Cette catégorie dépasse ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
+      status: english ? "Above target" : "Au-dessus de la cible",
+      detail: english
+        ? `This category exceeds ${(rule.yellowMax * 100).toFixed(0)}% of income.`
+        : `Cette catégorie dépasse ${(rule.yellowMax * 100).toFixed(0)} % du revenu.`,
       amountLabel: formatCurrency(amount),
-      ratioLabel: `${(ratio * 100).toFixed(1)} % du revenu`,
+      ratioLabel: formatBudgetFraRatioLabel(ratio),
       groupLabel: meta.label,
     };
   });
 }
 
 function buildBudgetFraSuggestions(actualMap, snapshot) {
+  const english = isEnglishUi();
   const suggestions = [];
   const valueFor = (label) => Math.abs(getActualAmount(actualMap, label));
   const groupTotals = buildBudgetFraGroupTotals(actualMap);
 
   if (snapshot.cash < 0) {
     suggestions.push({
-      title: "Votre budget se termine en négatif",
-      trigger: "Solde global inférieur à zéro",
-      body: "Priorisez les catégories dette, logement et alimentation pour retrouver un budget respirable.",
+      title: english ? "Your budget ends in the red" : "Votre budget se termine en négatif",
+      trigger: english ? "Overall balance below zero" : "Solde global inférieur à zéro",
+      body: english
+        ? "Prioritize debt, housing, and food categories to bring the budget back into balance."
+        : "Priorisez les catégories dette, logement et alimentation pour retrouver un budget respirable.",
     });
   } else if (snapshot.cash > 0) {
     suggestions.push({
-      title: "Il reste de l'argent à orienter",
-      trigger: "Cash positif sur la période",
-      body: "Vous pouvez diriger ce surplus vers l'épargne, un remboursement de dettes ou un objectif précis.",
+      title: english ? "There is money left to allocate" : "Il reste de l'argent à orienter",
+      trigger: english ? "Positive cash over the period" : "Cash positif sur la période",
+      body: english
+        ? "You can direct this surplus toward savings, debt repayment, or a specific goal."
+        : "Vous pouvez diriger ce surplus vers l'épargne, un remboursement de dettes ou un objectif précis.",
     });
   }
 
   if (snapshot.income > 0 && snapshot.totalSavings / snapshot.income < 0.05) {
     suggestions.push({
-      title: "Renforcer l'épargne de sécurité",
-      trigger: "Savings sous 5 % du revenu",
-      body: "Le fichier Budget-fra suggère de renforcer l'épargne avant d'ajouter de nouvelles dépenses discrétionnaires.",
+      title: english ? "Strengthen your emergency savings" : "Renforcer l'épargne de sécurité",
+      trigger: english ? "Savings below 5% of income" : "Savings sous 5 % du revenu",
+      body: english
+        ? "Budget-fra suggests strengthening savings before adding new discretionary spending."
+        : "Le fichier Budget-fra suggère de renforcer l'épargne avant d'ajouter de nouvelles dépenses discrétionnaires.",
     });
   }
 
   if (valueFor("Credit card") > 0) {
     suggestions.push({
-      title: "Carte de crédit à surveiller",
+      title: english ? "Credit card to watch" : "Carte de crédit à surveiller",
       trigger: "Credit card > 0",
-      body: "Une suggestion utile serait d'afficher un rappel de remboursement prioritaire et une piste pour réduire les intérêts.",
+      body: english
+        ? "A useful next step would be a priority repayment reminder and a path to reduce interest costs."
+        : "Une suggestion utile serait d'afficher un rappel de remboursement prioritaire et une piste pour réduire les intérêts.",
     });
   }
 
   if (valueFor("Groceries") > 0 || valueFor("Dining out") > 0) {
     suggestions.push({
-      title: "Optimiser l'alimentation",
-      trigger: "Épicerie ou restaurants présents",
-      body: "Nous pouvons suggérer de revoir l'épicerie, les repas planifiés et la fréquence des sorties au restaurant.",
+      title: english ? "Optimize food spending" : "Optimiser l'alimentation",
+      trigger: english ? "Groceries or dining present" : "Épicerie ou restaurants présents",
+      body: english
+        ? "We can suggest reviewing groceries, meal planning, and how often you eat out."
+        : "Nous pouvons suggérer de revoir l'épicerie, les repas planifiés et la fréquence des sorties au restaurant.",
     });
   }
 
   if (valueFor("Mortgage") > 0 || valueFor("Rent") > 0) {
     suggestions.push({
-      title: "Le logement pèse dans le budget",
-      trigger: "Loyer ou hypothèque détecté",
-      body: "Une prochaine mise à jour pourra mettre en avant un rappel sur la cible logement et des conseils adaptés.",
+      title: english ? "Housing weighs on the budget" : "Le logement pèse dans le budget",
+      trigger: english ? "Rent or mortgage detected" : "Loyer ou hypothèque détecté",
+      body: english
+        ? "A next update can surface the housing target more clearly and suggest matching guidance."
+        : "Une prochaine mise à jour pourra mettre en avant un rappel sur la cible logement et des conseils adaptés.",
     });
   }
 
   if ((groupTotals.get("transportation") || 0) > 0) {
     suggestions.push({
-      title: "Transport à suivre de près",
-      trigger: "Dépenses de transport détectées",
-      body: "Le groupe Transport peut proposer des pistes sur la location, l'essence, l'entretien et les arbitrages de mobilité.",
+      title: english ? "Transportation to watch closely" : "Transport à suivre de près",
+      trigger: english ? "Transportation spending detected" : "Dépenses de transport détectées",
+      body: english
+        ? "The Transportation group can suggest ideas around lease costs, fuel, maintenance, and mobility trade-offs."
+        : "Le groupe Transport peut proposer des pistes sur la location, l'essence, l'entretien et les arbitrages de mobilité.",
     });
   }
 
@@ -2188,6 +2878,8 @@ function cacheDom() {
   refs.settingsPanel = document.getElementById("app-settings-panel");
   refs.settingsStatus = document.getElementById("app-settings-status");
   refs.settingsHint = document.getElementById("app-settings-hint");
+  refs.settingTheme = document.getElementById("setting-theme");
+  refs.settingLanguage = document.getElementById("setting-language");
   refs.settingAutoRestore = document.getElementById("setting-auto-restore");
   refs.settingShowAlerts = document.getElementById("setting-show-alerts");
   refs.settingShowSuggestions = document.getElementById("setting-show-suggestions");
@@ -2293,7 +2985,9 @@ function bindEvents() {
   refs.formFields.addEventListener("click", onRecurringTemplateAction);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  refs.settingTheme.addEventListener("change", onThemeSettingChanged);
   refs.settingAutoRestore.addEventListener("change", onAutoRestoreSettingChanged);
+  refs.settingLanguage.addEventListener("change", onLanguageSettingChanged);
   refs.settingShowAlerts.addEventListener("change", onShowAlertsSettingChanged);
   refs.settingShowSuggestions.addEventListener("change", onShowSuggestionsSettingChanged);
   refs.undoLastActionButton.addEventListener("click", () => {
@@ -2390,12 +3084,12 @@ function renderAppShellState() {
   document.body.classList.toggle("standalone-shell", standalone);
 
   refs.installButton.disabled = standalone || !deferredInstallPrompt;
-  refs.installButton.textContent = standalone ? "App installee" : "Installer l'app";
+  refs.installButton.textContent = standalone ? t("share.installed") : t("share.install");
   refs.installButton.title = standalone
-    ? "Cette version web est deja installee."
+    ? (getCurrentLanguage() === "en" ? "This web version is already installed." : "Cette version web est déjà installée.")
     : deferredInstallPrompt
-      ? "Installer la version web sur cet appareil."
-      : "L'installation sera proposee quand le navigateur la rendra disponible.";
+      ? (getCurrentLanguage() === "en" ? "Install the web version on this device." : "Installer la version web sur cet appareil.")
+      : (getCurrentLanguage() === "en" ? "Installation will be offered when the browser makes it available." : "L'installation sera proposée quand le navigateur la rendra disponible.");
 }
 
 function getSupabaseRuntime() {
@@ -2453,6 +3147,19 @@ function onAutoRestoreSettingChanged(event) {
     setStartupWelcomeMode(true);
   }
   renderCloudPanel();
+}
+
+function onLanguageSettingChanged(event) {
+  state.settings.language = normalizeUiLanguage(event.target.value);
+  persistUiSettings();
+  renderAll();
+}
+
+function onThemeSettingChanged(event) {
+  state.settings.theme = normalizeUiTheme(event.target.value);
+  persistUiSettings();
+  applyUiTheme();
+  renderAll();
 }
 
 function onShowAlertsSettingChanged(event) {
@@ -2599,19 +3306,19 @@ function getCloudDisplayName(emailValue = state.cloud.user?.email || state.cloud
 function getAppTabLabel(tab = state.appTab) {
   switch (normalizeAppTab(tab)) {
     case APP_TAB_DASHBOARD:
-      return "Accueil";
+      return t("tab.dashboard.label");
     case APP_TAB_PLAN:
-      return "Budget";
+      return t("tab.plan.label");
     case APP_TAB_TRANSACTIONS:
-      return "Transactions";
+      return t("tab.transactions.label");
     case APP_TAB_FORM:
-      return "Formulaire";
+      return t("tab.form.label");
     case APP_TAB_ANALYSIS:
-      return "Analyse";
+      return t("tab.analysis.label");
     case APP_TAB_SHARE:
-      return "Partage";
+      return t("tab.share.label");
     default:
-      return "Budget";
+      return t("tab.plan.label");
   }
 }
 
@@ -4792,7 +5499,7 @@ function applyTransactionFormSnapshot(snapshot) {
   }
 
   if (categoryInput) {
-    categoryInput.value = String(snapshot?.Categories || "").trim();
+    categoryInput.value = getDisplayCategoryLabel(String(snapshot?.Categories || "").trim());
   }
 
   if (valueInput) {
@@ -4819,9 +5526,10 @@ function saveCurrentTransactionAsRecurringTemplate() {
   }
 
   const snapshot = captureCurrentTransactionFormSnapshot();
+  const internalCategory = getInternalCategoryLabel(snapshot.Categories);
   const saved = upsertRecurringTemplate({
-    label: snapshot.Categories,
-    category: snapshot.Categories,
+    label: internalCategory,
+    category: internalCategory,
     value: snapshot.Value,
     period: DEFAULT_PLAN_PERIOD,
   });
@@ -5047,7 +5755,7 @@ async function onSaveRecord(event) {
   const nextRecord = {
     __id: createId(),
     Date: normalizeDateValue(formData.get("Date")),
-    Categories: String(formData.get("Categories") ?? "").trim(),
+    Categories: getInternalCategoryLabel(formData.get("Categories")),
     Value: normalizeAmountValue(formData.get("Value")),
   };
 
@@ -5769,6 +6477,7 @@ function applyBudgetRowsToWorkbook(workbook, budgetModel) {
 }
 
 function renderAll() {
+  renderStaticUiText();
   syncActiveViewForCurrentTab();
   renderAppTabs();
   renderWelcomeScreen();
@@ -5794,22 +6503,22 @@ function buildWelcomeScreenMarkup() {
   return `
     <div class="welcome-screen-grid">
       <div class="welcome-copy">
-        <p class="section-kicker">Bienvenue</p>
-        <h2>Démarrez votre budget comme vous voulez</h2>
+        <p class="section-kicker">${escapeHtml(t("welcome.kicker"))}</p>
+        <h2>${escapeHtml(t("welcome.title"))}</h2>
         <p>
-          Commencez avec un modèle local, importez votre fichier Excel ou rejoignez directement un espace partagé.
+          ${escapeHtml(t("welcome.description"))}
         </p>
         <div class="welcome-points">
-          <span class="presence-chip">Hors ligne prêt</span>
-          <span class="presence-chip">Partage activable plus tard</span>
-          <span class="presence-chip">Export Excel à tout moment</span>
+          <span class="presence-chip">${escapeHtml(t("welcome.pointOffline"))}</span>
+          <span class="presence-chip">${escapeHtml(t("welcome.pointShareLater"))}</span>
+          <span class="presence-chip">${escapeHtml(t("welcome.pointExportAnytime"))}</span>
         </div>
       </div>
       <div class="welcome-actions">
-        <button type="button" class="button primary" data-empty-action="start-local">Commencer sans fichier</button>
-        <button type="button" class="button secondary" data-empty-action="import-excel">Importer un fichier Excel</button>
-        <button type="button" class="button ghost" data-empty-action="go-share">Rejoindre un espace partagé</button>
-        ${showRestore ? '<button type="button" class="button ghost" data-empty-action="restore-draft">Restaurer mon brouillon local</button>' : ""}
+        <button type="button" class="button primary" data-empty-action="start-local">${escapeHtml(t("startup.startLocal"))}</button>
+        <button type="button" class="button secondary" data-empty-action="import-excel">${escapeHtml(t("startup.importExcel"))}</button>
+        <button type="button" class="button ghost" data-empty-action="go-share">${escapeHtml(t("startup.joinShared"))}</button>
+        ${showRestore ? `<button type="button" class="button ghost" data-empty-action="restore-draft">${escapeHtml(t("startup.restoreDraft"))}</button>` : ""}
       </div>
     </div>
   `;
@@ -5830,31 +6539,106 @@ function renderWelcomeScreen() {
   refs.welcomeScreen.innerHTML = buildWelcomeScreenMarkup();
 }
 
+function renderStaticUiText() {
+  setDocumentLanguage();
+  applyUiTheme();
+  document.title = "BUDEGETAPP";
+
+  setNodeText(document.querySelector(".hero-badge"), t("hero.badge"));
+  setNodeText(document.querySelector(".hero-kicker"), t("hero.kicker"));
+  setNodeText(document.querySelector(".hero-pill:nth-of-type(1) .hero-pill-label"), t("hero.periodActive"));
+  setNodeText(document.querySelector(".hero-pill:nth-of-type(2) .hero-pill-label"), t("hero.fileActive"));
+  setNodeText(document.querySelector(".hero-pill:nth-of-type(3) .hero-pill-label"), t("hero.mode"));
+  setNodeText(document.querySelector(".app-nav-copy .section-kicker"), t("nav.kicker"));
+
+  setNodeText(refs.filePickerField?.querySelector(".file-picker-label"), t("toolbar.filePickerLabel"));
+  setNodeText(refs.filePickerField?.querySelector(".file-picker-hint"), t("toolbar.filePickerHint"));
+  setNodeText(refs.recapYearField?.querySelector("span"), t("toolbar.year"));
+  setNodeText(refs.recapMonthField?.querySelector("span"), t("toolbar.month"));
+  setNodeText(refs.recapRangeField?.querySelector("span"), t("toolbar.period"));
+  setNodeText(refs.searchField?.querySelector("span"), t("toolbar.search"));
+  setNodeText(document.querySelector("#recap-month-field .control-hint"), t("toolbar.monthHint"));
+
+  const cloudHeading = refs.cloudPanel?.querySelector(".cloud-heading");
+  setNodeText(cloudHeading?.querySelector(".section-kicker"), t("share.kicker"));
+  setNodeText(cloudHeading?.querySelector("h2"), t("share.title"));
+  setNodeText(refs.cloudEmailInput?.closest("label")?.querySelector("span"), t("share.emailLabel"));
+  setNodeText(refs.cloudCodeInput?.closest("label")?.querySelector("span"), t("share.codeLabel"));
+
+  const collaborationHeading = refs.cloudCollaborationPanel?.querySelector(".section-heading");
+  setNodeText(collaborationHeading?.querySelector(".section-kicker"), t("share.collaborationKicker"));
+  setNodeText(collaborationHeading?.querySelector("h2"), t("share.collaborationTitle"));
+
+  const alertHeading = refs.budgetAlertPanel?.querySelector(".section-heading");
+  setNodeText(alertHeading?.querySelector(".section-kicker"), t("share.alertsKicker"));
+  setNodeText(alertHeading?.querySelector("h2"), t("share.alertsTitle"));
+  setNodeText(refs.budgetAlertEnabled?.closest("label")?.querySelector("span"), t("share.alertsEnable"));
+  setNodeText(refs.budgetAlertEmail?.closest("label")?.querySelector("span"), t("share.alertsRecipient"));
+  setNodeText(refs.budgetAlertCooldown?.closest("label")?.querySelector("span"), t("share.alertsCooldown"));
+
+    const settingsHeading = refs.settingsPanel?.querySelector(".section-heading");
+    setNodeText(settingsHeading?.querySelector(".section-kicker"), t("share.settingsKicker"));
+    setNodeText(settingsHeading?.querySelector("h2"), t("share.settingsTitle"));
+    setNodeText(refs.settingTheme?.closest("label")?.querySelector("span"), t("settings.theme"));
+    setNodeText(refs.settingAutoRestore?.closest("label")?.querySelector("span"), t("settings.autoRestore"));
+    setNodeText(refs.settingShowAlerts?.closest("label")?.querySelector("span"), t("settings.showAlerts"));
+    setNodeText(refs.settingShowSuggestions?.closest("label")?.querySelector("span"), t("settings.showSuggestions"));
+    setNodeText(refs.settingLanguage?.closest("label")?.querySelector("span"), t("settings.language"));
+
+    if (refs.settingTheme) {
+      const options = Array.from(refs.settingTheme.options);
+      const autoOption = options.find((option) => option.value === "auto");
+      const lightOption = options.find((option) => option.value === "light");
+      const darkOption = options.find((option) => option.value === "dark");
+      if (autoOption) autoOption.textContent = t("theme.auto");
+      if (lightOption) lightOption.textContent = t("theme.light");
+      if (darkOption) darkOption.textContent = t("theme.dark");
+    }
+
+    if (refs.settingLanguage) {
+      const options = Array.from(refs.settingLanguage.options);
+      const frOption = options.find((option) => option.value === "fr");
+      const enOption = options.find((option) => option.value === "en");
+      if (frOption) frOption.textContent = t("language.fr");
+    if (enOption) enOption.textContent = t("language.en");
+  }
+
+  const historyHeading = refs.historyPanel?.querySelector(".section-heading");
+  setNodeText(historyHeading?.querySelector(".section-kicker"), t("share.historyKicker"));
+  setNodeText(historyHeading?.querySelector("h2"), t("share.historyTitle"));
+  setNodeText(refs.undoLastActionButton, t("history.undo"));
+  if (refs.libraryWarning) {
+    refs.libraryWarning.innerHTML = getCurrentLanguage() === "en"
+      ? 'The Excel library is not loaded. Check that the files in the <code>vendor</code> folder are present, then reload the page.'
+      : 'La bibliothèque Excel n\'est pas chargée. Vérifiez que les fichiers du dossier <code>vendor</code> sont bien présents, puis rechargez la page.';
+  }
+}
+
 function renderAppTabs() {
   const tabMeta = {
     [APP_TAB_DASHBOARD]: {
-      title: "Tableau de bord",
-  description: "Une lecture rapide de votre budget pour voir les soldes, les tendances et la période active.",
+      title: t("tab.dashboard.title"),
+      description: t("tab.dashboard.description"),
     },
     [APP_TAB_PLAN]: {
-      title: "Budget planifié",
-      description: "Fixez ici vos montants cibles pour comparer le plan et le réel sans toucher aux transactions.",
+      title: t("tab.plan.title"),
+      description: t("tab.plan.description"),
     },
     [APP_TAB_TRANSACTIONS]: {
-      title: "Transactions",
-      description: "Une liste claire de vos écritures pour filtrer, relire et choisir rapidement ce que vous voulez corriger.",
+      title: t("tab.transactions.title"),
+      description: t("tab.transactions.description"),
     },
     [APP_TAB_FORM]: {
-      title: "Formulaire",
-      description: "Un espace dédié a la création et a la modification d'une transaction, sans distraction autour.",
+      title: t("tab.form.title"),
+      description: t("tab.form.description"),
     },
     [APP_TAB_ANALYSIS]: {
-      title: "Analyse",
-      description: "Des comparaisons claires entre revenu, dépenses, épargne et cash pour comprendre votre rythme.",
+      title: t("tab.analysis.title"),
+      description: t("tab.analysis.description"),
     },
     [APP_TAB_SHARE]: {
-      title: "Partage et sauvegarde",
-      description: "Tout ce qui touche au cloud, à la sauvegarde locale, à la source et aux exports se trouve ici.",
+      title: t("tab.share.title"),
+      description: t("tab.share.description"),
     },
   };
   const currentMeta = tabMeta[state.appTab] || tabMeta[APP_TAB_DASHBOARD];
@@ -5871,6 +6655,9 @@ function renderAppTabs() {
   refs.appTabDescription.textContent = currentMeta.description;
   refs.appTabButtons.forEach((button) => {
     const active = button.dataset.appTab === state.appTab;
+    const tabKey = String(button.dataset.appTab || "");
+    setNodeText(button.querySelector(".app-tab-label"), t(`tab.${tabKey}.label`));
+    setNodeText(button.querySelector(".app-tab-meta"), t(`tab.${tabKey}.meta`));
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-selected", active ? "true" : "false");
   });
@@ -5964,33 +6751,29 @@ function createRecapMonthOptionButton(value, label, active) {
 
 function renderSectionHeading() {
   if (state.appTab === APP_TAB_PLAN) {
-    refs.cardsKicker.textContent = "Budget";
-    refs.cardsTitle.textContent = "Plan vs réel";
-    refs.cardsCaption.textContent =
-      "Réglez vos montants cibles à gauche, puis vérifiez à droite comment ils se comparent au réel sur la période choisie.";
+    refs.cardsKicker.textContent = t("cards.kickerBudget");
+    refs.cardsTitle.textContent = t("cards.titlePlanVsActual");
+    refs.cardsCaption.textContent = t("cards.captionPlanVsActual");
     return;
   }
 
   if (state.activeView === RECAP_SHEET_NAME) {
-    refs.cardsKicker.textContent = "Récapitulatif";
-    refs.cardsTitle.textContent = "Vue récap du budget";
-    refs.cardsCaption.textContent =
-      "Synthèse reconstruite depuis TCD et vos transactions Journalier, avec un filtre par année et par mois pour comparer les périodes disponibles.";
+    refs.cardsKicker.textContent = t("cards.kickerRecap");
+    refs.cardsTitle.textContent = t("cards.titleRecap");
+    refs.cardsCaption.textContent = t("cards.captionRecap");
     return;
   }
 
   if (state.activeView === ANALYSIS_VIEW_NAME) {
-    refs.cardsKicker.textContent = "Comparaisons";
-    refs.cardsTitle.textContent = "Revenu, dépenses et épargne en perspective";
-    refs.cardsCaption.textContent =
-      "Cette vue ajoute des comparaisons et des graphiques pertinents à partir de Journalier pour suivre l'équilibre entre revenu, dépenses, épargne et cash.";
+    refs.cardsKicker.textContent = t("cards.kickerAnalysis");
+    refs.cardsTitle.textContent = t("cards.titleAnalysis");
+    refs.cardsCaption.textContent = t("cards.captionAnalysis");
     return;
   }
 
-  refs.cardsKicker.textContent = "Journalier";
-  refs.cardsTitle.textContent = "Les écritures deviennent des fiches";
-  refs.cardsCaption.textContent =
-    "Cette vue utilise Journalier!D:F, garde la liste des catégories de Journalier!B et reprend le même filtre année/mois que le récapitulatif.";
+  refs.cardsKicker.textContent = t("cards.kickerJournal");
+  refs.cardsTitle.textContent = t("cards.titleJournal");
+  refs.cardsCaption.textContent = t("cards.captionJournal");
 }
 
 function renderControls() {
@@ -6011,32 +6794,42 @@ function renderControls() {
 
   refs.searchInput.disabled = !hasBudget || shareTab || formTab || planTab;
   refs.searchInput.placeholder = recapActive
-    ? "Chercher un poste ou une catégorie du récap..."
+    ? t("toolbar.searchPlaceholderRecap")
     : analysisActive
-      ? "Période, indicateur, valeur..."
-      : "Catégorie, date, valeur...";
+      ? t("toolbar.searchPlaceholderAnalysis")
+      : t("toolbar.searchPlaceholderJournal");
   refs.openSourceButton.disabled = !window.XLSX || !canUseSourceLinkPicker();
-  refs.openSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite ? "Source protégée" : hasLinkedWritableSource() ? "Relier la source" : "Lier la source";
+  refs.openSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite
+    ? t("toolbar.sourceProtected")
+    : hasLinkedWritableSource()
+      ? t("toolbar.sourceLinked")
+      : t("toolbar.openSource");
   refs.openSourceButton.title = state.mode === "budget" && !state.sourceSafety.allowDirectWrite
     ? state.sourceSafety.reason
     : canUseSourceLinkPicker()
-      ? "Ouvre le classeur avec autorisation d'écriture directe"
+      ? t("toolbar.openSourceTitleReady")
       : buildSourceLinkUnavailableMessage();
   refs.saveSourceButton.disabled = !canSaveToSource();
-  refs.saveSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite ? "Source préservée" : "Enregistrer la source";
+  refs.saveSourceButton.textContent = state.mode === "budget" && !state.sourceSafety.allowDirectWrite
+    ? t("toolbar.sourcePreserved")
+    : t("toolbar.saveSource");
   refs.saveSourceButton.title = canSaveToSource()
-    ? "Écrit les changements dans le fichier d'origine sans passer par une copie exportée"
+    ? t("toolbar.saveSourceTitleReady")
     : buildSourceLinkUnavailableMessage();
   refs.saveDraftButton.disabled = !hasBudget;
+  refs.saveDraftButton.textContent = t("toolbar.saveDraft");
+  refs.restoreDraftButton.textContent = t("toolbar.restoreDraft");
+  refs.restartButton.textContent = t("toolbar.restart");
+  refs.exportButton.textContent = t("toolbar.exportExcel");
   refs.saveDraftButton.title = hasBudget
-    ? "Mémorise vos données actuelles dans le navigateur pour reprendre plus tard"
-    : "Chargez ou restaurez un budget avant d'enregistrer un brouillon local";
+    ? t("toolbar.saveDraftTitleReady")
+    : t("toolbar.saveDraftTitleMissing");
   refs.restoreDraftButton.disabled = !hasStoredDraft;
   refs.restoreDraftButton.title = hasStoredDraft
-    ? "Recharge le dernier brouillon local mémorisé dans l'application"
-    : "Aucun brouillon local disponible pour le moment";
+    ? t("toolbar.restoreDraftTitleReady")
+    : t("toolbar.restoreDraftTitleMissing");
   refs.restartButton.disabled = busy;
-  refs.restartButton.title = "Revient à l'écran de départ sans supprimer le brouillon local";
+  refs.restartButton.title = t("toolbar.restartTitle");
   refs.filePickerField.classList.toggle("hidden", !shareTab);
   refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab);
   refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
@@ -6056,7 +6849,7 @@ function renderControls() {
   refs.restartButton.classList.toggle("hidden", !shareTab);
   refs.exportButton.classList.toggle("hidden", !shareTab);
   refs.addButton.classList.toggle("hidden", !(transactionTab || planTab));
-  refs.addButton.textContent = planTab ? "Éditer le budget" : "Nouvelle transaction";
+  refs.addButton.textContent = planTab ? t("toolbar.editBudget") : t("toolbar.newTransaction");
   refs.addButton.disabled = planTab ? !hasBudget || planEditing : !journalActive || !transactionTab;
   refs.mobileFab?.classList.toggle("hidden", !journalActive || !transactionTab);
   if (refs.mobileFab) {
@@ -6105,59 +6898,65 @@ function renderCloudPanel() {
   refs.cloudPullButton.disabled = !canUseSupabaseCloud() || busy;
 
   refs.cloudCodeInput.placeholder = signedIn
-    ? "code à partager"
-    : "entrez le code puis connectéz-vous";
+    ? t("cloud.codePlaceholderSignedIn")
+    : t("cloud.codePlaceholderSignedOut");
   refs.cloudCodeInput.title = signedIn
-    ? "Collez le code de partage reçu, puis touchez Rejoindre"
-    : "Vous pouvez déjà saisir le code. Connectez-vous ensuite avec Lien magique pour rejoindre l'espace";
+    ? t("cloud.codeTitleSignedIn")
+    : t("cloud.codeTitleSignedOut");
   refs.cloudJoinSpaceButton.title = !signedIn
-    ? "Connectez-vous d'abord avec Lien magique, puis rejoignez l'espace avec ce code"
+    ? t("cloud.joinTitleSignedOut")
     : !typedJoinCode
-      ? "Entrez un code de partage pour rejoindre un espace"
-      : "Rejoindre cet espace partagé";
+      ? t("cloud.joinTitleNoCode")
+      : t("cloud.joinTitleReady");
 
-  refs.cloudMagicLinkButton.textContent = busy && !signedIn ? "Connexion..." : "Lien magique";
-  refs.cloudSignOutButton.textContent = busy && signedIn ? "Patientez..." : "Déconnexion";
-  refs.cloudPushButton.textContent = publishNeedsRestore ? "Restaurer et publier" : "Publier local";
+  refs.cloudMagicLinkButton.textContent = busy && !signedIn ? t("share.connecting") : t("share.magicLink");
+  refs.cloudSignOutButton.textContent = busy && signedIn ? t("share.pleaseWait") : t("share.signOut");
+  refs.cloudCreateSpaceButton.textContent = t("share.createSpace");
+  refs.cloudJoinSpaceButton.textContent = t("share.join");
+  refs.cloudPushButton.textContent = publishNeedsRestore ? t("share.restoreAndPublish") : t("share.publishLocal");
+  refs.cloudPullButton.textContent = t("share.reloadCloud");
 
   const identityLabel = signedIn
-    ? `Compte : ${state.cloud.user?.email || state.cloud.email || "connecté"}`
-    : "Compte : non connecté";
+    ? t("cloud.identityConnected", { email: state.cloud.user?.email || state.cloud.email || "connected" })
+    : t("cloud.identityDisconnected");
   const spaceLabel = spaceSelected
-    ? `Espace : ${state.cloud.space.name || "budget partagé"}`
-    : "Espace : aucun";
+    ? t("cloud.spaceSelected", { name: state.cloud.space.name || (getCurrentLanguage() === "en" ? "shared budget" : "budget partagé") })
+    : t("cloud.spaceNone");
   const codeLabel = spaceSelected && state.cloud.space.joinCode
-    ? `Code de partage : ${state.cloud.space.joinCode}`
-    : "Code de partage : à créer ou rejoindre";
+    ? t("cloud.joinCodeSelected", { code: state.cloud.space.joinCode })
+    : t("cloud.joinCodeNone");
   const pullLabel = state.cloud.lastPulledAt
-    ? `Dernier chargement : ${formatDraftSavedAt(state.cloud.lastPulledAt)}`
-    : "Dernier chargement : aucun";
+    ? t("cloud.lastPull", { value: formatDraftSavedAt(state.cloud.lastPulledAt) })
+    : t("cloud.lastPullNone");
   const pushLabel = state.cloud.lastPushedAt
-    ? `Dernière publication : ${formatDraftSavedAt(state.cloud.lastPushedAt)}`
-    : "Dernière publication : aucune";
+    ? t("cloud.lastPush", { value: formatDraftSavedAt(state.cloud.lastPushedAt) })
+    : t("cloud.lastPushNone");
 
   refs.cloudSpaceHint.textContent = [identityLabel, spaceLabel, codeLabel, pullLabel, pushLabel].join(" | ");
 
   if (!cloudReady) {
-    refs.cloudCollaborationStatus.textContent = "Supabase doit être configuré pour activer la présence en ligne.";
+    refs.cloudCollaborationStatus.textContent = t("cloud.collabNotReady");
   } else if (!signedIn) {
-    refs.cloudCollaborationStatus.textContent = "Connectez-vous à un espace partagé pour voir qui est en ligne et qui modifie l'application.";
+    refs.cloudCollaborationStatus.textContent = t("cloud.collabNotSignedIn");
   } else if (!spaceSelected) {
-    refs.cloudCollaborationStatus.textContent = "Présence prête. Créez ou rejoignez un espace partagé pour collaborer en direct.";
+    refs.cloudCollaborationStatus.textContent = t("cloud.collabNoSpace");
   } else if (!otherOnlineUsers.length) {
-    refs.cloudCollaborationStatus.textContent = "Vous êtes seul en ligne pour le moment.";
+    refs.cloudCollaborationStatus.textContent = t("cloud.collabAlone");
   } else {
-    refs.cloudCollaborationStatus.textContent = `${otherOnlineUsers.length} autre${otherOnlineUsers.length > 1 ? "s" : ""} utilisateur${otherOnlineUsers.length > 1 ? "s" : ""} en ligne maintenant.`;
+    refs.cloudCollaborationStatus.textContent = t("cloud.collabOthers", {
+      count: otherOnlineUsers.length,
+      plural: otherOnlineUsers.length > 1 ? "s" : "",
+    });
   }
 
   refs.cloudPresenceList.innerHTML = onlineUsers.length
     ? onlineUsers.map((entry) => {
         const isSelf = entry.clientKey === state.cloud.collaboration.clientKey;
-        const label = escapeHtml(isSelf ? "Vous" : entry.displayName || getCloudDisplayName(entry.email));
+        const label = escapeHtml(isSelf ? t("cloud.presenceYou") : entry.displayName || getCloudDisplayName(entry.email));
         const subtitle = escapeHtml(
           entry.activityLabel
             ? entry.activityLabel
-            : `dans ${entry.appTabLabel || getAppTabLabel(entry.appTab)}`
+            : t("cloud.presenceInTab", { tab: entry.appTabLabel || getAppTabLabel(entry.appTab) })
         );
         return `
           <span class="presence-chip${isSelf ? " is-self" : ""}">
@@ -6169,11 +6968,11 @@ function renderCloudPanel() {
           </span>
         `;
       }).join("")
-    : '<span class="presence-chip is-empty"><span class="presence-copy"><strong>Aucune présence active</strong><small>Connectez-vous à un espace partagé pour lancer la collaboration en direct.</small></span></span>';
+    : `<span class="presence-chip is-empty"><span class="presence-copy"><strong>${escapeHtml(t("cloud.presenceEmptyTitle"))}</strong><small>${escapeHtml(t("cloud.presenceEmptyBody"))}</small></span></span>`;
 
   refs.cloudLiveActivity.textContent = state.cloud.collaboration.liveMessage
-    ? `Activité en direct : ${state.cloud.collaboration.liveMessage}`
-    : "Aucune activité en direct pour le moment.";
+    ? t("cloud.livePrefix", { message: state.cloud.collaboration.liveMessage })
+    : t("cloud.liveEmpty");
 
   refs.budgetAlertEnabled.checked = alertSettings.enabled;
   refs.budgetAlertEmail.value = refs.budgetAlertEmail.matches(":focus")
@@ -6186,47 +6985,54 @@ function renderCloudPanel() {
   refs.budgetAlertCooldown.disabled = alertControlsDisabled || !alertSettings.enabled;
 
   if (!alertFunctionReady) {
-    refs.budgetAlertStatus.textContent = "La fonction d'alerte email n'est pas configurée côté Supabase.";
+    refs.budgetAlertStatus.textContent = t("alerts.statusNotConfigured");
   } else if (!cloudReady) {
-    refs.budgetAlertStatus.textContent = "Supabase doit être configuré pour activer les alertes email.";
+    refs.budgetAlertStatus.textContent = t("alerts.statusNotReady");
   } else if (!alertSettings.enabled) {
-    refs.budgetAlertStatus.textContent = "Alertes email désactivées.";
+    refs.budgetAlertStatus.textContent = t("alerts.statusDisabled");
   } else if (!signedIn) {
-    refs.budgetAlertStatus.textContent = "Alertes email prêtes. Connectez-vous puis publiez un budget pour surveiller les dépassements.";
+    refs.budgetAlertStatus.textContent = t("alerts.statusSignIn");
   } else if (!spaceSelected) {
-    refs.budgetAlertStatus.textContent = "Alertes email actives. Créez ou rejoignez un espace partagé pour lancer la surveillance.";
+    refs.budgetAlertStatus.textContent = t("alerts.statusNoSpace");
   } else if (!effectiveAlertRecipient) {
-    refs.budgetAlertStatus.textContent = "Alertes email actives. Ajoutez un email destinataire ou laissez la connexion fournir votre adresse.";
+    refs.budgetAlertStatus.textContent = t("alerts.statusNoRecipient");
   } else {
-    refs.budgetAlertStatus.textContent = `Alertes email actives vers ${effectiveAlertRecipient}. Délai actuel : ${alertSettings.cooldownHours} h.`;
+    refs.budgetAlertStatus.textContent = t("alerts.statusRecipient", {
+      email: effectiveAlertRecipient,
+      hours: alertSettings.cooldownHours,
+    });
   }
 
   refs.budgetAlertHint.textContent = alertSettings.recipientEmail
-    ? "Les alertes se basent sur les lignes rouges du comparatif courant."
-    : "Laissez l'email vide pour utiliser l'adresse du compte connecté. Les alertes se basent sur les lignes rouges du comparatif courant.";
+    ? t("alerts.hintRecipient")
+    : t("alerts.hintNoRecipient");
 
+  refs.settingTheme.value = getCurrentThemePreference();
+  refs.settingLanguage.value = getCurrentLanguage();
   refs.settingAutoRestore.checked = state.settings.autoRestoreDraft;
   refs.settingShowAlerts.checked = state.settings.showBudgetFraAlerts;
   refs.settingShowSuggestions.checked = state.settings.showBudgetFraSuggestions;
+  refs.settingTheme.disabled = busy;
+  refs.settingLanguage.disabled = busy;
   refs.settingAutoRestore.disabled = busy;
   refs.settingShowAlerts.disabled = busy;
   refs.settingShowSuggestions.disabled = busy;
   refs.settingsStatus.textContent = state.settings.autoRestoreDraft
-    ? "Le brouillon local se recharge automatiquement au prochain lancement si vous ne recommencez pas."
-    : "Le prochain lancement reviendra à l'écran de bienvenue tant que vous ne restaurez pas le brouillon.";
+    ? t("settings.statusOn")
+    : t("settings.statusOff");
   refs.settingsHint.textContent = state.settings.showBudgetFraSuggestions
-    ? "Les suggestions intelligentes sont visibles dans l'accueil et l'analyse, en plus des alertes."
-    : "Les suggestions restent discrètes pour garder l'application légère. Vous pouvez les réactiver ici.";
+    ? t("settings.hintOn")
+    : t("settings.hintOff");
 
   refs.undoLastActionButton.disabled = !canUndoLastAction() || busy;
   refs.historyStatus.textContent = canUndoLastAction()
-    ? "La dernière action peut encore être annulée sur cet appareil."
-    : "Aucune action récente à annuler pour le moment.";
+    ? t("history.statusReady")
+    : t("history.statusEmpty");
   refs.historyList.innerHTML = state.history.recentEvents.length
     ? state.history.recentEvents
       .map((entry) => `<span class="presence-chip">${escapeHtml(entry.label)} · ${escapeHtml(formatDraftSavedAt(entry.createdAt) || "à l'instant")}</span>`)
       .join("")
-    : '<span class="presence-chip">Aucune action mémorisée pour le moment.</span>';
+    : `<span class="presence-chip">${escapeHtml(t("history.empty"))}</span>`;
 }
 
 function renderDraftStatus() {
@@ -6234,54 +7040,56 @@ function renderDraftStatus() {
   const hasStoredDraft = Boolean(draft && draft.mode === "budget" && Array.isArray(draft.rows));
 
   if (!hasStoredDraft) {
-    refs.draftStatus.textContent = "Aucun brouillon local mémorisé.";
+    refs.draftStatus.textContent = t("draft.none");
     return;
   }
 
   const savedAtLabel = formatDraftSavedAt(draft.savedAt);
-  const suffix = savedAtLabel ? ` Dernière sauvegarde ${savedAtLabel}.` : "";
+  const suffix = savedAtLabel
+    ? (getCurrentLanguage() === "en" ? ` Last saved ${savedAtLabel}.` : ` Dernière sauvegarde ${savedAtLabel}.`)
+    : "";
 
   if (canUseSupabaseCloud()) {
-    refs.draftStatus.textContent = `Mode cloud partagé actif.${suffix}`;
+    refs.draftStatus.textContent = t("draft.cloud", { suffix });
     return;
   }
 
   if (state.mode === "budget" && !state.workbook) {
-    refs.draftStatus.textContent = `Mode autonome local actif.${suffix}`;
+    refs.draftStatus.textContent = t("draft.local", { suffix });
     return;
   }
 
   if (state.mode === "budget") {
-    refs.draftStatus.textContent = `Brouillon local prêt en secours.${suffix}`;
+    refs.draftStatus.textContent = t("draft.backup", { suffix });
     return;
   }
 
-  refs.draftStatus.textContent = `Brouillon local disponible.${suffix} Cliquez sur Restaurer pour reprendre vos données.`;
+  refs.draftStatus.textContent = t("draft.available", { suffix });
 }
 
 function renderStats() {
   if (state.mode !== "budget") {
-    refs.recordsLabel.textContent = "Transactions";
+    refs.recordsLabel.textContent = t("stats.transactions");
     refs.recordsCount.textContent = "0";
-    refs.columnsLabel.textContent = "Champs";
+    refs.columnsLabel.textContent = t("stats.fields");
     refs.columnsCount.textContent = "0";
-    refs.activeSheet.textContent = "Aucune";
+    refs.activeSheet.textContent = t("stats.noSheet");
     refs.lastAction.textContent = state.lastAction;
-    refs.metricMode.textContent = "Prêt pour l'import";
+    refs.metricMode.textContent = t("stats.readyImport");
     refs.metricFile.textContent = buildWorkbookLabel();
-    refs.metricSave.textContent = canUseSourceLinkPicker() ? "Chargez ou liez la source" : "Chargez un fichier";
+    refs.metricSave.textContent = canUseSourceLinkPicker() ? t("stats.loadOrLinkSource") : t("stats.loadFile");
     return;
   }
 
   if (state.activeView === RECAP_SHEET_NAME) {
     const recapView = buildLiveRecapView();
-    refs.recordsLabel.textContent = "Transactions";
+    refs.recordsLabel.textContent = t("stats.transactions");
     refs.recordsCount.textContent = String(recapView.transactionCount);
-    refs.columnsLabel.textContent = "Mois disponibles";
+    refs.columnsLabel.textContent = t("stats.monthsAvailable");
     refs.columnsCount.textContent = String(recapView.availableMonthCount);
     refs.activeSheet.textContent = RECAP_SHEET_NAME;
     refs.lastAction.textContent = state.lastAction;
-    refs.metricMode.textContent = `Vue récap - ${recapView.periodLabel}`;
+    refs.metricMode.textContent = t("stats.recapView", { period: recapView.periodLabel });
     refs.metricFile.textContent = buildWorkbookLabel();
     refs.metricSave.textContent = getSaveCapabilityLabel();
     return;
@@ -6289,55 +7097,55 @@ function renderStats() {
 
   if (state.activeView === ANALYSIS_VIEW_NAME) {
     const analysisView = buildLiveAnalysisView();
-    refs.recordsLabel.textContent = "Périodes";
+    refs.recordsLabel.textContent = t("stats.periods");
     refs.recordsCount.textContent = String(analysisView.seriesRows.length);
-    refs.columnsLabel.textContent = "Graphiques";
+    refs.columnsLabel.textContent = t("stats.charts");
     refs.columnsCount.textContent = String(analysisView.chartCount);
     refs.activeSheet.textContent = ANALYSIS_VIEW_NAME;
     refs.lastAction.textContent = state.lastAction;
-    refs.metricMode.textContent = `Vue analyse - ${analysisView.periodLabel}`;
+    refs.metricMode.textContent = t("stats.analysisView", { period: analysisView.periodLabel });
     refs.metricFile.textContent = buildWorkbookLabel();
     refs.metricSave.textContent = getSaveCapabilityLabel();
     return;
   }
 
   const filteredRows = getFilteredJournalRows();
-  refs.recordsLabel.textContent = "Transactions";
+  refs.recordsLabel.textContent = t("stats.transactions");
   refs.recordsCount.textContent = String(filteredRows.length);
-  refs.columnsLabel.textContent = "Champs";
+  refs.columnsLabel.textContent = t("stats.fields");
   refs.columnsCount.textContent = "3";
   refs.activeSheet.textContent = JOURNAL_SHEET_NAME;
   refs.lastAction.textContent = state.lastAction;
   refs.metricMode.textContent = hasActiveRecapPeriodFilter()
-    ? `Vue Journalier - ${buildRecapPeriodLabel()}`
-    : "Vue Journalier";
+    ? t("stats.journalViewPeriod", { period: buildRecapPeriodLabel() })
+    : t("stats.journalView");
   refs.metricFile.textContent = buildWorkbookLabel();
   refs.metricSave.textContent = getSaveCapabilityLabel();
 }
 
 function getExportCapabilityLabel() {
-  return canUseNativeExcelExport() ? "Partage natif Excel" : "Export vers le classeur";
+  return canUseNativeExcelExport() ? t("capability.nativeExcelShare") : t("capability.exportWorkbook");
 }
 
 function getSaveCapabilityLabel() {
   if (canUseSupabaseCloud()) {
-    return "Supabase partage actif";
+    return t("capability.supabaseActive");
   }
 
   if (canSaveToSource()) {
-    return "Source liée - sauvegarde automatique active";
+    return t("capability.sourceLinkedAuto");
   }
 
   if (state.mode === "budget" && !state.workbook) {
-    return "Mode autonome - export copie locale";
+    return t("capability.localStandaloneExport");
   }
 
   if (state.mode === "budget" && !state.sourceSafety.allowDirectWrite) {
-    return "Source préservée - export copie uniquement";
+    return t("capability.sourcePreservedCopy");
   }
 
   if (canUseBrowserSourcePicker() || canUseAndroidSourcePicker()) {
-    return "Export ou liaison source";
+    return t("capability.exportOrLink");
   }
 
   return getExportCapabilityLabel();
@@ -6346,26 +7154,22 @@ function getSaveCapabilityLabel() {
 function buildWorkbookLabel() {
   if (hasCloudSpaceSelected()) {
     const cloudName = state.cloud.space.name || state.cloud.space.joinCode || "Budget partage";
-    if (state.workbookName) {
-      return `${cloudName} - cloud partage`;
-    }
-
-    return `${cloudName} - cloud partage`;
+    return t("workbook.sharedCloud", { name: cloudName });
   }
 
   if (!state.workbookName) {
-    return state.mode === "budget" ? "Données locales" : "Aucun fichier";
+    return state.mode === "budget" ? t("workbook.localData") : t("workbook.noFile");
   }
 
   if (state.mode === "budget" && !state.workbook) {
-    return `${state.workbookName} - données locales`;
+    return t("workbook.localDataNamed", { name: state.workbookName });
   }
 
   if (state.mode === "budget" && !state.sourceSafety.allowDirectWrite) {
-    return `${state.workbookName} - source protégée`;
+    return t("workbook.protectedSource", { name: state.workbookName });
   }
 
-  return hasLinkedWritableSource() ? `${state.workbookName} - source liee` : state.workbookName;
+  return hasLinkedWritableSource() ? t("workbook.linkedSource", { name: state.workbookName }) : state.workbookName;
 }
 
 function getFilteredJournalRows() {
@@ -6386,6 +7190,7 @@ function getFilteredJournalRows() {
           row.Date,
           formatDateForDisplay(row.Date),
           row.Categories,
+          getDisplayCategoryLabel(row.Categories || ""),
           getBudgetFraCategoryLabel(row.Categories || "", "", row.Value),
           row.Value,
           formatCurrency(row.Value),
@@ -6424,6 +7229,7 @@ function renderCards() {
 function renderJournalCards() {
   refs.cardsGrid.classList.remove("hidden");
   refs.recapView.classList.add("hidden");
+  const english = isEnglishUi();
 
   if (!state.budget.rows.length) {
     refs.cardsEmpty.classList.remove("hidden");
@@ -6452,34 +7258,34 @@ function renderJournalCards() {
       card.dataset.index = String(index);
 
   const amountLabel = formatCurrency(row.Value) || row.Value || "-";
-  const dateLabel = formatDateForDisplay(row.Date) || "Sans date";
+  const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
   const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
   const parentChipMarkup = parentLabel
     ? `<span class="card-parent-chip">${escapeHtml(parentLabel)}</span>`
     : "";
   const parentDetailMarkup = parentLabel
-    ? createDetailMarkup("Grande catégorie", parentLabel)
+    ? createDetailMarkup(english ? "Main category" : "Grande catégorie", parentLabel)
     : "";
 
   card.innerHTML = `
         <div class="card-topline">
           <span class="card-index">${escapeHtml(dateLabel)}</span>
           <div class="card-actions">
-          <button class="card-action" type="button" data-action="edit" aria-label="Modifier">Edit</button>
-          <button class="card-action delete" type="button" data-action="delete" aria-label="Supprimer">X</button>
+          <button class="card-action" type="button" data-action="edit" aria-label="${english ? "Edit" : "Modifier"}">${english ? "Edit" : "Modifier"}</button>
+          <button class="card-action delete" type="button" data-action="delete" aria-label="${english ? "Delete" : "Supprimer"}">X</button>
         </div>
         </div>
         <div>
           ${parentChipMarkup}
-          <h3 class="card-title">${escapeHtml(row.Categories || "Categorie non definie")}</h3>
-          <p class="card-subtitle">Feuille ${JOURNAL_SHEET_NAME}</p>
+          <h3 class="card-title">${escapeHtml(getDisplayCategoryLabel(row.Categories || "") || (english ? "Undefined category" : "Catégorie non définie"))}</h3>
+          <p class="card-subtitle">${english ? "Sheet" : "Feuille"} ${JOURNAL_SHEET_NAME}</p>
           <p class="card-amount">${escapeHtml(amountLabel)}</p>
         </div>
         <div class="card-details">
-          ${createDetailMarkup("Date", dateLabel)}
-          ${createDetailMarkup("Categorie", row.Categories || "-")}
+          ${createDetailMarkup(english ? "Date" : "Date", dateLabel)}
+          ${createDetailMarkup(english ? "Category" : "Catégorie", getDisplayCategoryLabel(row.Categories || "") || "-")}
           ${parentDetailMarkup}
-          ${createDetailMarkup("Value", amountLabel)}
+          ${createDetailMarkup(english ? "Amount" : "Montant", amountLabel)}
         </div>
       `;
 
@@ -6565,7 +7371,7 @@ function buildLiveRecapView() {
       availableMonthLabels: [],
       availabilityLabel: "",
       availabilityScopeLabel: "",
-      periodLabel: "Toutes les données",
+      periodLabel: isEnglishUi() ? "All data" : "Toutes les données",
       budgetPeriodCount: 1,
       filteredUndatedCount: 0,
     };
@@ -6613,7 +7419,7 @@ function buildLiveAnalysisView() {
   if (state.mode !== "budget") {
     return {
       available: false,
-      periodLabel: "Toutes les données",
+      periodLabel: isEnglishUi() ? "All data" : "Toutes les données",
       chartCount: 0,
       metricCards: [],
       comparisonRows: [],
@@ -6788,18 +7594,19 @@ function countUndatedBudgetRows() {
 function buildRecapPeriodLabel() {
   const { year } = state.recapFilters;
   const selectedMonths = getSelectedRecapMonths();
+  const english = isEnglishUi();
 
   if (year === "all" && !selectedMonths.length) {
-    return "Toutes les données";
+    return english ? "All data" : "Toutes les données";
   }
 
   if (year !== "all" && !selectedMonths.length) {
-    return `Année ${year}`;
+    return english ? `Year ${year}` : `Année ${year}`;
   }
 
   if (year === "all" && selectedMonths.length) {
     const labels = selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ");
-    return `${labels} - toutes les années`;
+    return english ? `${labels} - all years` : `${labels} - toutes les années`;
   }
 
   const labels = selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ");
@@ -6807,23 +7614,30 @@ function buildRecapPeriodLabel() {
 }
 
 function buildRecapAvailabilityLabel(availableYears, availableMonths, availablePeriods = []) {
+  const english = isEnglishUi();
   if (!availableYears.length) {
-    return "Aucune date exploitable dans Journalier.";
+    return english ? "No usable date found in Journalier." : "Aucune date exploitable dans Journalier.";
   }
 
   if (state.recapFilters.year === "all") {
-    return `${availableYears.length} année(s) avec données et ${availablePeriods.length} période(s) couvertes.`;
+    return english
+      ? `${availableYears.length} year(s) with data and ${availablePeriods.length} covered period(s).`
+      : `${availableYears.length} année(s) avec données et ${availablePeriods.length} période(s) couvertes.`;
   }
 
-  return `${availableMonths.length} mois avec données en ${state.recapFilters.year}.`;
+  return english
+    ? `${availableMonths.length} month(s) with data in ${state.recapFilters.year}.`
+    : `${availableMonths.length} mois avec données en ${state.recapFilters.year}.`;
 }
 
 function buildRecapAvailabilityScopeLabel() {
   if (state.recapFilters.year === "all") {
-    return "Périodes disponibles toutes années confondues";
+    return isEnglishUi() ? "Available periods across all years" : "Périodes disponibles toutes années confondues";
   }
 
-  return `Mois disponiblesnibles en ${state.recapFilters.year}`;
+  return isEnglishUi()
+    ? `Available months in ${state.recapFilters.year}`
+    : `Mois disponibles en ${state.recapFilters.year}`;
 }
 
 function buildRecapPeriodKeys(rows) {
@@ -6865,6 +7679,9 @@ function getRecapBudgetPeriodCount(rows = getFilteredRecapSourceRows()) {
 
 function getBudgetPeriodCountLabel(periodCount) {
   const safeCount = Math.max(1, Number(periodCount) || 1);
+  if (isEnglishUi()) {
+    return `${safeCount} month${safeCount > 1 ? "s" : ""}`;
+  }
   return `${safeCount} mois`;
 }
 
@@ -6943,7 +7760,7 @@ function comparePlanComparisonRows(left, right, categoryOrderMap) {
     return fallbackDiff;
   }
 
-  return String(left.label).localeCompare(String(right.label), "fr-CA");
+  return String(left.label).localeCompare(String(right.label), getUiLocale());
 }
 
 function formatMonthLabel(monthValue) {
@@ -6952,7 +7769,7 @@ function formatMonthLabel(monthValue) {
     return String(monthValue || "");
   }
 
-  const label = new Intl.DateTimeFormat("fr-CA", {
+  const label = new Intl.DateTimeFormat(getUiLocale(), {
     month: "long",
     timeZone: "UTC",
   }).format(
@@ -7038,34 +7855,43 @@ function buildAnalysisMetricCards(snapshot) {
 }
 
 function buildAnalysisComparisonRows(snapshot) {
+  const english = isEnglishUi();
   const rows = [
     {
       label: "Income",
       value: snapshot.income,
       displayValue: formatCurrency(snapshot.income),
       tone: "positive",
-      caption: "Volume des revenus retenus pour la période filtrée.",
+      caption: english
+        ? "Income captured for the filtered period."
+        : "Volume des revenus retenus pour la période filtrée.",
     },
     {
       label: "Expenses",
       value: snapshot.expenses,
       displayValue: formatCurrency(snapshot.expenses),
       tone: "negative",
-      caption: "Somme des dépenses hors postes d'épargne.",
+      caption: english
+        ? "Expenses total excluding savings lines."
+        : "Somme des dépenses hors postes d'épargne.",
     },
     {
       label: "Savings",
       value: snapshot.totalSavings,
       displayValue: formatCurrency(snapshot.totalSavings),
       tone: "neutral",
-      caption: "Epargne totale incluant l'épargne saisonniere.",
+      caption: english
+        ? "Total savings including seasonal savings."
+        : "Épargne totale incluant l'épargne saisonnière.",
     },
     {
       label: "Cash",
       value: Math.abs(snapshot.cash),
       displayValue: formatSignedCurrency(snapshot.cash),
       tone: snapshot.cash >= 0 ? "positive" : "negative",
-      caption: "Disponible net apres dépenses et épargne.",
+      caption: english
+        ? "Net available after expenses and savings."
+        : "Disponible net après dépenses et épargne.",
     },
   ];
 
@@ -7120,6 +7946,7 @@ function buildAnalysisExpenseBreakdown(rows) {
 }
 
 function buildAnalysisCategoryBenchmark() {
+  const english = isEnglishUi();
   const monthlyProfiles = buildMonthlyExpenseProfiles();
   if (!monthlyProfiles.length) {
     return {
@@ -7184,7 +8011,9 @@ function buildAnalysisCategoryBenchmark() {
       averagePercent: buildChartScale(row.average, maxValue, 10),
     })),
     currentLabel: referenceProfile.label,
-    subtitle: `Référence : ${referenceProfile.label}. Comparée à votre moyenne sur ${monthlyProfiles.length} mois daté${monthlyProfiles.length > 1 ? "s" : ""}.`,
+    subtitle: english
+      ? `Reference: ${referenceProfile.label}. Compared with your average across ${monthlyProfiles.length} dated month${monthlyProfiles.length > 1 ? "s" : ""}.`
+      : `Référence : ${referenceProfile.label}. Comparée à votre moyenne sur ${monthlyProfiles.length} mois daté${monthlyProfiles.length > 1 ? "s" : ""}.`,
     monthCount: monthlyProfiles.length,
   };
 }
@@ -7201,7 +8030,7 @@ function buildExpenseCategoryMap(rows) {
     }
 
     const rule = getResolvedBudgetCategoryRule(label, "", amount);
-    const parentLabel = rule.parentLabel || "";
+    const parentLabel = getBudgetFraCategoryMeta(rule.parent).label || "";
     if (!parentLabel || !rule.includeInParentTotals || !rule.includeInExpenses) {
       return;
     }
@@ -7247,7 +8076,7 @@ function buildExpenseCategoryRowsFromMap(categoryMap, limit = 8) {
     const othersValue = entries.slice(Math.max(1, limit - 1)).reduce((sum, entry) => sum + entry.value, 0);
     visibleEntries = [
       ...kept,
-      { label: "Autres", value: othersValue },
+      { label: isEnglishUi() ? "Other items" : "Autres postes", value: othersValue },
     ];
   }
 
@@ -7493,37 +8322,53 @@ function matchesAnalysisSearch(row, query) {
 function buildAnalysisTrendTitle() {
   const mode = getAnalysisSeriesMode();
   const selectedMonths = getSelectedRecapMonths();
+  const english = isEnglishUi();
 
   if (mode === "year_months") {
-    return `Lecture mensuelle de ${state.recapFilters.year}`;
+    return english
+      ? `Monthly view for ${state.recapFilters.year}`
+      : `Lecture mensuelle de ${state.recapFilters.year}`;
   }
 
   if (mode === "month_across_years") {
-    return `Comparaison annuelle pour ${formatMonthLabel(selectedMonths[0])}`;
+    return english
+      ? `Year-over-year view for ${formatMonthLabel(selectedMonths[0])}`
+      : `Comparaison annuelle pour ${formatMonthLabel(selectedMonths[0])}`;
   }
 
   if (mode === "filtered_months") {
-    return `Comparaison des mois selectionnes`;
+    return english ? "Comparison of selected months" : "Comparaison des mois sélectionnés";
   }
 
-  return "Dernières périodes disponibles";
+  return english ? "Latest available periods" : "Dernières périodes disponibles";
 }
 
 function buildAnalysisTrendSubtitle(totalCount, visibleCount) {
   const mode = getAnalysisSeriesMode();
-  let baseSubtitle = "Revenu, dépenses et épargne totale sont comparés période par période.";
+  const english = isEnglishUi();
+  let baseSubtitle = english
+    ? "Income, expenses, and total savings are compared period by period."
+    : "Revenu, dépenses et épargne totale sont comparés période par période.";
   const selectedMonths = getSelectedRecapMonths();
 
   if (mode === "year_months") {
-    baseSubtitle = "Chaque groupe compare les mois de l'année filtrée.";
+    baseSubtitle = english
+      ? "Each group compares the months in the filtered year."
+      : "Chaque groupe compare les mois de l'année filtrée.";
   } else if (mode === "month_across_years") {
-    baseSubtitle = "Le même mois est comparé d'une année à l'autre.";
+    baseSubtitle = english
+      ? "The same month is compared across years."
+      : "Le même mois est comparé d'une année à l'autre.";
   } else if (mode === "filtered_months") {
-    baseSubtitle = `Les mois sélectionnés sont comparés sur les périodes disponibles${selectedMonths.length ? ` (${selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ")})` : ""}.`;
+    baseSubtitle = english
+      ? `The selected months are compared across the available periods${selectedMonths.length ? ` (${selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ")})` : ""}.`
+      : `Les mois sélectionnés sont comparés sur les périodes disponibles${selectedMonths.length ? ` (${selectedMonths.map((monthValue) => formatMonthLabel(monthValue)).join(", ")})` : ""}.`;
   }
 
   if (state.search && totalCount !== visibleCount) {
-    return `${baseSubtitle} Recherche active : ${visibleCount} période(s) visibles sur ${totalCount}.`;
+    return english
+      ? `${baseSubtitle} Active search: ${visibleCount} visible period(s) out of ${totalCount}.`
+      : `${baseSubtitle} Recherche active : ${visibleCount} période(s) visibles sur ${totalCount}.`;
   }
 
   return baseSubtitle;
@@ -7534,7 +8379,7 @@ function buildYearMonthKey(year, month) {
 }
 
 function formatMonthShortLabel(year, month, includeYear) {
-  const label = new Intl.DateTimeFormat("fr-CA", {
+  const label = new Intl.DateTimeFormat(getUiLocale(), {
     month: "short",
     ...(includeYear ? { year: "numeric" } : {}),
     timeZone: "UTC",
@@ -7544,7 +8389,7 @@ function formatMonthShortLabel(year, month, includeYear) {
 }
 
 function formatMonthYearLabel(year, month) {
-  const label = new Intl.DateTimeFormat("fr-CA", {
+  const label = new Intl.DateTimeFormat(getUiLocale(), {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
@@ -7611,8 +8456,8 @@ function buildRecapDetailRows(actualMap) {
 
   const totalAmount = Array.from(actualMap.values()).reduce((sum, value) => sum + value, 0);
     const totalRow = {
-      label: "Total general",
-      parentLabel: "Toutes categories",
+      label: isEnglishUi() ? "Grand total" : "Total général",
+      parentLabel: isEnglishUi() ? "All categories" : "Toutes catégories",
       amount: totalAmount,
       isTotal: true,
     };
@@ -8000,6 +8845,7 @@ function createSmartDashboardMarkup(recapView) {
     return "";
   }
 
+  const english = isEnglishUi();
   const topGroup = getPrimaryExpenseGroup(recapView.groupSummaries);
   const primaryAlert = state.settings.showBudgetFraAlerts && Array.isArray(recapView.ruleAlerts) && recapView.ruleAlerts.length
     ? recapView.ruleAlerts[0]
@@ -8012,33 +8858,55 @@ function createSmartDashboardMarkup(recapView) {
   return `
     <section class="recap-section smart-dashboard-section">
       <div class="recap-section-head">
-        <h3>Repères rapides</h3>
-        <p>Un mini tableau de bord pour savoir quoi surveiller en priorité sur ${escapeHtml(recapView.periodLabel)}.</p>
+        <h3>${english ? "Quick highlights" : "Repères rapides"}</h3>
+        <p>${english
+          ? `A mini dashboard to show what to watch first for ${escapeHtml(recapView.periodLabel)}.`
+          : `Un mini tableau de bord pour savoir quoi surveiller en priorité sur ${escapeHtml(recapView.periodLabel)}.`}</p>
       </div>
       <div class="smart-dashboard-grid">
         <article class="smart-dashboard-card ${cashPositive ? "tone-positive" : "tone-negative"}">
-          <span class="smart-dashboard-kicker">${cashPositive ? "Reste à orienter" : "Cash à surveiller"}</span>
+          <span class="smart-dashboard-kicker">${cashPositive
+            ? (english ? "Cash to allocate" : "Reste à orienter")
+            : (english ? "Cash to watch" : "Cash à surveiller")}</span>
           <strong>${escapeHtml(formatSignedCurrency(recapView.snapshot.cash))}</strong>
-          <p>${cashPositive ? "Il vous reste du cash disponible après les dépenses et l'épargne." : "Le cash passe sous zéro : il faut rééquilibrer le revenu, les dépenses ou l'épargne."}</p>
+          <p>${cashPositive
+            ? (english
+              ? "Cash remains available after expenses and savings."
+              : "Il vous reste du cash disponible après les dépenses et l'épargne.")
+            : (english
+              ? "Cash drops below zero: income, expenses, or savings need to be rebalanced."
+              : "Le cash passe sous zéro : il faut rééquilibrer le revenu, les dépenses ou l'épargne.")}</p>
         </article>
         <article class="smart-dashboard-card tone-neutral">
-          <span class="smart-dashboard-kicker">Poste le plus lourd</span>
-          <strong>${escapeHtml(topGroup?.label || "Aucune dépense dominante")}</strong>
-          <p>${topGroup ? `${escapeHtml(formatCurrency(topGroup.value))} sur la période.` : "Aucune grande catégorie de dépense n'apparaît encore."}</p>
+          <span class="smart-dashboard-kicker">${english ? "Largest category" : "Poste le plus lourd"}</span>
+          <strong>${escapeHtml(topGroup?.label || (english ? "No dominant expense" : "Aucune dépense dominante"))}</strong>
+          <p>${topGroup
+            ? (english
+              ? `${escapeHtml(formatCurrency(topGroup.value))} over the period.`
+              : `${escapeHtml(formatCurrency(topGroup.value))} sur la période.`)
+            : (english
+              ? "No major expense category appears yet."
+              : "Aucune grande catégorie de dépense n'apparaît encore.")}</p>
         </article>
         <article class="smart-dashboard-card tone-accent">
-          <span class="smart-dashboard-kicker">${primaryAlert ? "Alerte principale" : "Vue simplifiée"}</span>
-          <strong>${escapeHtml(primaryAlert?.title || "Aucune alerte affichée")}</strong>
-          <p>${escapeHtml(primaryAlert?.detail || "Les alertes Budget-fra sont masquées dans les paramètres pour garder l'accueil plus épuré.")}</p>
+          <span class="smart-dashboard-kicker">${primaryAlert
+            ? (english ? "Main alert" : "Alerte principale")
+            : (english ? "Simple view" : "Vue simplifiée")}</span>
+          <strong>${escapeHtml(primaryAlert?.title || (english ? "No alert displayed" : "Aucune alerte affichée"))}</strong>
+          <p>${escapeHtml(primaryAlert?.detail || (english
+            ? "Budget-fra alerts are hidden in settings to keep the dashboard lighter."
+            : "Les alertes Budget-fra sont masquées dans les paramètres pour garder l'accueil plus épuré."))}</p>
         </article>
         <article class="smart-dashboard-card tone-default">
-          <span class="smart-dashboard-kicker">Transactions suivies</span>
+          <span class="smart-dashboard-kicker">${english ? "Tracked transactions" : "Transactions suivies"}</span>
           <strong>${escapeHtml(String(recapView.transactionCount || 0))}</strong>
-          <p>${escapeHtml(getBudgetPeriodCountLabel(recapView.budgetPeriodCount))} comparé${recapView.budgetPeriodCount > 1 ? "s" : ""} au plan sur la même période.</p>
+          <p>${english
+            ? `${escapeHtml(getBudgetPeriodCountLabel(recapView.budgetPeriodCount))} compared with the plan over the same period.`
+            : `${escapeHtml(getBudgetPeriodCountLabel(recapView.budgetPeriodCount))} comparé${recapView.budgetPeriodCount > 1 ? "s" : ""} au plan sur la même période.`}</p>
         </article>
         ${primarySuggestion ? `
           <article class="smart-dashboard-card tone-wide">
-            <span class="smart-dashboard-kicker">Suggestion intelligente</span>
+            <span class="smart-dashboard-kicker">${english ? "Smart suggestion" : "Suggestion intelligente"}</span>
             <strong>${escapeHtml(primarySuggestion.title)}</strong>
             <p>${escapeHtml(primarySuggestion.body)}</p>
           </article>
@@ -8076,7 +8944,7 @@ function createBudgetFraAlertMarkup(rows) {
   return `
     <section class="recap-section">
       <div class="recap-section-head">
-        <h3>Alertes</h3>
+        <h3>${isEnglishUi() ? "Alerts" : "Alertes"}</h3>
       </div>
       <div class="fra-alert-grid">
         ${rows.map((row) => `
@@ -8106,8 +8974,10 @@ function createBudgetFraSuggestionMarkup(rows) {
   return `
     <section class="recap-section">
       <div class="recap-section-head">
-        <h3>Suggestions du moment</h3>
-        <p>Première couche de suggestions inspirées de Budget-fra pour vous orienter sans surcharger l'application.</p>
+        <h3>${isEnglishUi() ? "Suggestions of the moment" : "Suggestions du moment"}</h3>
+        <p>${isEnglishUi()
+          ? "A first layer of Budget-fra inspired suggestions to guide you without overloading the app."
+          : "Première couche de suggestions inspirées de Budget-fra pour vous orienter sans surcharger l'application."}</p>
       </div>
       <div class="fra-suggestion-grid">
         ${rows.map((row) => `
@@ -8131,6 +9001,7 @@ function createAnalysisMarkup(analysisView) {
     ...analysisView.seriesRows.flatMap((row) => [row.income, row.expenses, row.savings]),
     1
   );
+  const english = isEnglishUi();
   return `
     <div class="analysis-shell">
       <div class="recap-metrics">
@@ -8139,8 +9010,10 @@ function createAnalysisMarkup(analysisView) {
 
       <section class="recap-section">
         <div class="recap-section-head">
-          <h3>Graphiques budgétaires</h3>
-          <p>Une lecture plus visuelle de vos flux, de vos catégories de dépenses et de vos habitudes mensuelles.</p>
+          <h3>${english ? "Budget charts" : "Graphiques budgétaires"}</h3>
+          <p>${english
+            ? "A more visual read of your flows, expense categories, and monthly habits."
+            : "Une lecture plus visuelle de vos flux, de vos catégories de dépenses et de vos habitudes mensuelles."}</p>
         </div>
         <div class="analysis-visual-grid">
           ${createAnalysisCashFlowMarkup(analysisView.cashFlow)}
@@ -8151,8 +9024,10 @@ function createAnalysisMarkup(analysisView) {
 
       <section class="recap-section">
         <div class="recap-section-head">
-          <h3>Comparaison des indicateurs</h3>
-          <p>Lecture rapide des masses budgétaires sur la période filtrée.</p>
+          <h3>${english ? "Metric comparison" : "Comparaison des indicateurs"}</h3>
+          <p>${english
+            ? "Quick reading of the budget totals over the filtered period."
+            : "Lecture rapide des masses budgétaires sur la période filtrée."}</p>
         </div>
         <div class="analysis-bar-list">
           ${analysisView.comparisonRows.map((row) => createAnalysisMetricBarMarkup(row, comparisonMaxValue)).join("")}
@@ -8173,21 +9048,31 @@ function createAnalysisMarkup(analysisView) {
             ${analysisView.seriesRows.map((row) => createAnalysisPeriodGroupMarkup(row, trendMaxValue)).join("")}
           </div>
           <div class="analysis-legend">
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Revenu</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Dépenses</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Épargne</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>${english ? "Income" : "Revenu"}</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>${english ? "Expenses" : "Dépenses"}</span>
+            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>${english ? "Savings" : "Épargne"}</span>
           </div>
         ` : `
           <div class="empty-form">
-            Aucun groupe de comparaison ne correspond à la recherche ou au filtre actif.
+            ${english
+              ? "No comparison group matches the active search or filter."
+              : "Aucun groupe de comparaison ne correspond à la recherche ou au filtre actif."}
           </div>
         `}
       </section>
 
       ${createRecapTableMarkup(
-        "Tableau de comparaison",
-        "Résumé période par période pour comparer Revenu, Dépenses, Épargne et Cash.",
-        ["Période", "Revenu", "Dépenses", "Épargne", "Cash"],
+        english ? "Comparison table" : "Tableau de comparaison",
+        english
+          ? "Period-by-period summary comparing Income, Expenses, Savings, and Cash."
+          : "Résumé période par période pour comparer Revenu, Dépenses, Épargne et Cash.",
+        [
+          english ? "Period" : "Période",
+          english ? "Income" : "Revenu",
+          english ? "Expenses" : "Dépenses",
+          english ? "Savings" : "Épargne",
+          "Cash",
+        ],
         analysisView.seriesRows.map((row) => ({
           cells: [
             { value: row.label, numeric: false },
@@ -8206,14 +9091,17 @@ function createAnalysisMarkup(analysisView) {
 }
 
 function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
+  const english = getCurrentLanguage() === "en";
   if (!Array.isArray(groups) || !groups.length) {
     return `
       <section class="recap-section">
         <div class="recap-section-head">
-          <h3>Plan vs réel</h3>
-          <p>Le budget mensuel est projeté sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester cohérent avec la période réelle filtrée.</p>
+          <h3>${english ? "Plan vs actual" : "Plan vs réel"}</h3>
+          <p>${english
+            ? `The monthly budget is projected over ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} to stay aligned with the filtered actual period.`
+            : `Le budget mensuel est projeté sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester cohérent avec la période réelle filtrée.`}</p>
         </div>
-        <div class="empty-form">Aucune grande catégorie à comparer pour cette période.</div>
+        <div class="empty-form">${english ? "No main category to compare for this period." : "Aucune grande catégorie à comparer pour cette période."}</div>
       </section>
     `;
   }
@@ -8221,8 +9109,10 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
   return `
     <section class="recap-section">
       <div class="recap-section-head">
-        <h3>Plan vs réel</h3>
-        <p>Le budget mensuel est projeté sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester cohérent avec la période réelle filtrée. Cliquez sur une grande catégorie pour ouvrir le détail des sous-catégories.</p>
+        <h3>${english ? "Plan vs actual" : "Plan vs réel"}</h3>
+        <p>${english
+          ? `The monthly budget is projected over ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} to stay aligned with the filtered actual period. Click a main category to open the subcategory details.`
+          : `Le budget mensuel est projeté sur ${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))} pour rester cohérent avec la période réelle filtrée. Cliquez sur une grande catégorie pour ouvrir le détail des sous-catégories.`}</p>
       </div>
       <div class="analysis-plan-groups">
         ${groups.map((group, index) => createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index)).join("")}
@@ -8232,21 +9122,22 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
 }
 
 function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
+  const english = getCurrentLanguage() === "en";
   return `
     <details class="analysis-plan-group">
       <summary class="analysis-plan-group-summary">
         <div class="analysis-plan-group-copy">
-          <span class="analysis-plan-group-kicker">Grande catégorie</span>
+          <span class="analysis-plan-group-kicker">${english ? "Main category" : "Grande catégorie"}</span>
           <strong>${escapeHtml(group.label)}</strong>
-          <span class="analysis-plan-group-meta">${escapeHtml(group.rows.length)} sous-catégorie${group.rows.length > 1 ? "s" : ""}</span>
+          <span class="analysis-plan-group-meta">${escapeHtml(group.rows.length)} ${english ? `subcategor${group.rows.length > 1 ? "ies" : "y"}` : `sous-catégorie${group.rows.length > 1 ? "s" : ""}`}</span>
         </div>
         <div class="analysis-plan-group-stats">
           <div class="analysis-plan-stat">
-            <span>Budget (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</span>
+            <span>${english ? "Budget" : "Budget"} (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</span>
             <strong>${escapeHtml(formatCurrency(group.plan))}</strong>
           </div>
           <div class="analysis-plan-stat">
-            <span>Réel</span>
+            <span>${english ? "Actual" : "Réel"}</span>
             <strong>${escapeHtml(formatCurrency(group.actual))}</strong>
           </div>
           <div class="analysis-plan-status-wrap">
@@ -8259,16 +9150,16 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
           <table class="recap-table analysis-plan-table">
             <thead>
               <tr>
-                <th>Catégorie</th>
-                <th class="numeric">Budget (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</th>
-                <th class="numeric">Réel</th>
-                <th>Statut</th>
+                <th>${english ? "Category" : "Catégorie"}</th>
+                <th class="numeric">${english ? "Budget" : "Budget"} (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</th>
+                <th class="numeric">${english ? "Actual" : "Réel"}</th>
+                <th>${english ? "Status" : "Statut"}</th>
               </tr>
             </thead>
             <tbody>
               ${group.rows.map((row) => `
                 <tr>
-                  <td>${escapeHtml(row.label)}</td>
+                  <td>${escapeHtml(getDisplayCategoryLabel(row.label) || row.label)}</td>
                   <td class="numeric">${escapeHtml(formatCurrency(row.plan))}</td>
                   <td class="numeric">${escapeHtml(formatCurrency(row.actual))}</td>
                   <td>${createRecapStatusChipMarkup(row.statusLabel, row.statusTone)}</td>
@@ -8305,6 +9196,7 @@ function createAnalysisCashFlowMarkup(cashFlow) {
     return "";
   }
 
+  const english = isEnglishUi();
   const incomeHeight = buildChartScale(cashFlow.income, cashFlow.scaleMax, 18);
   const expensesHeight = buildChartScale(cashFlow.expenses, cashFlow.scaleMax, 10);
   const savingsHeight = buildChartScale(cashFlow.savings, cashFlow.scaleMax, 10);
@@ -8313,15 +9205,17 @@ function createAnalysisCashFlowMarkup(cashFlow) {
   return `
     <article class="analysis-visual-card">
       <div class="analysis-visual-head">
-        <h4>Entrées et sorties d'argent</h4>
-        <p>Le revenu en regard de l'utilisation réelle : dépenses, épargne et cash restant.</p>
+        <h4>${english ? "Money in and money out" : "Entrées et sorties d'argent"}</h4>
+        <p>${english
+          ? "Income compared with actual usage: expenses, savings, and cash left over."
+          : "Le revenu en regard de l'utilisation réelle : dépenses, épargne et cash restant."}</p>
       </div>
       <div class="analysis-cash-chart">
         <div class="analysis-cash-column">
           <div class="analysis-cash-track">
             <span class="analysis-cash-fill income" style="height: ${incomeHeight}%;"></span>
           </div>
-          <strong>Revenu</strong>
+          <strong>${english ? "Income" : "Revenu"}</strong>
           <span>${escapeHtml(formatCurrency(cashFlow.income))}</span>
         </div>
         <div class="analysis-cash-column">
@@ -8330,34 +9224,41 @@ function createAnalysisCashFlowMarkup(cashFlow) {
             <span class="analysis-cash-fill savings" style="height: ${savingsHeight}%;"></span>
             <span class="analysis-cash-fill expenses" style="height: ${expensesHeight}%;"></span>
           </div>
-          <strong>Utilisation</strong>
+          <strong>${english ? "Usage" : "Utilisation"}</strong>
           <span>${escapeHtml(formatCurrency(cashFlow.usageTotal))}</span>
         </div>
       </div>
       <div class="analysis-cash-legend">
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>Revenu</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>Dépenses</span>
-            <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>Épargne</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch income"></span>${english ? "Income" : "Revenu"}</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch expenses"></span>${english ? "Expenses" : "Dépenses"}</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch savings"></span>${english ? "Savings" : "Épargne"}</span>
         <span class="analysis-legend-item"><span class="analysis-legend-swatch cash"></span>Cash</span>
       </div>
       <p class="analysis-visual-note">
         ${cashFlow.overflow > 0
-          ? `Déficit observé : ${escapeHtml(formatCurrency(cashFlow.overflow))} au-delà du revenu.`
-          : `Cash disponible après arbitrage : ${escapeHtml(formatSignedCurrency(cashFlow.cash))}.`}
+          ? (english
+            ? `Observed deficit: ${escapeHtml(formatCurrency(cashFlow.overflow))} beyond income.`
+            : `Déficit observé : ${escapeHtml(formatCurrency(cashFlow.overflow))} au-delà du revenu.`)
+          : (english
+            ? `Cash available after allocation: ${escapeHtml(formatSignedCurrency(cashFlow.cash))}.`
+            : `Cash disponible après arbitrage : ${escapeHtml(formatSignedCurrency(cashFlow.cash))}.`)}
       </p>
     </article>
   `;
 }
 
 function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
+  const english = isEnglishUi();
   if (!expenseBreakdown?.available) {
     return `
       <article class="analysis-visual-card">
         <div class="analysis-visual-head">
-          <h4>Où va votre argent</h4>
-          <p>Répartition des dépenses par catégorie.</p>
+          <h4>${english ? "Where your money goes" : "Où va votre argent"}</h4>
+          <p>${english ? "Expense breakdown by category." : "Répartition des dépenses par catégorie."}</p>
         </div>
-        <div class="empty-form">Aucune dépense datée n'est disponible pour construire ce graphique.</div>
+        <div class="empty-form">${english
+          ? "No dated expense is available to build this chart."
+          : "Aucune dépense datée n'est disponible pour construire ce graphique."}</div>
       </article>
     `;
   }
@@ -8365,14 +9266,16 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
   return `
     <article class="analysis-visual-card">
       <div class="analysis-visual-head">
-        <h4>Où va votre argent</h4>
-        <p>Les catégories les plus lourdes prennent visuellement plus de place.</p>
+        <h4>${english ? "Where your money goes" : "Où va votre argent"}</h4>
+        <p>${english
+          ? "The heaviest categories take up more visual space."
+          : "Les catégories les plus lourdes prennent visuellement plus de place."}</p>
       </div>
       <div class="analysis-donut-layout">
         <div class="analysis-donut-chart" style="--analysis-donut:${expenseBreakdown.gradient};">
           <div class="analysis-donut-center">
             <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
-            <span>Dépenses</span>
+            <span>${english ? "Expenses" : "Dépenses"}</span>
           </div>
         </div>
         <div class="analysis-donut-legend">
@@ -8392,14 +9295,19 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
 }
 
 function createAnalysisBenchmarkMarkup(categoryBenchmark) {
+  const english = isEnglishUi();
   if (!categoryBenchmark?.available) {
     return `
       <article class="analysis-visual-card">
         <div class="analysis-visual-head">
-          <h4>Comparaison avec votre moyenne</h4>
-          <p>Lecture catégorie par catégorie sur une base mensuelle.</p>
+          <h4>${english ? "Comparison with your average" : "Comparaison avec votre moyenne"}</h4>
+          <p>${english
+            ? "Category-by-category reading on a monthly basis."
+            : "Lecture catégorie par catégorie sur une base mensuelle."}</p>
         </div>
-        <div class="empty-form">Pas assez de mois datés pour calculer une moyenne de comparaison.</div>
+        <div class="empty-form">${english
+          ? "Not enough dated months to calculate a comparison average."
+          : "Pas assez de mois datés pour calculer une moyenne de comparaison."}</div>
       </article>
     `;
   }
@@ -8407,7 +9315,7 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
   return `
     <article class="analysis-visual-card">
       <div class="analysis-visual-head">
-        <h4>Comparaison avec votre moyenne mensuelle</h4>
+        <h4>${english ? "Comparison with your monthly average" : "Comparaison avec votre moyenne mensuelle"}</h4>
         <p>${escapeHtml(categoryBenchmark.subtitle)}</p>
       </div>
       <div class="analysis-benchmark-list">
@@ -8425,8 +9333,8 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
         `).join("")}
       </div>
       <div class="analysis-benchmark-legend">
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch average"></span>Moyenne mensuelle</span>
-        <span class="analysis-legend-item"><span class="analysis-legend-swatch current"></span>Période de référence</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch average"></span>${english ? "Monthly average" : "Moyenne mensuelle"}</span>
+        <span class="analysis-legend-item"><span class="analysis-legend-swatch current"></span>${english ? "Reference period" : "Période de référence"}</span>
       </div>
     </article>
   `;
@@ -8463,7 +9371,7 @@ function createRecapStatusChipMarkup(label, tone) {
   return `
     <span class="recap-status recap-status-${escapeHtml(tone || "on-budget")}">
       <span class="recap-status-dot" aria-hidden="true"></span>
-      <span>${escapeHtml(label || "Conforme au budget")}</span>
+      <span>${escapeHtml(label || (isEnglishUi() ? "On budget" : "Conforme au budget"))}</span>
     </span>
   `;
 }
@@ -8476,7 +9384,7 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
           <h3>${escapeHtml(title)}</h3>
           <p>${escapeHtml(subtitle)}</p>
         </div>
-        <div class="empty-form">Aucune ligne à afficher pour cette vue.</div>
+        <div class="empty-form">${isEnglishUi() ? "No row to display for this view." : "Aucune ligne à afficher pour cette vue."}</div>
       </section>
     `;
   }
@@ -8518,57 +9426,59 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
 function renderEditor() {
   if (state.appTab === APP_TAB_PLAN) {
     if (refs.formKicker) {
-      refs.formKicker.textContent = "Budget planifié";
+      refs.formKicker.textContent = t("form.kickerPlannedBudget");
     }
     renderPlanEditor();
     return;
   }
 
   if (refs.formKicker) {
-    refs.formKicker.textContent = "Formulaire";
+    refs.formKicker.textContent = t("form.kickerForm");
   }
 
-  refs.saveButton.textContent = "Enregistrer";
-  refs.cancelButton.textContent = "Reinitialiser";
+  refs.saveButton.textContent = t("form.save");
+  refs.cancelButton.textContent = t("form.reset");
 
   if (state.mode !== "budget") {
-    refs.formTitle.textContent = "Nouvelle fiche";
-    refs.formSubtitle.textContent = "Démarrez d'abord votre budget local ou importez votre fichier Excel.";
+    refs.formTitle.textContent = t("form.newRecord");
+    refs.formSubtitle.textContent = t("form.startFirst");
     refs.formFields.innerHTML = `<div class="empty-form">${buildStartupGuideMarkup({
-      title: "Commencez votre budget",
-      description: "Le formulaire Date / Categories / Value sera activé dès que vous créerez un modèle local, importerez Excel ou rejoindrez un espace partagé.",
-      note: "Le modèle local suffit pour commencer tout de suite, même sans fichier Excel.",
+      title: t("form.startBudgetTitle"),
+      description: t("form.startBudgetDescription"),
+      note: t("form.startBudgetNote"),
     })}</div>`;
     return;
   }
 
   if (state.activeView !== JOURNAL_SHEET_NAME) {
     const isRecapView = state.activeView === RECAP_SHEET_NAME;
-    refs.formTitle.textContent = isRecapView ? "Vue récap" : "Vue comparaisons";
-    refs.formSubtitle.textContent = "Lecture seule dans l'application.";
+    refs.formTitle.textContent = isRecapView ? t("form.readOnlyRecap") : t("form.readOnlyAnalysis");
+    refs.formSubtitle.textContent = t("form.readOnlySubtitle");
     refs.formFields.innerHTML = isRecapView
       ? `
         <div class="empty-form">
-          Cette vue n'édite pas directement la feuille Récapitulatif d'Excel.
-          Elle reconstruit une synthèse lisible à partir de ${RECAP_SHEET_NAME}, ${TCD_SHEET_NAME}
-          et de vos transactions ${JOURNAL_SHEET_NAME}. Pour modifier les données, revenez sur
-          la vue Journalier.
+          ${escapeHtml(t("form.readOnlyRecapBody", {
+            recap: RECAP_SHEET_NAME,
+            tcd: TCD_SHEET_NAME,
+            journal: JOURNAL_SHEET_NAME,
+          }))}
         </div>
       `
       : `
         <div class="empty-form">
-          Cette vue ajoute des comparaisons et des graphiques à partir des écritures de ${JOURNAL_SHEET_NAME}.
-          Elle est destinée à l'analyse. Pour modifier les données, revenez sur la vue Journalier.
+          ${escapeHtml(t("form.readOnlyAnalysisBody", {
+            journal: JOURNAL_SHEET_NAME,
+          }))}
         </div>
       `;
     return;
   }
 
   refs.formSubtitle.textContent = state.workbook
-    ? "Ajoutez ou modifiez vos transactions. Les vues de récap et de comparaison se recalculent aussitôt."
+    ? t("form.subtitleWorkbook")
     : canUseSupabaseCloud()
-      ? "Mode cloud partagé. Ajoutez ou modifiez vos transactions, Supabase les republie pour les autres personnes."
-      : "Mode autonome local. Ajoutez ou modifiez vos transactions, les graphiques se mettent à jour aussitôt et l'export reste disponible.";
+      ? t("form.subtitleCloud")
+      : t("form.subtitleLocal");
 
   const editingRow =
     state.editorMode === "edit" &&
@@ -8582,12 +9492,12 @@ function renderEditor() {
     state.editingIndex = null;
   }
 
-  refs.formTitle.textContent = state.editorMode === "edit" ? "Modifier la transaction" : "Nouvelle transaction";
+  refs.formTitle.textContent = state.editorMode === "edit" ? t("form.editTransaction") : t("form.newTransaction");
   refs.formSubtitle.textContent = state.workbook
-    ? "Saisie directe de Journalier!D:F avec catégories prédéfinies depuis la colonne B."
+    ? t("form.editingWorkbook")
     : canUseSupabaseCloud()
-      ? "Mode cloud partagé : chaque enregistrement met à jour vos vues locales et synchronise Supabase."
-      : "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.";
+      ? t("form.editingCloud")
+      : t("form.editingLocal");
   refs.formFields.innerHTML = "";
 
   appendField(renderDateField(editingRow.Date));
@@ -8597,29 +9507,38 @@ function renderEditor() {
 }
 
 function renderPlanEditor() {
-  refs.saveButton.textContent = "Enregistrer le budget";
-  refs.cancelButton.textContent = "Recharger les valeurs";
+  const english = getCurrentLanguage() === "en";
+  refs.saveButton.textContent = t("form.saveBudget");
+  refs.cancelButton.textContent = t("form.reloadValues");
 
   if (state.mode !== "budget") {
-    refs.formTitle.textContent = "Budget mensuel";
-    refs.formSubtitle.textContent = "Commencez avec un modèle local ou importez votre budget pour fixer les montants cibles.";
+    refs.formTitle.textContent = t("form.monthlyBudget");
+    refs.formSubtitle.textContent = t("form.monthlyBudgetEmpty");
     refs.formFields.innerHTML = `<div class="empty-form">${buildStartupGuideMarkup({
-      title: "Budget mensuel prêt à créer",
-      description: "Le plan mensuel peut être initialisé sans fichier Excel. Vous pourrez ensuite ajuster les montants, les périodes et les comparaisons.",
-      note: "Une fois le modèle créé, l'onglet Budget sera modifiable immédiatement.",
+      title: english ? "Monthly budget ready to create" : "Budget mensuel prêt à créer",
+      description: english
+        ? "The monthly plan can be initialized without an Excel file. You can then adjust amounts, periods, and comparisons."
+        : "Le plan mensuel peut être initialisé sans fichier Excel. Vous pourrez ensuite ajuster les montants, les périodes et les comparaisons.",
+      note: english
+        ? "Once the template is created, the Budget tab becomes editable right away."
+        : "Une fois le modèle créé, l'onglet Budget sera modifiable immédiatement.",
     })}</div>`;
     return;
   }
 
   const planTemplate = ensurePlanTemplateSeeded();
-  refs.formTitle.textContent = "Budget mensuel";
+  refs.formTitle.textContent = t("form.monthlyBudget");
   refs.formSubtitle.textContent = state.planEditing
-    ? "Édition active. Choisissez le montant et la période de chaque ligne, puis l'application calcule l'équivalent mensuel."
-    : "Budget en lecture seule. Cliquez sur Éditer le budget pour modifier le montant ou la période de chaque ligne.";
+    ? (english
+      ? "Editing is active. Choose the amount and period for each line, then the app calculates the monthly equivalent."
+      : "Édition active. Choisissez le montant et la période de chaque ligne, puis l'application calcule l'équivalent mensuel.")
+    : (english
+      ? "Budget is read-only. Click Edit budget to change the amount or period of each line."
+      : "Budget en lecture seule. Cliquez sur Éditer le budget pour modifier le montant ou la période de chaque ligne.");
   refs.formFields.innerHTML = "";
 
   if (!planTemplate.length) {
-    refs.formFields.innerHTML = '<div class="empty-form">Aucune ligne de budget n\'est disponible pour le moment.</div>';
+    refs.formFields.innerHTML = `<div class="empty-form">${english ? "No budget line is available right now." : "Aucune ligne de budget n'est disponible pour le moment."}</div>`;
     return;
   }
 
@@ -8665,16 +9584,19 @@ function refreshCategoryParentMeta() {
   }
 
   const selectedValue = String(select.value || "").trim();
+  const internalCategory = getInternalCategoryLabel(selectedValue);
   const valueInput = document.getElementById("field-value");
   const amountValue = valueInput ? valueInput.value : "";
-  const parentLabel = selectedValue
-    ? getBudgetFraCategoryLabel(selectedValue, "", amountValue)
-    : "Aucune";
-  const displayLabel = parentLabel || "Aucune";
+  const parentLabel = internalCategory
+    ? getBudgetFraCategoryLabel(internalCategory, "", amountValue)
+    : (getCurrentLanguage() === "en" ? "None" : "Aucune");
+  const displayLabel = parentLabel || (getCurrentLanguage() === "en" ? "None" : "Aucune");
 
   parentChip.textContent = displayLabel;
   parentChip.classList.toggle("is-empty", !selectedValue || !parentLabel);
-  hint.textContent = `${getAvailableFormCategoryCount()} categories disponibles depuis l'onglet Budget. Tapez pour filtrer plus vite ou entrez directement le nom complet.`;
+  hint.textContent = getCurrentLanguage() === "en"
+    ? `${getAvailableFormCategoryCount()} categories available from the Budget tab. Type to filter faster or enter the full name directly.`
+    : `${getAvailableFormCategoryCount()} categories disponibles depuis l'onglet Budget. Tapez pour filtrer plus vite ou entrez directement le nom complet.`;
   if (recurringSaveButton) {
     recurringSaveButton.disabled = !canSaveCurrentTransactionAsRecurringTemplate();
   }
@@ -8727,10 +9649,11 @@ function renderBudgetSummaryCard(row) {
 function renderDateField(value) {
   const wrapper = document.createElement("div");
   wrapper.className = "field-card";
+  const english = isEnglishUi();
 
   const label = document.createElement("label");
   label.setAttribute("for", "field-date");
-  label.textContent = "Date";
+  label.textContent = english ? "Date" : "Date";
 
   const input = document.createElement("input");
   input.id = "field-date";
@@ -8745,10 +9668,11 @@ function renderDateField(value) {
 function renderCategoryField(value) {
   const wrapper = document.createElement("div");
   wrapper.className = "field-card";
+  const english = isEnglishUi();
 
   const label = document.createElement("label");
   label.setAttribute("for", "field-categories");
-  label.textContent = "Categories";
+  label.textContent = english ? "Category" : "Catégorie";
 
   const categoryInput = document.createElement("input");
   categoryInput.id = "field-categories";
@@ -8756,25 +9680,28 @@ function renderCategoryField(value) {
   categoryInput.type = "text";
   categoryInput.setAttribute("list", "budget-category-options");
   categoryInput.setAttribute("autocomplete", "off");
-  categoryInput.placeholder = "Tapez ou choisissez une categorie";
-  categoryInput.value = value || "";
+  categoryInput.placeholder = english ? "Type or choose a category" : "Tapez ou choisissez une catégorie";
+  categoryInput.value = getDisplayCategoryLabel(value || "");
 
   const datalist = document.createElement("datalist");
   datalist.id = "budget-category-options";
-  buildAvailableFormCategories()
-    .flatMap((group) => group.items)
-    .forEach((category) => {
+  Array.from(new Set(
+    buildAvailableFormCategories()
+      .flatMap((group) => group.items)
+      .map((category) => getDisplayCategoryLabel(category))
+      .filter(Boolean)
+  )).forEach((category) => {
       const option = document.createElement("option");
       option.value = category;
       datalist.appendChild(option);
-    });
+  });
 
   const parentMeta = document.createElement("div");
   parentMeta.className = "field-parent-meta";
 
   const parentLabelCaption = document.createElement("span");
   parentLabelCaption.className = "field-parent-label";
-  parentLabelCaption.textContent = "Grande catégorie";
+  parentLabelCaption.textContent = english ? "Main category" : "Grande catégorie";
 
   const parentChip = document.createElement("span");
   parentChip.className = "field-parent-chip";
@@ -8793,10 +9720,11 @@ function renderCategoryField(value) {
 function renderValueField(value) {
   const wrapper = document.createElement("div");
   wrapper.className = "field-card";
+  const english = isEnglishUi();
 
   const label = document.createElement("label");
   label.setAttribute("for", "field-value");
-  label.textContent = "Value";
+  label.textContent = english ? "Amount" : "Montant";
 
   const input = document.createElement("input");
   input.id = "field-value";
@@ -8815,7 +9743,9 @@ function renderValueField(value) {
   toggleButton.type = "button";
   toggleButton.className = "value-sign-toggle";
   toggleButton.textContent = "- / +";
-  toggleButton.setAttribute("aria-label", "Basculer entre un montant négatif et positif");
+  toggleButton.setAttribute("aria-label", english
+    ? "Toggle between a negative and positive amount"
+    : "Basculer entre un montant négatif et positif");
   toggleButton.addEventListener("click", () => {
     const currentValue = String(input.value || "").trim();
     if (!currentValue) {
@@ -8850,17 +9780,18 @@ function renderValueField(value) {
 function renderRecurringTemplatesPanel() {
   const section = document.createElement("section");
   section.className = "recurring-panel";
+  const english = getCurrentLanguage() === "en";
 
   const templates = getRecurringTemplates();
   const heading = document.createElement("div");
   heading.className = "recurring-panel-head";
   heading.innerHTML = `
     <div>
-      <span class="section-kicker">Transactions récurrentes</span>
-      <h3>Modèles rapides</h3>
+      <span class="section-kicker">${english ? "Recurring transactions" : "Transactions récurrentes"}</span>
+      <h3>${english ? "Quick templates" : "Modèles rapides"}</h3>
     </div>
     <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
-      Enregistrer la transaction comme modèle
+      ${english ? "Save transaction as template" : "Enregistrer la transaction comme modèle"}
     </button>
   `;
 
@@ -8870,7 +9801,9 @@ function renderRecurringTemplatesPanel() {
   if (!templates.length) {
     const empty = document.createElement("div");
     empty.className = "empty-form recurring-empty";
-    empty.textContent = "Aucun modèle récurrent pour le moment. Enregistrez une transaction type pour la réutiliser plus vite.";
+    empty.textContent = english
+      ? "No recurring template yet. Save a typical transaction to reuse it faster."
+      : "Aucun modèle récurrent pour le moment. Enregistrez une transaction type pour la réutiliser plus vite.";
     list.appendChild(empty);
   } else {
     templates.forEach((template) => {
@@ -8878,12 +9811,12 @@ function renderRecurringTemplatesPanel() {
       card.className = "recurring-card";
       card.innerHTML = `
         <div class="recurring-card-copy">
-          <strong>${escapeHtml(template.label)}</strong>
-          <p>${escapeHtml(template.category)} · ${escapeHtml(formatCurrency(parseAmount(template.value) || 0))} · ${escapeHtml(getPlanPeriodLabel(template.period))}</p>
+          <strong>${escapeHtml(getDisplayCategoryLabel(template.label) || template.label)}</strong>
+          <p>${escapeHtml(getDisplayCategoryLabel(template.category) || template.category)} · ${escapeHtml(formatCurrency(parseAmount(template.value) || 0))} · ${escapeHtml(getPlanPeriodLabel(template.period))}</p>
         </div>
         <div class="recurring-card-actions">
-          <button type="button" class="button secondary" data-recurring-action="use" data-template-id="${escapeHtml(template.id)}">Utiliser</button>
-          <button type="button" class="button ghost" data-recurring-action="delete" data-template-id="${escapeHtml(template.id)}">Supprimer</button>
+          <button type="button" class="button secondary" data-recurring-action="use" data-template-id="${escapeHtml(template.id)}">${english ? "Use" : "Utiliser"}</button>
+          <button type="button" class="button ghost" data-recurring-action="delete" data-template-id="${escapeHtml(template.id)}">${english ? "Delete" : "Supprimer"}</button>
         </div>
       `;
       list.appendChild(card);
@@ -8895,9 +9828,11 @@ function renderRecurringTemplatesPanel() {
 }
 
 function renderPlanAmountField(row, index, readOnly = false) {
+  const english = getCurrentLanguage() === "en";
   const wrapper = document.createElement("div");
   const derived = isDerivedPlanLabel(row.label);
   const rowKey = normalizeHeaderName(row.label);
+  const displayLabel = derived ? getMetricDisplayLabel(row.label) : getDisplayCategoryLabel(row.label);
   wrapper.className = `budget-row plan-field-card${derived ? " is-derived" : ""}${readOnly ? " is-locked" : " is-editing"}`;
   wrapper.setAttribute("data-plan-row", row.label);
   wrapper.setAttribute("data-plan-key", rowKey);
@@ -8905,22 +9840,22 @@ function renderPlanAmountField(row, index, readOnly = false) {
   const itemGroup = document.createElement("div");
   itemGroup.className = "budget-row-cell budget-row-poste";
   itemGroup.innerHTML = `
-    <span class="budget-mobile-label">Poste</span>
+    <span class="budget-mobile-label">${english ? "Item" : "Poste"}</span>
     <div>
-      <label class="item-label" for="plan-field-${index}">${escapeHtml(row.label)}</label>
+      <label class="item-label" for="plan-field-${index}">${escapeHtml(displayLabel)}</label>
       <span class="item-code">${escapeHtml(
         derived
-          ? "Valeur calculée automatiquement"
+          ? (english ? "Calculated automatically" : "Valeur calculée automatiquement")
           : readOnly
-            ? "Lecture seule. Cliquez sur Éditer le budget pour modifier."
-            : "Le budget sera converti en équivalent mensuel."
+            ? (english ? "Read-only. Click Edit budget to modify it." : "Lecture seule. Cliquez sur Éditer le budget pour modifier.")
+            : (english ? "The budget will be converted to a monthly equivalent." : "Le budget sera converti en équivalent mensuel.")
       )}</span>
     </div>
   `;
 
   const amountGroup = document.createElement("div");
   amountGroup.className = "budget-row-cell";
-  amountGroup.innerHTML = `<span class="budget-mobile-label">Montant</span>`;
+  amountGroup.innerHTML = `<span class="budget-mobile-label">${english ? "Amount" : "Montant"}</span>`;
   const input = document.createElement("input");
   input.id = `plan-field-${index}`;
   input.type = "text";
@@ -8942,7 +9877,7 @@ function renderPlanAmountField(row, index, readOnly = false) {
   if (!derived) {
     periodGroup = document.createElement("div");
     periodGroup.className = "budget-row-cell";
-    periodGroup.innerHTML = `<span class="budget-mobile-label">Période</span>`;
+    periodGroup.innerHTML = `<span class="budget-mobile-label">${english ? "Period" : "Période"}</span>`;
     const select = document.createElement("select");
     select.id = `plan-period-${index}`;
     select.setAttribute("data-plan-period", "true");
@@ -8954,7 +9889,7 @@ function renderPlanAmountField(row, index, readOnly = false) {
     PLAN_PERIOD_OPTIONS.forEach((option) => {
       const optionElement = document.createElement("option");
       optionElement.value = option.value;
-      optionElement.textContent = option.label;
+      optionElement.textContent = getPlanPeriodLabel(option.value);
       optionElement.selected = normalizePlanPeriod(row.period) === option.value;
       select.appendChild(optionElement);
     });
@@ -8963,16 +9898,16 @@ function renderPlanAmountField(row, index, readOnly = false) {
 
   const parentGroup = document.createElement("div");
   parentGroup.className = "budget-row-cell";
-  parentGroup.innerHTML = `<span class="budget-mobile-label">Parent</span>`;
+  parentGroup.innerHTML = `<span class="budget-mobile-label">${english ? "Parent" : "Parent"}</span>`;
   const parentValue = document.createElement("span");
   parentValue.className = `budget-parent-pill${parentLabel ? "" : " budget-parent-empty"}`;
   parentValue.setAttribute("data-plan-parent-label", "true");
-  parentValue.textContent = parentLabel || "Aucun parent";
+  parentValue.textContent = parentLabel || (english ? "No parent" : "Aucun parent");
   parentGroup.appendChild(parentValue);
 
   const monthlyGroup = document.createElement("div");
   monthlyGroup.className = "budget-row-cell budget-row-monthly";
-  monthlyGroup.innerHTML = `<span class="budget-mobile-label">Mensuel</span>`;
+  monthlyGroup.innerHTML = `<span class="budget-mobile-label">${english ? "Monthly" : "Mensuel"}</span>`;
   const monthlyValue = document.createElement("strong");
   monthlyValue.className = "plan-monthly-value";
   monthlyValue.setAttribute("data-plan-monthly", "true");
@@ -9034,6 +9969,134 @@ function normalizeHeaderName(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
+}
+
+const ENGLISH_CATEGORY_LABELS = new Map([
+  ["Mon revenu net", "Net income"],
+  ["Revenu du/de la partenaire", "Partner income"],
+  ["Assurance-emploi", "Employment insurance"],
+  ["Revenu de location", "Rental income"],
+  ["Pension publique", "Public pension"],
+  ["Pension de l'employeur", "Employer pension"],
+  ["Revenu personnel pour la retraite", "Personal retirement income"],
+  ["Epargne-etudes et prets", "Education savings and loans"],
+  ["Pension alimentaire pour enfants", "Child support"],
+  ["Allocation pour enfants", "Child benefits"],
+  ["Prestations d'invalidite", "Disability benefits"],
+  ["Aide sociale", "Social assistance"],
+  ["Savings for seasonal exp.", "Seasonal savings"],
+  ["Retraite", "Retirement"],
+  ["Education (épargne)", "Education savings"],
+  ["Achat d'une maison", "Home purchase"],
+  ["Renovations de maison", "Home renovations"],
+  ["Achat d'une auto", "Car purchase"],
+  ["Impots", "Taxes"],
+  ["Carte de credit", "Credit card"],
+  ["Marge de credit", "Line of credit"],
+  ["Pret personnel", "Personal loan"],
+  ["Pret etudiant", "Student loan"],
+  ["Loyer", "Rent"],
+  ["Paiement hypothecaire", "Mortgage payment"],
+  ["Marge de credit hypothecaire", "Home equity line of credit"],
+  ["Impots fonciers", "Property taxes"],
+  ["Frais de copropriete", "Condo fees"],
+  ["Assurance pour locataire", "Tenant insurance"],
+  ["Assurance maison", "Home insurance"],
+  ["Meubles et appareils menagers", "Furniture and appliances"],
+  ["Equipement et services pour l'exterieur", "Outdoor equipment and services"],
+  ["Systeme de securite residentielle", "Home security system"],
+  ["Electricite", "Electricity"],
+  ["Eau et egouts", "Water and sewer"],
+  ["Chauffage", "Heating"],
+  ["Telephone / Cellulaire", "Phone / Cellphone"],
+  ["Cable ou satellite", "Cable or satellite"],
+  ["Forfait combine", "Bundle plan"],
+  ["Services de divertissement", "Entertainment services"],
+  ["Epicerie", "Groceries"],
+  ["Restaurant ou plats a emporter", "Restaurants or takeout"],
+  ["Vie", "Life"],
+  ["Medicale et dentaire", "Medical and dental"],
+  ["Invalidite ou accident", "Disability or accident"],
+  ["Paiement d'auto (pret / location)", "Car payment (loan / lease)"],
+  ["Assurance auto", "Car insurance"],
+  ["Essence", "Fuel"],
+  ["Entretien", "Maintenance"],
+  ["Permis et immatriculation d'auto", "License and vehicle registration"],
+  ["Stationnement", "Parking"],
+  ["Transport en commun", "Public transit"],
+  ["Services de transport", "Ride services"],
+  ["Garderie", "Daycare"],
+  ["Gardiennage", "Babysitting"],
+  ["Frais scolaires", "School fees"],
+  ["Manuels et fournitures", "Books and supplies"],
+  ["Voyages scolaires", "School trips"],
+  ["Vacances et voyages", "Vacations and travel"],
+  ["Abonnement a des clubs", "Club memberships"],
+  ["Activites et jouets pour enfants", "Children's activities and toys"],
+  ["Billets pour evenements", "Event tickets"],
+  ["Equipement sportif et autres activites", "Sports equipment and other activities"],
+  ["Equipement de divertissement", "Entertainment equipment"],
+  ["Alcool", "Alcohol"],
+  ["Produits d'inhalation de fumee", "Smoking products"],
+  ["Coiffure", "Haircare"],
+  ["Cosmetiques et soins de la peau", "Cosmetics and skincare"],
+  ["Spa et soins de beaute", "Spa and beauty care"],
+  ["Vetements", "Clothing"],
+  ["Vetements pour enfants", "Children's clothing"],
+  ["Accessoires", "Accessories"],
+  ["Medecin / Frais medicaux", "Doctor / medical costs"],
+  ["Dentiste", "Dentist"],
+  ["Specialistes", "Specialists"],
+  ["Nourriture pour animaux", "Pet food"],
+  ["Veterinaire", "Veterinarian"],
+  ["Frais bancaires", "Bank fees"],
+  ["Frais de carte de credit", "Credit card fees"],
+  ["Cotisations professionnelles", "Professional dues"],
+  ["Cadeaux", "Gifts"],
+  ["Dons", "Donations"],
+].map(([key, value]) => [normalizeHeaderName(key), value]));
+
+const INTERNAL_CATEGORY_LABEL_BY_ENGLISH = new Map(
+  Array.from(ENGLISH_CATEGORY_LABELS.entries()).map(([internalKey, englishLabel]) => [normalizeHeaderName(englishLabel), internalKey])
+);
+
+function getDisplayCategoryLabel(label) {
+  const rawLabel = String(label || "").trim();
+  if (!rawLabel) {
+    return "";
+  }
+
+  if (!isEnglishUi()) {
+    return rawLabel;
+  }
+
+  const normalized = normalizeHeaderName(rawLabel);
+  return ENGLISH_CATEGORY_LABELS.get(normalized) || rawLabel;
+}
+
+function getInternalCategoryLabel(label) {
+  const rawLabel = String(label || "").trim();
+  if (!rawLabel || !isEnglishUi()) {
+    return rawLabel;
+  }
+
+  const normalized = normalizeHeaderName(rawLabel);
+  const internalKey = INTERNAL_CATEGORY_LABEL_BY_ENGLISH.get(normalized);
+  if (!internalKey) {
+    return rawLabel;
+  }
+
+  const categoryMatch = state.budget.categories.find((entry) => normalizeHeaderName(entry) === internalKey);
+  if (categoryMatch) {
+    return categoryMatch;
+  }
+
+  const planMatch = resolvePlanTemplate(state.recap.planTemplate).find((row) => normalizeHeaderName(row.label) === internalKey);
+  if (planMatch) {
+    return planMatch.label;
+  }
+
+  return rawLabel;
 }
 
 function normalizeDateValue(value) {

@@ -13,10 +13,78 @@
   --teal: #2f7d74;
   --teal-soft: #d7efe9;
   --shadow: 0 24px 55px rgba(25, 45, 51, 0.12);
+  --body-glow-a: rgba(255, 201, 165, 0.92);
+  --body-glow-b: rgba(101, 180, 165, 0.36);
+  --hero-overlay-start: rgba(255, 255, 255, 0.92);
+  --hero-overlay-end: rgba(255, 247, 240, 0.94);
+  --hero-glow-a: rgba(255, 216, 198, 0.55);
+  --hero-glow-b: rgba(215, 239, 233, 0.7);
+  --soft-card: rgba(255, 255, 255, 0.78);
+  --soft-card-shadow: 0 10px 24px rgba(24, 51, 59, 0.06);
+  --ghost-bg: rgba(255, 255, 255, 0.72);
+  --ghost-border: rgba(24, 51, 59, 0.1);
+  --secondary-start: #e8f5f1;
+  --secondary-end: #d7ede6;
+  --field-bg: rgba(255, 255, 255, 0.82);
+  --field-bg-strong: #fffefc;
+  --field-border: rgba(24, 51, 59, 0.08);
+  --field-placeholder: rgba(24, 51, 59, 0.34);
+  --table-bg: rgba(255, 255, 255, 0.88);
+  --table-head-bg: rgba(244, 249, 247, 0.98);
+  --table-hover-bg: rgba(244, 250, 248, 0.78);
+  --table-total-bg: rgba(215, 239, 233, 0.65);
+  --empty-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(244, 250, 248, 0.75));
+  --empty-border: rgba(24, 51, 59, 0.14);
+  --sticky-fade: linear-gradient(180deg, rgba(255, 252, 248, 0), rgba(255, 252, 248, 0.94) 28%);
   --radius-xl: 30px;
   --radius-lg: 24px;
   --radius-md: 18px;
   --radius-sm: 12px;
+}
+
+body[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-start: #08161a;
+  --bg-mid: #102228;
+  --bg-end: #0d1c21;
+  --ink: #e7f0f2;
+  --muted: #9aafb5;
+  --line: rgba(171, 205, 214, 0.14);
+  --panel: rgba(16, 28, 34, 0.86);
+  --panel-strong: rgba(12, 22, 28, 0.94);
+  --accent: #ef8961;
+  --accent-deep: #ffc0a5;
+  --accent-soft: rgba(239, 137, 97, 0.18);
+  --teal: #67bfb0;
+  --teal-soft: rgba(57, 112, 104, 0.28);
+  --shadow: 0 24px 55px rgba(0, 0, 0, 0.38);
+  --body-glow-a: rgba(239, 137, 97, 0.18);
+  --body-glow-b: rgba(103, 191, 176, 0.16);
+  --hero-overlay-start: rgba(22, 37, 44, 0.94);
+  --hero-overlay-end: rgba(16, 28, 34, 0.96);
+  --hero-glow-a: rgba(239, 137, 97, 0.18);
+  --hero-glow-b: rgba(86, 164, 150, 0.2);
+  --soft-card: rgba(19, 32, 38, 0.92);
+  --soft-card-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+  --ghost-bg: rgba(23, 38, 45, 0.88);
+  --ghost-border: rgba(171, 205, 214, 0.14);
+  --secondary-start: #17353c;
+  --secondary-end: #21474f;
+  --field-bg: rgba(11, 21, 26, 0.94);
+  --field-bg-strong: rgba(15, 27, 33, 0.98);
+  --field-border: rgba(171, 205, 214, 0.14);
+  --field-placeholder: rgba(154, 175, 181, 0.58);
+  --table-bg: rgba(17, 29, 35, 0.92);
+  --table-head-bg: rgba(22, 37, 44, 0.98);
+  --table-hover-bg: rgba(48, 76, 84, 0.22);
+  --table-total-bg: rgba(52, 96, 92, 0.3);
+  --empty-bg: linear-gradient(180deg, rgba(18, 31, 37, 0.9), rgba(13, 24, 30, 0.92));
+  --empty-border: rgba(171, 205, 214, 0.2);
+  --sticky-fade: linear-gradient(180deg, rgba(8, 22, 26, 0), rgba(8, 22, 26, 0.94) 28%);
+}
+
+body[data-theme="light"] {
+  color-scheme: light;
 }
 
 * {
@@ -34,8 +102,8 @@ body {
   color: var(--ink);
   font-family: "Trebuchet MS", "Segoe UI Variable", "Verdana", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(255, 201, 165, 0.92), transparent 34%),
-    radial-gradient(circle at 88% 12%, rgba(101, 180, 165, 0.36), transparent 22%),
+    radial-gradient(circle at top left, var(--body-glow-a), transparent 34%),
+    radial-gradient(circle at 88% 12%, var(--body-glow-b), transparent 22%),
     linear-gradient(155deg, var(--bg-start) 0%, var(--bg-mid) 48%, var(--bg-end) 100%);
   -webkit-tap-highlight-color: transparent;
 }
@@ -87,7 +155,7 @@ textarea {
   display: grid;
   gap: 22px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 240, 0.94)),
+    linear-gradient(135deg, var(--hero-overlay-start), var(--hero-overlay-end)),
     var(--panel);
 }
 
@@ -104,7 +172,7 @@ textarea {
   height: 420px;
   top: -240px;
   right: -120px;
-  background: radial-gradient(circle, rgba(255, 216, 198, 0.55), transparent 68%);
+  background: radial-gradient(circle, var(--hero-glow-a), transparent 68%);
 }
 
 .hero-copy::after {
@@ -112,7 +180,7 @@ textarea {
   height: 320px;
   bottom: -220px;
   left: -120px;
-  background: radial-gradient(circle, rgba(215, 239, 233, 0.7), transparent 68%);
+  background: radial-gradient(circle, var(--hero-glow-b), transparent 68%);
 }
 
 .eyebrow,
@@ -159,8 +227,8 @@ textarea {
   max-width: 100%;
   padding: 10px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: var(--ghost-bg);
+  border: 1px solid var(--ghost-border);
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.5;
@@ -223,9 +291,9 @@ textarea {
   gap: 8px;
   padding: 18px 20px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(24, 51, 59, 0.08);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 10px 24px rgba(24, 51, 59, 0.06);
+  border: 1px solid var(--field-border);
+  background: var(--soft-card);
+  box-shadow: var(--soft-card-shadow);
 }
 
 .hero-pill-label {
@@ -521,8 +589,8 @@ textarea {
   max-width: 460px;
   padding: 10px 14px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(24, 51, 59, 0.09);
+  background: var(--ghost-bg);
+  border: 1px solid var(--ghost-border);
   color: var(--muted);
   text-align: right;
   line-height: 1.5;
@@ -541,7 +609,7 @@ textarea {
   padding: 16px 18px;
   border-radius: var(--radius-lg);
   border: 1px dashed rgba(213, 106, 63, 0.5);
-  background: linear-gradient(180deg, rgba(255, 246, 241, 0.96), rgba(255, 237, 225, 0.92));
+  background: var(--panel-strong);
   cursor: pointer;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
@@ -593,8 +661,8 @@ textarea {
   min-height: 52px;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(24, 51, 59, 0.12);
-  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
   color: var(--ink);
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
@@ -639,10 +707,10 @@ textarea {
   max-height: 260px;
   padding: 12px;
   overflow: auto;
-  border: 1px solid rgba(24, 51, 59, 0.12);
+  border: 1px solid var(--field-border);
   border-radius: 20px;
-  background: #fffdf9;
-  box-shadow: 0 18px 38px rgba(24, 51, 59, 0.12);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
 }
 
 .month-picker-option {
@@ -652,9 +720,9 @@ textarea {
   gap: 10px;
   min-height: 46px;
   padding: 0 14px;
-  border: 1px solid rgba(24, 51, 59, 0.08);
+  border: 1px solid var(--field-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--soft-card);
   color: var(--ink);
   font: inherit;
   font-weight: 600;
@@ -665,7 +733,7 @@ textarea {
 .month-picker-option:hover {
   transform: translateY(-1px);
   border-color: rgba(47, 125, 116, 0.24);
-  background: #fffefc;
+  background: var(--field-bg-strong);
 }
 
 .month-picker-option.is-active {
@@ -687,7 +755,7 @@ textarea {
   outline: none;
   border-color: rgba(47, 125, 116, 0.5);
   box-shadow: 0 0 0 4px rgba(47, 125, 116, 0.12);
-  background: #fffefc;
+  background: var(--field-bg-strong);
 }
 
 .search-field {
@@ -722,13 +790,13 @@ textarea {
 
 .button.secondary {
   color: var(--ink);
-  background: linear-gradient(135deg, #e8f5f1, #d7ede6);
+  background: linear-gradient(135deg, var(--secondary-start), var(--secondary-end));
 }
 
 .button.ghost {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(24, 51, 59, 0.1);
+  background: var(--ghost-bg);
+  border: 1px solid var(--ghost-border);
 }
 
 .mobile-fab {
@@ -2445,6 +2513,341 @@ textarea {
 
 .form-actions {
   margin-top: 20px;
+}
+
+body[data-theme="dark"] .app-tab,
+body[data-theme="dark"] .presence-chip,
+body[data-theme="dark"] .recap-table-wrap,
+body[data-theme="dark"] .analysis-plan-group,
+body[data-theme="dark"] .plan-group-section,
+body[data-theme="dark"] .budget-row,
+body[data-theme="dark"] .budget-row-monthly,
+body[data-theme="dark"] .analysis-visual-card,
+body[data-theme="dark"] .analysis-bar-card,
+body[data-theme="dark"] .empty-form,
+body[data-theme="dark"] .recap-metric,
+body[data-theme="dark"] .shell-status,
+body[data-theme="dark"] .hero-pill {
+  border-color: var(--line);
+  background: var(--soft-card);
+  box-shadow: var(--soft-card-shadow);
+}
+
+body[data-theme="dark"] .app-tab:hover {
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+}
+
+body[data-theme="dark"] .app-tab.is-active {
+  border-color: rgba(103, 191, 176, 0.32);
+  background: linear-gradient(180deg, rgba(33, 63, 69, 0.98), rgba(26, 48, 53, 0.96));
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+}
+
+body[data-theme="dark"] .file-picker {
+  background: linear-gradient(180deg, rgba(56, 29, 20, 0.9), rgba(39, 21, 15, 0.94));
+  border-color: rgba(239, 137, 97, 0.42);
+}
+
+body[data-theme="dark"] .file-picker:hover {
+  box-shadow: 0 10px 24px rgba(239, 137, 97, 0.22);
+}
+
+body[data-theme="dark"] .file-picker-label {
+  color: #ffd6c5;
+}
+
+body[data-theme="dark"] .control-field input,
+body[data-theme="dark"] .control-field select,
+body[data-theme="dark"] .month-picker-trigger,
+body[data-theme="dark"] .field-card input,
+body[data-theme="dark"] .field-card select,
+body[data-theme="dark"] .field-card textarea,
+body[data-theme="dark"] .budget-row input,
+body[data-theme="dark"] .budget-row select {
+  background: var(--field-bg);
+  border-color: var(--field-border);
+  color: var(--ink);
+}
+
+body[data-theme="dark"] .control-field input::placeholder,
+body[data-theme="dark"] .field-card input::placeholder,
+body[data-theme="dark"] .field-card textarea::placeholder,
+body[data-theme="dark"] .budget-row input::placeholder {
+  color: var(--field-placeholder);
+}
+
+body[data-theme="dark"] .month-picker-panel {
+  background: var(--panel-strong);
+  border-color: var(--line);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
+}
+
+body[data-theme="dark"] .month-picker-option {
+  background: rgba(19, 33, 39, 0.96);
+  border-color: var(--field-border);
+}
+
+body[data-theme="dark"] .month-picker-option:hover {
+  background: var(--field-bg-strong);
+}
+
+body[data-theme="dark"] .month-picker-option.is-active {
+  background: rgba(103, 191, 176, 0.16);
+  border-color: rgba(103, 191, 176, 0.34);
+}
+
+body[data-theme="dark"] .button.secondary {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+body[data-theme="dark"] .button.ghost {
+  color: var(--ink);
+}
+
+body[data-theme="dark"] .draft-status,
+body[data-theme="dark"] .shell-status {
+  background: var(--ghost-bg);
+  border-color: var(--ghost-border);
+}
+
+body[data-theme="dark"] .presence-chip.is-self {
+  background: rgba(52, 107, 101, 0.34);
+  border-color: rgba(103, 191, 176, 0.28);
+}
+
+body[data-theme="dark"] .library-warning,
+body[data-theme="dark"] .analysis-cash-track,
+body[data-theme="dark"] .analysis-benchmark-track,
+body[data-theme="dark"] .analysis-donut-chart::after {
+  background: var(--table-bg);
+}
+
+body[data-theme="dark"] .analysis-donut-chart::after {
+  background: linear-gradient(180deg, rgba(14, 24, 30, 0.98), rgba(18, 31, 37, 0.98));
+}
+
+body[data-theme="dark"] .recap-table-wrap {
+  background: var(--table-bg);
+}
+
+body[data-theme="dark"] .recap-table th,
+body[data-theme="dark"] .recap-table td {
+  border-bottom-color: var(--line);
+}
+
+body[data-theme="dark"] .recap-table thead th {
+  background: var(--table-head-bg);
+}
+
+body[data-theme="dark"] .recap-table tbody tr:hover {
+  background: var(--table-hover-bg);
+}
+
+body[data-theme="dark"] .recap-table .total-row {
+  background: var(--table-total-bg);
+}
+
+body[data-theme="dark"] .empty-form {
+  border-color: var(--empty-border);
+  background: var(--empty-bg);
+}
+
+body[data-theme="dark"] .recap-status-on-budget {
+  background: rgba(242, 201, 76, 0.16);
+  border-color: rgba(242, 201, 76, 0.38);
+  color: #ffd257;
+}
+
+body[data-theme="dark"] .recap-status-below-budget {
+  background: rgba(46, 184, 92, 0.14);
+  border-color: rgba(46, 184, 92, 0.32);
+  color: #69db8e;
+}
+
+body[data-theme="dark"] .recap-status-above-budget {
+  background: rgba(220, 53, 69, 0.14);
+  border-color: rgba(220, 53, 69, 0.32);
+  color: #ff8787;
+}
+
+body[data-theme="dark"] .budget-summary-card.tone-income,
+body[data-theme="dark"] .budget-summary-card.tone-cash,
+body[data-theme="dark"] .recap-metric-positive,
+body[data-theme="dark"] .analysis-bar-card-positive {
+  background: linear-gradient(180deg, rgba(26, 61, 57, 0.94), rgba(21, 47, 44, 0.92));
+}
+
+body[data-theme="dark"] .budget-summary-card.tone-expenses,
+body[data-theme="dark"] .recap-metric-negative,
+body[data-theme="dark"] .analysis-bar-card-negative {
+  background: linear-gradient(180deg, rgba(66, 37, 28, 0.94), rgba(45, 26, 20, 0.92));
+}
+
+body[data-theme="dark"] .budget-summary-card.tone-savings,
+body[data-theme="dark"] .recap-metric-neutral,
+body[data-theme="dark"] .analysis-bar-card-neutral {
+  background: linear-gradient(180deg, rgba(35, 44, 75, 0.94), rgba(25, 32, 56, 0.92));
+}
+
+body[data-theme="dark"] .budget-summary-card.tone-default,
+body[data-theme="dark"] .budget-row.is-locked,
+body[data-theme="dark"] .plan-field-card.is-derived input {
+  background: linear-gradient(180deg, rgba(26, 38, 45, 0.94), rgba(17, 27, 33, 0.92));
+}
+
+body[data-theme="dark"] .budget-row.is-derived {
+  background: linear-gradient(180deg, rgba(30, 58, 55, 0.94), rgba(21, 42, 39, 0.92));
+  border-color: rgba(103, 191, 176, 0.24);
+}
+
+body[data-theme="dark"] .budget-row select {
+  color: var(--ink);
+}
+
+body[data-theme="dark"] .budget-kind {
+  color: rgba(231, 240, 242, 0.62);
+}
+
+body[data-theme="dark"] .smart-dashboard-card {
+  border-color: var(--line);
+  box-shadow: var(--soft-card-shadow);
+}
+
+body[data-theme="dark"] .smart-dashboard-card.tone-positive {
+  background: linear-gradient(180deg, rgba(24, 60, 56, 0.94), rgba(18, 42, 39, 0.92));
+}
+
+body[data-theme="dark"] .smart-dashboard-card.tone-negative {
+  background: linear-gradient(180deg, rgba(71, 39, 29, 0.94), rgba(46, 25, 19, 0.92));
+}
+
+body[data-theme="dark"] .smart-dashboard-card.tone-neutral {
+  background: linear-gradient(180deg, rgba(33, 43, 74, 0.94), rgba(24, 31, 54, 0.92));
+}
+
+body[data-theme="dark"] .smart-dashboard-card.tone-accent {
+  background: linear-gradient(180deg, rgba(74, 62, 25, 0.94), rgba(48, 39, 16, 0.92));
+}
+
+body[data-theme="dark"] .smart-dashboard-card.tone-default,
+body[data-theme="dark"] .smart-dashboard-card.tone-wide {
+  background: linear-gradient(180deg, rgba(24, 37, 44, 0.94), rgba(17, 27, 33, 0.92));
+}
+
+body[data-theme="dark"] .fra-alert-card {
+  border-color: var(--line);
+  box-shadow: var(--soft-card-shadow);
+}
+
+body[data-theme="dark"] .fra-group-card,
+body[data-theme="dark"] .fra-suggestion-card {
+  border-color: var(--line);
+  box-shadow: var(--soft-card-shadow);
+}
+
+body[data-theme="dark"] .fra-group-card-positive {
+  background: linear-gradient(180deg, rgba(26, 61, 57, 0.94), rgba(21, 47, 44, 0.92));
+}
+
+body[data-theme="dark"] .fra-group-card-negative {
+  background: linear-gradient(180deg, rgba(66, 37, 28, 0.94), rgba(45, 26, 20, 0.92));
+}
+
+body[data-theme="dark"] .fra-group-card-neutral,
+body[data-theme="dark"] .fra-suggestion-card {
+  background: linear-gradient(180deg, rgba(35, 44, 75, 0.94), rgba(25, 32, 56, 0.92));
+}
+
+body[data-theme="dark"] .fra-alert-card-good {
+  background: linear-gradient(180deg, rgba(26, 61, 57, 0.94), rgba(21, 47, 44, 0.92));
+}
+
+body[data-theme="dark"] .fra-alert-card-warn {
+  background: linear-gradient(180deg, rgba(74, 62, 25, 0.94), rgba(48, 39, 16, 0.92));
+}
+
+body[data-theme="dark"] .fra-alert-card-risk {
+  background: linear-gradient(180deg, rgba(66, 37, 28, 0.94), rgba(45, 26, 20, 0.92));
+}
+
+body[data-theme="dark"] .recap-metric-icon,
+body[data-theme="dark"] .budget-summary-icon {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(171, 205, 214, 0.14);
+}
+
+body[data-theme="dark"] .budget-summary-title {
+  color: rgba(231, 240, 242, 0.72);
+}
+
+body[data-theme="dark"] .data-card,
+body[data-theme="dark"] .recurring-panel,
+body[data-theme="dark"] .recurring-card {
+  border-color: var(--line);
+  box-shadow: var(--soft-card-shadow);
+}
+
+body[data-theme="dark"] .data-card {
+  background: linear-gradient(180deg, rgba(24, 37, 44, 0.96), rgba(17, 27, 33, 0.94));
+}
+
+body[data-theme="dark"] .recurring-panel {
+  background: linear-gradient(180deg, rgba(24, 37, 44, 0.96), rgba(17, 27, 33, 0.94));
+}
+
+body[data-theme="dark"] .recurring-card {
+  background: linear-gradient(180deg, rgba(20, 33, 39, 0.96), rgba(14, 24, 30, 0.94));
+}
+
+body[data-theme="dark"] .data-card:hover {
+  border-color: rgba(103, 191, 176, 0.28);
+  box-shadow: 0 22px 34px rgba(0, 0, 0, 0.3);
+}
+
+body[data-theme="dark"] .detail-row,
+body[data-theme="dark"] .field-parent-meta,
+body[data-theme="dark"] .plan-parent-meta,
+body[data-theme="dark"] .analysis-period-bars {
+  border: 1px solid var(--line);
+  background: rgba(22, 37, 44, 0.92);
+}
+
+body[data-theme="dark"] .card-action {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+
+body[data-theme="dark"] .card-action.delete {
+  background: rgba(239, 137, 97, 0.18);
+  color: #ffb59c;
+}
+
+body[data-theme="dark"] .value-sign-toggle {
+  background: rgba(24, 48, 55, 0.92);
+  border-color: var(--field-border);
+  color: var(--ink);
+}
+
+body[data-theme="dark"] .value-sign-toggle:hover {
+  background: rgba(31, 58, 66, 0.96);
+}
+
+body[data-theme="dark"] .field-parent-chip.is-empty {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .plan-group-header {
+  background: linear-gradient(180deg, rgba(26, 42, 48, 0.96), rgba(20, 34, 40, 0.94));
+}
+
+body[data-theme="dark"] .plan-group-section[open] .plan-group-header,
+body[data-theme="dark"] .analysis-plan-group[open] .analysis-plan-group-summary {
+  border-bottom-color: var(--line);
+}
+
+body[data-theme="dark"] .form-actions {
+  background: var(--sticky-fade);
 }
 
 .hidden {

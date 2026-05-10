@@ -87,8 +87,8 @@
             <span class="app-tab-meta">Comparaisons</span>
           </button>
           <button id="app-tab-share" class="app-tab" type="button" data-app-tab="share" role="tab" aria-selected="false">
-            <span class="app-tab-label">Partage</span>
-            <span class="app-tab-meta">Cloud et export</span>
+            <span class="app-tab-label">Paramètres</span>
+            <span class="app-tab-meta">Cloud et options</span>
           </button>
         </div>
       </section>
@@ -254,6 +254,23 @@
           </div>
 
           <div class="cloud-grid alert-grid">
+            <label class="control-field">
+              <span>Theme</span>
+              <select id="setting-theme">
+                <option value="auto">Auto</option>
+                <option value="light">Clair</option>
+                <option value="dark">Sombre</option>
+              </select>
+            </label>
+
+            <label class="control-field">
+              <span>Langue</span>
+              <select id="setting-language">
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+
             <label class="control-field checkbox-field">
               <span>Restaurer automatiquement le brouillon</span>
               <input id="setting-auto-restore" type="checkbox">
