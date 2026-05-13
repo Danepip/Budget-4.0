@@ -144,7 +144,13 @@
             <button id="restore-draft" class="button ghost" type="button" disabled>Restaurer</button>
             <button id="restart-app" class="button ghost" type="button">Recommencer</button>
             <button id="add-record" class="button secondary" type="button" disabled>Nouvelle fiche</button>
-            <button id="export-workbook" class="button primary" type="button" disabled>Exporter Excel</button>
+            <div id="export-menu" class="export-menu">
+              <button id="export-workbook" class="button primary" type="button" disabled aria-haspopup="true" aria-expanded="false">Exporter Excel</button>
+              <div id="export-menu-panel" class="export-menu-panel hidden">
+                <button id="export-journal" class="export-menu-option" type="button">Exporter Journalier</button>
+                <button id="export-complete" class="export-menu-option" type="button">Exporter classeur complet</button>
+              </div>
+            </div>
           </div>
           <p id="draft-status" class="draft-status">
             Aucun brouillon local mémorisé.

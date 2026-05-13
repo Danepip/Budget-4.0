@@ -696,6 +696,11 @@ textarea {
   z-index: 26;
 }
 
+.export-menu {
+  position: relative;
+  z-index: 26;
+}
+
 .month-picker-trigger {
   display: flex;
   align-items: center;
@@ -737,6 +742,21 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.export-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 80;
+  display: grid;
+  gap: 8px;
+  min-width: 240px;
+  padding: 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 20px;
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+}
+
 .month-picker-option {
   display: flex;
   align-items: center;
@@ -763,6 +783,35 @@ textarea {
 .month-picker-option.is-active {
   border-color: rgba(47, 125, 116, 0.36);
   background: rgba(47, 125, 116, 0.1);
+}
+
+.export-menu-option {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--field-border);
+  border-radius: 14px;
+  background: var(--soft-card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+  text-align: left;
+}
+
+.export-menu-option:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(47, 125, 116, 0.24);
+  background: var(--field-bg-strong);
+}
+
+.export-menu-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .month-picker-option-check {
@@ -2812,6 +2861,7 @@ body[data-theme="dark"] .budget-row,
 body[data-theme="dark"] .budget-row-monthly,
 body[data-theme="dark"] .analysis-visual-card,
 body[data-theme="dark"] .analysis-bar-card,
+body[data-theme="dark"] .empty-state,
 body[data-theme="dark"] .empty-form,
 body[data-theme="dark"] .recap-metric,
 body[data-theme="dark"] .shell-status,
@@ -2935,6 +2985,7 @@ body[data-theme="dark"] .recap-table .total-row {
   background: var(--table-total-bg);
 }
 
+body[data-theme="dark"] .empty-state,
 body[data-theme="dark"] .empty-form {
   border-color: var(--empty-border);
   background: var(--empty-bg);
@@ -3031,6 +3082,10 @@ body[data-theme="dark"] .fra-group-card,
 body[data-theme="dark"] .fra-suggestion-card {
   border-color: var(--line);
   box-shadow: var(--soft-card-shadow);
+}
+
+body[data-theme="dark"] .fra-group-card-default {
+  background: linear-gradient(180deg, rgba(26, 38, 45, 0.94), rgba(17, 27, 33, 0.92));
 }
 
 body[data-theme="dark"] .fra-group-card-positive {

@@ -108,6 +108,8 @@ const UI_STRINGS = {
     "toolbar.newTransaction": "Nouvelle transaction",
     "toolbar.editBudget": "Éditer le budget",
     "toolbar.exportExcel": "Exporter Excel",
+    "toolbar.exportJournal": "Exporter Journalier",
+    "toolbar.exportComplete": "Exporter classeur complet",
     "toolbar.openSourceTitleReady": "Ouvre le classeur avec autorisation d'écriture directe",
     "toolbar.saveSourceTitleReady": "Écrit les changements dans le fichier d'origine sans passer par une copie exportée",
     "toolbar.saveDraftTitleReady": "Mémorise vos données actuelles dans le navigateur pour reprendre plus tard",
@@ -264,6 +266,14 @@ const UI_STRINGS = {
     "form.editingWorkbook": "Saisie directe de Journalier!D:F avec catégories prédéfinies depuis la colonne B.",
     "form.editingCloud": "Mode cloud partagé : chaque enregistrement met à jour vos vues locales et synchronise Supabase.",
     "form.editingLocal": "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.",
+    "recurring.confirmUseSameMonth": "Le modèle récurrent « {label} » a déjà été utilisé pour {month}. Voulez-vous l'utiliser quand même ?",
+    "recurring.useCancelled": "Utilisation du modèle récurrent annulée.",
+    "export.journalPreparing": "Préparation d'une copie Journalier",
+    "export.journalShared": "Copie Journalier exportée et partagée depuis l'app mobile",
+    "export.journalSuccess": "Copie Journalier exportée sans toucher au classeur source",
+    "export.completePreparing": "Préparation du classeur complet de l'application",
+    "export.completeShared": "Classeur complet exporté et partagé depuis l'app mobile",
+    "export.completeSuccess": "Classeur complet exporté avec toutes les informations de l'application",
     "language.fr": "Français",
     "language.en": "English",
     "theme.auto": "Auto",
@@ -341,6 +351,8 @@ const UI_STRINGS = {
     "toolbar.newTransaction": "New transaction",
     "toolbar.editBudget": "Edit budget",
     "toolbar.exportExcel": "Export Excel",
+    "toolbar.exportJournal": "Export Journal",
+    "toolbar.exportComplete": "Export full workbook",
     "toolbar.openSourceTitleReady": "Open the workbook with direct write permission",
     "toolbar.saveSourceTitleReady": "Write changes into the original file without exporting a copy first",
     "toolbar.saveDraftTitleReady": "Save your current data in the browser so you can continue later",
@@ -497,6 +509,14 @@ const UI_STRINGS = {
     "form.editingWorkbook": "Direct entry into Journalier!D:F with predefined categories from column B.",
     "form.editingCloud": "Shared cloud mode: each save updates your local views and syncs with Supabase.",
     "form.editingLocal": "Local standalone mode: your categories, recaps, and charts update every time you save.",
+    "recurring.confirmUseSameMonth": "The recurring template \"{label}\" was already used for {month}. Do you still want to use it?",
+    "recurring.useCancelled": "Recurring template use cancelled.",
+    "export.journalPreparing": "Preparing the Journal export copy",
+    "export.journalShared": "Journal copy exported and shared from the mobile app",
+    "export.journalSuccess": "Journal copy exported without touching the source workbook",
+    "export.completePreparing": "Preparing the complete app workbook",
+    "export.completeShared": "Complete workbook exported and shared from the mobile app",
+    "export.completeSuccess": "Complete workbook exported with all app information",
     "language.fr": "Français",
     "language.en": "English",
     "theme.auto": "Auto",
@@ -1883,6 +1903,68 @@ function hasMatchingBudgetRow(record) {
 function getRecurringStartDate(template) {
   const startDate = normalizeDateValue(template?.startDate);
   return startDate || "";
+}
+
+function formatMonthYearLabelFromIso(isoDate) {
+  const normalized = normalizeDateValue(isoDate);
+  if (!normalized) {
+    return "";
+  }
+
+  const parsed = new Date(`${normalized}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return normalized;
+  }
+
+  return new Intl.DateTimeFormat(getUiLocale(), {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(parsed);
+}
+
+function countRecurringTemplateUsageInMonth(template, isoDate) {
+  const normalizedDate = normalizeDateValue(isoDate);
+  const targetCategory = normalizeHeaderName(template?.category || template?.label);
+  if (!normalizedDate || !targetCategory) {
+    return 0;
+  }
+
+  const targetMonthKey = normalizedDate.slice(0, 7);
+  return state.budget.rows.reduce((count, row) => {
+    const rowDate = normalizeDateValue(row?.Date);
+    const rowCategory = normalizeHeaderName(row?.Categories);
+    if (!rowDate || !rowCategory) {
+      return count;
+    }
+
+    return rowDate.slice(0, 7) === targetMonthKey && rowCategory === targetCategory
+      ? count + 1
+      : count;
+  }, 0);
+}
+
+function confirmRecurringTemplateUseIfNeeded(template, targetDate) {
+  if (!template) {
+    return true;
+  }
+
+  const normalizedDate = normalizeDateValue(targetDate);
+  if (!normalizedDate) {
+    return true;
+  }
+
+  const usageCount = countRecurringTemplateUsageInMonth(template, normalizedDate);
+  if (!usageCount) {
+    return true;
+  }
+
+  const displayLabel = getDisplayCategoryLabel(template.label) || getDisplayCategoryLabel(template.category) || template.label || template.category;
+  const monthLabel = formatMonthYearLabelFromIso(normalizedDate) || normalizedDate;
+  return window.confirm(t("recurring.confirmUseSameMonth", {
+    label: displayLabel,
+    month: monthLabel,
+  }));
 }
 
 function addDaysToIsoDate(isoDate, days) {
@@ -3387,7 +3469,11 @@ function cacheDom() {
   refs.restoreDraftButton = document.getElementById("restore-draft");
   refs.restartButton = document.getElementById("restart-app");
   refs.addButton = document.getElementById("add-record");
+  refs.exportMenu = document.getElementById("export-menu");
   refs.exportButton = document.getElementById("export-workbook");
+  refs.exportMenuPanel = document.getElementById("export-menu-panel");
+  refs.exportJournalButton = document.getElementById("export-journal");
+  refs.exportCompleteButton = document.getElementById("export-complete");
   refs.mobileFab = document.getElementById("mobile-fab");
   refs.statusStrip = document.getElementById("workspace-status");
   refs.formKicker = document.getElementById("form-kicker");
@@ -3469,7 +3555,13 @@ function bindEvents() {
   refs.searchInput.addEventListener("input", onSearchChanged);
   refs.addButton.addEventListener("click", onToolbarActionRequested);
   refs.mobileFab?.addEventListener("click", startCreateMode);
-  refs.exportButton.addEventListener("click", exportWorkbook);
+  refs.exportButton.addEventListener("click", onExportMenuToggleRequested);
+  refs.exportJournalButton?.addEventListener("click", () => {
+    void onExportOptionRequested("journal");
+  });
+  refs.exportCompleteButton?.addEventListener("click", () => {
+    void onExportOptionRequested("complete");
+  });
   refs.installButton.addEventListener("click", onInstallApp);
   refs.form.addEventListener("submit", onSaveRecord);
   refs.form.addEventListener("input", onPlanEditorFieldChanged);
@@ -5932,6 +6024,17 @@ function setRecapMonthPickerOpen(open) {
   refs.recapMonthTrigger.setAttribute("aria-expanded", nextOpen ? "true" : "false");
 }
 
+function setExportMenuOpen(open) {
+  if (!refs.exportMenu || !refs.exportMenuPanel || !refs.exportButton) {
+    return;
+  }
+
+  const nextOpen = Boolean(open) && !refs.exportButton.disabled;
+  refs.exportMenu.classList.toggle("is-open", nextOpen);
+  refs.exportMenuPanel.classList.toggle("hidden", !nextOpen);
+  refs.exportButton.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+}
+
 function onRecapMonthTriggerClicked(event) {
   event.preventDefault();
   if (refs.recapMonthTrigger.disabled) {
@@ -5939,6 +6042,20 @@ function onRecapMonthTriggerClicked(event) {
   }
 
   setRecapMonthPickerOpen(!refs.recapMonthPicker.classList.contains("is-open"));
+}
+
+function onExportMenuToggleRequested(event) {
+  event.preventDefault();
+  if (refs.exportButton?.disabled) {
+    return;
+  }
+
+  setExportMenuOpen(!refs.exportMenu.classList.contains("is-open"));
+}
+
+async function onExportOptionRequested(exportKind) {
+  setExportMenuOpen(false);
+  await exportWorkbook(exportKind);
 }
 
 function onRecapMonthPanelClicked(event) {
@@ -5966,15 +6083,13 @@ function onRecapMonthPanelClicked(event) {
 }
 
 function onDocumentClick(event) {
-  if (!refs.recapMonthPicker?.classList.contains("is-open")) {
-    return;
+  if (refs.recapMonthPicker?.classList.contains("is-open") && !refs.recapMonthField.contains(event.target)) {
+    setRecapMonthPickerOpen(false);
   }
 
-  if (refs.recapMonthField.contains(event.target)) {
-    return;
+  if (refs.exportMenu?.classList.contains("is-open") && !refs.exportMenu.contains(event.target)) {
+    setExportMenuOpen(false);
   }
-
-  setRecapMonthPickerOpen(false);
 }
 
 function onDocumentKeyDown(event) {
@@ -5983,6 +6098,7 @@ function onDocumentKeyDown(event) {
   }
 
   setRecapMonthPickerOpen(false);
+  setExportMenuOpen(false);
 }
 
 function onEmptyStateAction(event) {
@@ -6092,6 +6208,15 @@ function applyRecurringTemplateToForm(templateId) {
     return;
   }
 
+  const current = captureCurrentTransactionFormSnapshot();
+  const today = new Date().toISOString().slice(0, 10);
+  const targetDate = normalizeDateValue(current.Date) || today;
+  if (!confirmRecurringTemplateUseIfNeeded(template, targetDate)) {
+    setLastAction(t("recurring.useCancelled"));
+    renderAll();
+    return;
+  }
+
   state.editorMode = "create";
   state.editingIndex = null;
   if (state.appTab !== APP_TAB_FORM) {
@@ -6100,10 +6225,8 @@ function applyRecurringTemplateToForm(templateId) {
     renderEditor();
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const current = captureCurrentTransactionFormSnapshot();
   applyTransactionFormSnapshot({
-    Date: current.Date || today,
+    Date: targetDate,
     Categories: template.category,
     Value: template.value,
   });
@@ -6661,7 +6784,7 @@ async function onSavePlanTemplateRequested() {
   }
 }
 
-async function exportWorkbook() {
+async function exportWorkbook(exportKind = "journal") {
   if (!window.XLSX) {
     setLastAction("Export impossible : bibliothèque Excel absente");
     renderStats();
@@ -6675,7 +6798,7 @@ async function exportWorkbook() {
   }
 
   try {
-    const exportPayload = buildExportPayload();
+    const exportPayload = buildExportPayload(exportKind);
 
     if (canUseNativeExcelExport()) {
       setLastAction(exportPayload.preparingMessage);
@@ -6695,25 +6818,27 @@ async function exportWorkbook() {
   }
 }
 
-function buildExportPayload() {
-  if (shouldUseSimplifiedSafeExport()) {
+function buildExportPayload(exportKind = "journal") {
+  const normalizedKind = String(exportKind || "").trim().toLowerCase() === "complete"
+    ? "complete"
+    : "journal";
+
+  if (normalizedKind === "complete") {
     return {
-      workbook: buildSimplifiedExportWorkbook(),
-      fileName: buildSimplifiedExportFileName(),
-      preparingMessage: "Preparation d'une copie simplifiee du journal",
-      sharedMessage: "Copie simplifiee du journal exportee et partagee depuis l'app mobile",
-      successMessage: "Copie simplifiee du journal exportee sans toucher au classeur source",
+      workbook: buildCompleteExportWorkbook(),
+      fileName: buildCompleteExportFileName(),
+      preparingMessage: t("export.completePreparing"),
+      sharedMessage: t("export.completeShared"),
+      successMessage: t("export.completeSuccess"),
     };
   }
 
-  applyBudgetRowsToWorkbook(state.workbook, state.budget);
-
   return {
-    workbook: state.workbook,
-    fileName: buildExportFileName(),
-    preparingMessage: "Preparation du fichier Excel pour l'app mobile",
-    sharedMessage: "Classeur exporte et partage depuis l'app mobile",
-    successMessage: "Classeur exporte avec Journalier mis a jour",
+    workbook: buildSimplifiedExportWorkbook(),
+    fileName: buildSimplifiedExportFileName(),
+    preparingMessage: t("export.journalPreparing"),
+    sharedMessage: t("export.journalShared"),
+    successMessage: t("export.journalSuccess"),
   };
 }
 
@@ -6802,8 +6927,57 @@ function buildSimplifiedExportFileName() {
   return `${sanitizeExportFileName(baseName)}-journalier-safe.xlsx`;
 }
 
-function buildSimplifiedExportWorkbook() {
-  const workbook = XLSX.utils.book_new();
+function buildCompleteExportFileName() {
+  const baseName = state.workbookName
+    ? state.workbookName.replace(/\.(xlsx|xls)$/i, "")
+    : "BUDEGETAPP";
+
+  return `${sanitizeExportFileName(baseName)}-app-complete.xlsx`;
+}
+
+function getExportSheetNames() {
+  return isEnglishUi()
+    ? {
+        info: "Info",
+        journal: JOURNAL_SHEET_NAME,
+        categories: "Categories",
+        plan: "Planned budget",
+        metrics: "Metrics",
+        details: "Transactions by category",
+        groups: "Budget-fra groups",
+        planActual: "Plan vs actual",
+        alerts: "Budget-fra alerts",
+        recurring: "Recurring templates",
+        monthly: "Monthly view",
+      }
+    : {
+        info: "Infos",
+        journal: JOURNAL_SHEET_NAME,
+        categories: "Catégories",
+        plan: "Budget planifié",
+        metrics: "Indicateurs",
+        details: "Transactions catégorie",
+        groups: "Groupes Budget-fra",
+        planActual: "Plan vs réel",
+        alerts: "Alertes Budget-fra",
+        recurring: "Transactions récurrentes",
+        monthly: "Lecture mensuelle",
+      };
+}
+
+function buildSheetFromObjects(rows, headers = []) {
+  if (Array.isArray(rows) && rows.length) {
+    return XLSX.utils.json_to_sheet(rows);
+  }
+
+  if (Array.isArray(headers) && headers.length) {
+    return XLSX.utils.aoa_to_sheet([headers]);
+  }
+
+  return XLSX.utils.aoa_to_sheet([]);
+}
+
+function buildJournalExportSheet() {
   const journalSheet = {};
   const lastRow = START_ROW + Math.max(state.budget.rows.length, state.budget.categories.length) + 2;
 
@@ -6853,19 +7027,335 @@ function buildSimplifiedExportWorkbook() {
   });
 
   journalSheet["!ref"] = `B2:F${lastRow}`;
+  return journalSheet;
+}
 
-  const infoSheet = XLSX.utils.aoa_to_sheet([
-    ["Budget"],
-    ["Export simplifie du journal"],
-    [
-      "Cette copie préserve les transactions Journalier et la liste de catégories, sans réécrire le modèle Excel source complexe."
-    ],
-    ["Fichier source", state.workbookName || "Budget_2025 Final.xlsx"],
-    ["Date export", new Date().toISOString()],
+function buildExportInfoSheet(mode = "journal") {
+  const english = isEnglishUi();
+  const modeLabel = mode === "complete"
+    ? (english ? "Complete workbook" : "Classeur complet")
+    : (english ? "Journal only" : "Journalier seulement");
+  const description = mode === "complete"
+    ? (english
+      ? "This workbook rebuilds the main app data, summaries, and comparisons from the current app state."
+      : "Ce classeur reconstruit les principales données, synthèses et comparaisons depuis l'état actuel de l'application.")
+    : (english
+      ? "This copy preserves Journal transactions and the category list without rewriting the complex source Excel template."
+      : "Cette copie préserve les transactions Journalier et la liste de catégories, sans réécrire le modèle Excel source complexe.");
+  const periodNote = mode === "complete"
+    ? (english
+      ? "Analysis sheets below follow the current year/month filters used in the app."
+      : "Les feuilles d'analyse ci-dessous suivent les filtres année/mois actuellement actifs dans l'application.")
+    : "";
+
+  return XLSX.utils.aoa_to_sheet([
+    ["BUDEGETAPP"],
+    [modeLabel],
+    [description],
+    ...(periodNote ? [[periodNote]] : []),
+    [english ? "Source file" : "Fichier source", state.workbookName || "Budget_2025 Final.xlsx"],
+    [english ? "Export date" : "Date export", new Date().toISOString()],
+    [english ? "Filtered period" : "Période filtrée", buildRecapPeriodLabel()],
+    [english ? "Language" : "Langue", getCurrentLanguage()],
+    [english ? "Theme" : "Thème", getCurrentThemePreference()],
+    [english ? "Journal rows" : "Lignes Journalier", state.budget.rows.length],
+    [english ? "Budget categories" : "Catégories budget", state.budget.categories.length],
+    [english ? "Planned budget rows" : "Lignes budget planifié", resolvePlanTemplate(state.recap.planTemplate).length],
+    [english ? "Recurring templates" : "Modèles récurrents", getRecurringTemplates().length],
   ]);
+}
 
-  XLSX.utils.book_append_sheet(workbook, infoSheet, "Infos");
-  XLSX.utils.book_append_sheet(workbook, journalSheet, JOURNAL_SHEET_NAME);
+function buildSimplifiedExportWorkbook() {
+  const workbook = XLSX.utils.book_new();
+  const sheetNames = getExportSheetNames();
+  XLSX.utils.book_append_sheet(workbook, buildExportInfoSheet("journal"), sheetNames.info);
+  XLSX.utils.book_append_sheet(workbook, buildJournalExportSheet(), sheetNames.journal);
+
+  return workbook;
+}
+
+function buildCompleteExportSnapshot() {
+  const previousSearch = state.search;
+  state.search = "";
+
+  try {
+    const filteredRows = getFilteredRecapSourceRows();
+    const actualMap = buildActualAmountMap(filteredRows);
+    const snapshot = computeMetricSnapshot(actualMap);
+    const metrics = buildRecapMetrics(actualMap);
+    const detailRows = buildRecapDetailRows(actualMap);
+    const budgetPeriodCount = getRecapBudgetPeriodCount(filteredRows);
+    const planRows = buildRecapPlanRows(actualMap, metrics, budgetPeriodCount);
+    const groupSummaries = buildBudgetFraGroupSummaries(actualMap);
+    const ruleAlerts = buildBudgetFraRuleAlerts(actualMap, snapshot);
+    const seriesRows = buildAnalysisSeriesRows();
+
+    return {
+      filteredRows,
+      actualMap,
+      snapshot,
+      metrics,
+      detailRows,
+      budgetPeriodCount,
+      planRows,
+      groupSummaries,
+      ruleAlerts,
+      seriesRows,
+    };
+  } finally {
+    state.search = previousSearch;
+  }
+}
+
+function buildBudgetCategoryExportRows() {
+  const english = isEnglishUi();
+  const seen = new Set();
+  const orderedCategories = [];
+
+  [...state.budget.categories, ...state.budget.rows.map((row) => row.Categories)]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .forEach((category) => {
+      const key = normalizeHeaderName(category);
+      if (!key || seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      orderedCategories.push(category);
+    });
+
+  return orderedCategories.map((category) => ({
+    [english ? "Internal category" : "Catégorie interne"]: category,
+    [english ? "Displayed category" : "Catégorie affichée"]: getDisplayCategoryLabel(category) || category,
+    [english ? "Main category" : "Grande catégorie"]: getBudgetFraCategoryLabel(category, "", null) || (english ? "None" : "Aucune"),
+  }));
+}
+
+function buildPlannedBudgetExportRows() {
+  const english = isEnglishUi();
+
+  return resolvePlanTemplate(state.recap.planTemplate).map((row) => {
+    const amountValue = Number.isFinite(parseAmount(row.plan)) ? parseAmount(row.plan) : row.plan;
+    return {
+      [english ? "Type" : "Type"]: isDerivedPlanLabel(row.label)
+        ? (english ? "Derived" : "Dérivé")
+        : (english ? "Editable" : "Modifiable"),
+      [english ? "Main category" : "Grande catégorie"]: getBudgetFraCategoryLabel(row.label, row.group, amountValue) || (english ? "None" : "Aucune"),
+      [english ? "Internal label" : "Libellé interne"]: row.label,
+      [english ? "Displayed label" : "Libellé affiché"]: getDisplayCategoryLabel(row.label) || row.label,
+      [english ? "Entered amount" : "Montant saisi"]: amountValue,
+      [english ? "Period" : "Période"]: getPlanPeriodLabel(row.period),
+      [english ? "Monthly equivalent" : "Équivalent mensuel"]: convertPlanAmountToMonthly(row.plan, row.period),
+      [english ? "Plan group" : "Groupe plan"]: normalizePlanGroup(row.group, row.label),
+    };
+  });
+}
+
+function buildMetricExportRows(snapshot) {
+  const english = isEnglishUi();
+  const comparisonRows = buildAnalysisComparisonRows(snapshot);
+
+  return comparisonRows.map((row) => ({
+    [english ? "Metric" : "Indicateur"]: getMetricDisplayLabel(row.label),
+    [english ? "Value" : "Valeur"]: row.label === "Cash" ? snapshot.cash : roundCurrencyValue(parseAmount(row.value)),
+    [english ? "Display value" : "Valeur affichée"]: row.displayValue,
+    [english ? "Tone" : "Ton"]: row.tone,
+    [english ? "Description" : "Description"]: row.caption,
+  }));
+}
+
+function buildRecapDetailExportRows(detailRows) {
+  const english = isEnglishUi();
+
+  return detailRows.map((row) => ({
+    [english ? "Displayed category" : "Catégorie affichée"]: getDisplayCategoryLabel(row.label) || row.label,
+    [english ? "Internal category" : "Catégorie interne"]: row.label,
+    [english ? "Main category" : "Grande catégorie"]: row.parentLabel,
+    [english ? "Amount" : "Montant"]: roundCurrencyValue(parseAmount(row.amount)),
+    [english ? "Row type" : "Type de ligne"]: row.isTotal
+      ? (english ? "Total" : "Total")
+      : (english ? "Category" : "Catégorie"),
+  }));
+}
+
+function buildBudgetFraSummaryExportRows(groupSummaries) {
+  const english = isEnglishUi();
+
+  return groupSummaries.map((row) => ({
+    [english ? "Group" : "Groupe"]: row.label,
+    [english ? "Description" : "Description"]: row.description,
+    [english ? "Amount" : "Montant"]: roundCurrencyValue(parseAmount(row.value)),
+    [english ? "Tone" : "Ton"]: row.tone || "default",
+  }));
+}
+
+function buildPlanComparisonExportRows(planRows) {
+  const english = isEnglishUi();
+
+  return planRows.map((row) => ({
+    [english ? "Main category" : "Grande catégorie"]: row.parentLabel || (english ? "None" : "Sans parent"),
+    [english ? "Internal label" : "Libellé interne"]: row.label,
+    [english ? "Displayed label" : "Libellé affiché"]: getDisplayCategoryLabel(row.label) || row.label,
+    [english ? "Plan for period" : "Budget période"]: roundCurrencyValue(parseAmount(row.plan)),
+    [english ? "Monthly plan" : "Budget mensuel"]: roundCurrencyValue(parseAmount(row.monthlyPlan)),
+    [english ? "Actual" : "Réel"]: roundCurrencyValue(parseAmount(row.actual)),
+    [english ? "Delta" : "Écart"]: roundCurrencyValue(parseAmount(row.delta)),
+    [english ? "Status" : "Statut"]: row.statusLabel,
+    [english ? "Tone" : "Ton"]: row.statusTone,
+    [english ? "Budget months" : "Mois comparés"]: row.budgetMonths,
+    [english ? "Period" : "Période"]: row.periodLabel,
+  }));
+}
+
+function buildBudgetFraAlertExportRows(alerts) {
+  const english = isEnglishUi();
+
+  return alerts.map((row) => ({
+    [english ? "Group" : "Groupe"]: row.groupLabel || row.title,
+    [english ? "Title" : "Titre"]: row.title,
+    [english ? "Status" : "Statut"]: row.status,
+    [english ? "Tone" : "Ton"]: row.tone,
+    [english ? "Detail" : "Détail"]: row.detail,
+    [english ? "Amount" : "Montant"]: row.amountLabel,
+    [english ? "Ratio" : "Ratio"]: row.ratioLabel,
+  }));
+}
+
+function buildRecurringTemplateExportRows() {
+  const english = isEnglishUi();
+  const pendingCounts = new Map();
+
+  getPendingRecurringOccurrences().forEach((occurrence) => {
+    if (!occurrence?.templateId) {
+      return;
+    }
+
+    pendingCounts.set(occurrence.templateId, (pendingCounts.get(occurrence.templateId) || 0) + 1);
+  });
+
+  return getRecurringTemplates().map((template) => ({
+    [english ? "Displayed label" : "Libellé affiché"]: getDisplayCategoryLabel(template.label) || template.label,
+    [english ? "Internal label" : "Libellé interne"]: template.label,
+    [english ? "Displayed category" : "Catégorie affichée"]: getDisplayCategoryLabel(template.category) || template.category,
+    [english ? "Internal category" : "Catégorie interne"]: template.category,
+    [english ? "Amount" : "Montant"]: Number.isFinite(parseAmount(template.value)) ? parseAmount(template.value) : template.value,
+    [english ? "Period" : "Période"]: getPlanPeriodLabel(template.period),
+    [english ? "Automatic rule" : "Règle automatique"]: template.autoCreate ? (english ? "Yes" : "Oui") : (english ? "No" : "Non"),
+    [english ? "Start date" : "Date de départ"]: template.startDate || "",
+    [english ? "Pending occurrences" : "Occurrences en attente"]: pendingCounts.get(template.id) || 0,
+  }));
+}
+
+function buildMonthlySeriesExportRows(seriesRows) {
+  const english = isEnglishUi();
+
+  return seriesRows.map((row) => ({
+    [english ? "Period" : "Période"]: row.label,
+    [english ? "Income" : "Revenu"]: roundCurrencyValue(parseAmount(row.income)),
+    [english ? "Expenses" : "Dépenses"]: roundCurrencyValue(parseAmount(row.expenses)),
+    [english ? "Savings" : "Épargne"]: roundCurrencyValue(parseAmount(row.savings)),
+    Cash: roundCurrencyValue(parseAmount(row.cash)),
+  }));
+}
+
+function buildCompleteExportWorkbook() {
+  const workbook = XLSX.utils.book_new();
+  const sheetNames = getExportSheetNames();
+  const exportSnapshot = buildCompleteExportSnapshot();
+
+  XLSX.utils.book_append_sheet(workbook, buildExportInfoSheet("complete"), sheetNames.info);
+  XLSX.utils.book_append_sheet(workbook, buildJournalExportSheet(), sheetNames.journal);
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildBudgetCategoryExportRows(),
+      isEnglishUi()
+        ? ["Internal category", "Displayed category", "Main category"]
+        : ["Catégorie interne", "Catégorie affichée", "Grande catégorie"]
+    ),
+    sheetNames.categories
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildPlannedBudgetExportRows(),
+      isEnglishUi()
+        ? ["Type", "Main category", "Internal label", "Displayed label", "Entered amount", "Period", "Monthly equivalent", "Plan group"]
+        : ["Type", "Grande catégorie", "Libellé interne", "Libellé affiché", "Montant saisi", "Période", "Équivalent mensuel", "Groupe plan"]
+    ),
+    sheetNames.plan
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildMetricExportRows(exportSnapshot.snapshot),
+      isEnglishUi()
+        ? ["Metric", "Value", "Display value", "Tone", "Description"]
+        : ["Indicateur", "Valeur", "Valeur affichée", "Ton", "Description"]
+    ),
+    sheetNames.metrics
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildRecapDetailExportRows(exportSnapshot.detailRows),
+      isEnglishUi()
+        ? ["Displayed category", "Internal category", "Main category", "Amount", "Row type"]
+        : ["Catégorie affichée", "Catégorie interne", "Grande catégorie", "Montant", "Type de ligne"]
+    ),
+    sheetNames.details
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildBudgetFraSummaryExportRows(exportSnapshot.groupSummaries),
+      isEnglishUi()
+        ? ["Group", "Description", "Amount", "Tone"]
+        : ["Groupe", "Description", "Montant", "Ton"]
+    ),
+    sheetNames.groups
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildPlanComparisonExportRows(exportSnapshot.planRows),
+      isEnglishUi()
+        ? ["Main category", "Internal label", "Displayed label", "Plan for period", "Monthly plan", "Actual", "Delta", "Status", "Tone", "Budget months", "Period"]
+        : ["Grande catégorie", "Libellé interne", "Libellé affiché", "Budget période", "Budget mensuel", "Réel", "Écart", "Statut", "Ton", "Mois comparés", "Période"]
+    ),
+    sheetNames.planActual
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildBudgetFraAlertExportRows(exportSnapshot.ruleAlerts),
+      isEnglishUi()
+        ? ["Group", "Title", "Status", "Tone", "Detail", "Amount", "Ratio"]
+        : ["Groupe", "Titre", "Statut", "Ton", "Détail", "Montant", "Ratio"]
+    ),
+    sheetNames.alerts
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildRecurringTemplateExportRows(),
+      isEnglishUi()
+        ? ["Displayed label", "Internal label", "Displayed category", "Internal category", "Amount", "Period", "Automatic rule", "Start date", "Pending occurrences"]
+        : ["Libellé affiché", "Libellé interne", "Catégorie affichée", "Catégorie interne", "Montant", "Période", "Règle automatique", "Date de départ", "Occurrences en attente"]
+    ),
+    sheetNames.recurring
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheetFromObjects(
+      buildMonthlySeriesExportRows(exportSnapshot.seriesRows),
+      isEnglishUi()
+        ? ["Period", "Income", "Expenses", "Savings", "Cash"]
+        : ["Période", "Revenu", "Dépenses", "Épargne", "Cash"]
+    ),
+    sheetNames.monthly
+  );
 
   return workbook;
 }
@@ -7541,6 +8031,8 @@ function renderControls() {
   refs.restoreDraftButton.textContent = t("toolbar.restoreDraft");
   refs.restartButton.textContent = t("toolbar.restart");
   refs.exportButton.textContent = t("toolbar.exportExcel");
+  setNodeText(refs.exportJournalButton, t("toolbar.exportJournal"));
+  setNodeText(refs.exportCompleteButton, t("toolbar.exportComplete"));
   refs.saveDraftButton.title = hasBudget
     ? t("toolbar.saveDraftTitleReady")
     : t("toolbar.saveDraftTitleMissing");
@@ -7567,7 +8059,7 @@ function renderControls() {
   refs.saveDraftButton.classList.toggle("hidden", !shareTab);
   refs.restoreDraftButton.classList.toggle("hidden", !shareTab);
   refs.restartButton.classList.toggle("hidden", !shareTab);
-  refs.exportButton.classList.toggle("hidden", !shareTab);
+  refs.exportMenu?.classList.toggle("hidden", !shareTab);
   refs.addButton.classList.toggle("hidden", !(transactionTab || planTab));
   refs.addButton.textContent = planTab ? t("toolbar.editBudget") : t("toolbar.newTransaction");
   refs.addButton.disabled = planTab ? !hasBudget || planEditing : !journalActive || !transactionTab;
@@ -7576,6 +8068,15 @@ function renderControls() {
     refs.mobileFab.disabled = !journalActive || !transactionTab;
   }
   refs.exportButton.disabled = !hasBudget || !window.XLSX;
+  if (refs.exportJournalButton) {
+    refs.exportJournalButton.disabled = refs.exportButton.disabled;
+  }
+  if (refs.exportCompleteButton) {
+    refs.exportCompleteButton.disabled = refs.exportButton.disabled;
+  }
+  if (!shareTab || refs.exportButton.disabled) {
+    setExportMenuOpen(false);
+  }
   refs.saveButton.disabled = planTab ? !hasBudget || !planEditing : !journalActive || !formTab;
   refs.cancelButton.disabled = planTab ? !hasBudget || !planEditing : !journalActive || !formTab;
   refs.saveButton.classList.toggle("hidden", planTab && !planEditing);
@@ -10291,7 +10792,7 @@ function renderEditor() {
 
   refs.formTitle.textContent = state.editorMode === "edit" ? t("form.editTransaction") : t("form.newTransaction");
   refs.formSubtitle.textContent = state.workbook
-    ? t("form.editingWorkbook")
+    ? ""
     : canUseSupabaseCloud()
       ? t("form.editingCloud")
       : t("form.editingLocal");
