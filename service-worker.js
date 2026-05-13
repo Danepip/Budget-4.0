@@ -1,4 +1,4 @@
-const VERSION = "budget-card-view-v100";
+const VERSION = "budget-card-view-v101";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [

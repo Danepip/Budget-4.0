@@ -5,6 +5,9 @@ const RECURRING_TEMPLATES_KEY = "budget-2025-card-view-recurring-v1";
 const HISTORY_STATE_KEY = "budget-2025-card-view-history-v1";
 const HISTORY_STACK_LIMIT = 20;
 const HISTORY_EVENT_LIMIT = 8;
+const RECURRING_TEMPLATE_LIMIT = 12;
+const MAX_RECURRING_OCCURRENCES_PER_TEMPLATE = 48;
+const MAX_RECURRING_TRACKED_KEYS = 180;
 
 const JOURNAL_SHEET_NAME = "Journalier";
 const RECAP_SHEET_NAME = "Récapitulatif";
@@ -948,6 +951,7 @@ const state = {
   cloud: createEmptyCloudState(),
   settings: createDefaultUiSettings(),
   recurringTemplates: [],
+  recurringReviewDrafts: createEmptyRecurringReviewDrafts(),
   history: createEmptyHistoryState(),
   draftSavedAt: "",
   appTab: APP_TAB_DASHBOARD,
@@ -1024,6 +1028,10 @@ function createDefaultUiSettings() {
     showBudgetFraAlerts: true,
     showBudgetFraSuggestions: false,
   };
+}
+
+function createEmptyRecurringReviewDrafts() {
+  return {};
 }
 
 function normalizeUiLanguage(value) {
@@ -1216,11 +1224,35 @@ function applyStoredSettings() {
   state.settings = sanitizeUiSettings(readStoredSettings());
 }
 
+function normalizeRecurringTrackedKeys(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const normalized = values
+    .map((value) => String(value || "").trim())
+    .filter((value) => {
+      if (!value || seen.has(value)) {
+        return false;
+      }
+
+      seen.add(value);
+      return true;
+    });
+
+  return normalized.slice(-MAX_RECURRING_TRACKED_KEYS);
+}
+
 function sanitizeRecurringTemplate(rawTemplate) {
   const label = String(rawTemplate?.label || rawTemplate?.category || "").trim();
   const category = String(rawTemplate?.category || rawTemplate?.label || "").trim();
   const value = normalizeAmountValue(rawTemplate?.value);
   const period = normalizePlanPeriod(rawTemplate?.period);
+  const startDate = normalizeDateValue(rawTemplate?.startDate || rawTemplate?.anchorDate || "");
+  const autoCreate = rawTemplate?.autoCreate === true || rawTemplate?.autoCreate === "true";
+  const generatedKeys = normalizeRecurringTrackedKeys(rawTemplate?.generatedKeys);
+  const dismissedKeys = normalizeRecurringTrackedKeys(rawTemplate?.dismissedKeys);
 
   if (!label || !category) {
     return null;
@@ -1232,6 +1264,10 @@ function sanitizeRecurringTemplate(rawTemplate) {
     category,
     value,
     period,
+    startDate,
+    autoCreate,
+    generatedKeys,
+    dismissedKeys,
   };
 }
 
@@ -1290,9 +1326,24 @@ function sanitizeHistoryEntry(rawEntry) {
     kind,
     createdAt: String(rawEntry?.createdAt || new Date().toISOString()),
     record: rawEntry?.record ? sanitizeBudgetRow(rawEntry.record) : null,
+    records: Array.isArray(rawEntry?.records)
+      ? rawEntry.records.map((record) => sanitizeBudgetRow(record)).filter((record) => record.__id)
+      : [],
     previousRecord: rawEntry?.previousRecord ? sanitizeBudgetRow(rawEntry.previousRecord) : null,
     nextRecord: rawEntry?.nextRecord ? sanitizeBudgetRow(rawEntry.nextRecord) : null,
     index: Number.isInteger(rawEntry?.index) ? rawEntry.index : null,
+    recurringKeys: Array.isArray(rawEntry?.recurringKeys)
+      ? rawEntry.recurringKeys.map((key) => String(key || "").trim()).filter(Boolean)
+      : [],
+    templateChanges: Array.isArray(rawEntry?.templateChanges)
+      ? rawEntry.templateChanges
+        .map((change) => ({
+          templateId: String(change?.templateId || "").trim(),
+          previousValue: normalizeAmountValue(change?.previousValue),
+          nextValue: normalizeAmountValue(change?.nextValue),
+        }))
+        .filter((change) => change.templateId)
+      : [],
     previousTemplate: Array.isArray(rawEntry?.previousTemplate)
       ? rawEntry.previousTemplate.map((row) => ({
         label: String(row?.label || "").trim(),
@@ -1379,6 +1430,7 @@ function buildLocalStarterCategories(planTemplate = buildLocalStarterPlanTemplat
 }
 
 function buildDefaultRecurringTemplatesFromPlan(planTemplate = buildLocalStarterPlanTemplate()) {
+  const today = new Date().toISOString().slice(0, 10);
   const editableRows = resolvePlanTemplate(planTemplate).filter((row) => !isDerivedPlanLabel(row.label));
   const findRow = (keys) => editableRows.find((row) => keys.includes(normalizeHeaderName(row.label)));
   const recurringRows = [
@@ -1394,6 +1446,8 @@ function buildDefaultRecurringTemplatesFromPlan(planTemplate = buildLocalStarter
       category: row.label,
       value: row.plan,
       period: row.period || DEFAULT_PLAN_PERIOD,
+      startDate: today,
+      autoCreate: false,
     }))
     .filter(Boolean);
 }
@@ -1711,7 +1765,7 @@ function upsertRecurringTemplate(nextTemplate) {
     state.recurringTemplates.unshift(template);
   }
 
-  state.recurringTemplates = state.recurringTemplates.slice(0, 12);
+  state.recurringTemplates = state.recurringTemplates.slice(0, RECURRING_TEMPLATE_LIMIT);
   persistRecurringTemplates();
   return true;
 }
@@ -1719,6 +1773,428 @@ function upsertRecurringTemplate(nextTemplate) {
 function deleteRecurringTemplate(templateId) {
   state.recurringTemplates = getRecurringTemplates().filter((template) => template.id !== templateId);
   persistRecurringTemplates();
+}
+
+function isRecurringAutomationAvailable() {
+  return state.mode === "budget";
+}
+
+function syncRecurringReviewDrafts(occurrences) {
+  const nextDrafts = createEmptyRecurringReviewDrafts();
+  occurrences.forEach((occurrence) => {
+    if (!occurrence?.key) {
+      return;
+    }
+
+    const currentDraft = state.recurringReviewDrafts?.[occurrence.key] || {};
+    nextDrafts[occurrence.key] = {
+      value: normalizeAmountValue(currentDraft.value ?? occurrence.value),
+      updateTemplate: currentDraft.updateTemplate === true,
+    };
+  });
+  state.recurringReviewDrafts = nextDrafts;
+}
+
+function getRecurringReviewDraft(occurrence) {
+  const currentDraft = state.recurringReviewDrafts?.[occurrence?.key] || {};
+  return {
+    value: normalizeAmountValue(currentDraft.value ?? occurrence?.value),
+    updateTemplate: currentDraft.updateTemplate === true,
+  };
+}
+
+function updateRecurringReviewDraft(occurrenceKey, changes = {}) {
+  if (!occurrenceKey) {
+    return;
+  }
+
+  const currentDraft = state.recurringReviewDrafts?.[occurrenceKey] || {};
+  state.recurringReviewDrafts = {
+    ...state.recurringReviewDrafts,
+    [occurrenceKey]: {
+      value: Object.prototype.hasOwnProperty.call(changes, "value")
+        ? normalizeAmountValue(changes.value)
+        : normalizeAmountValue(currentDraft.value),
+      updateTemplate: Object.prototype.hasOwnProperty.call(changes, "updateTemplate")
+        ? changes.updateTemplate === true
+        : currentDraft.updateTemplate === true,
+    },
+  };
+}
+
+function clearRecurringReviewDrafts(occurrenceKeys = []) {
+  if (!occurrenceKeys.length || !state.recurringReviewDrafts) {
+    return;
+  }
+
+  const nextDrafts = {
+    ...state.recurringReviewDrafts,
+  };
+  occurrenceKeys.forEach((key) => {
+    delete nextDrafts[key];
+  });
+  state.recurringReviewDrafts = nextDrafts;
+}
+
+function applyDraftToRecurringOccurrence(occurrence) {
+  const draft = getRecurringReviewDraft(occurrence);
+  return {
+    ...occurrence,
+    value: draft.value,
+    updateTemplate: draft.updateTemplate,
+  };
+}
+
+function buildRecurringOccurrenceRecord(template, occurrenceDate) {
+  return {
+    Date: normalizeDateValue(occurrenceDate),
+    Categories: String(template?.category || "").trim(),
+    Value: normalizeAmountValue(template?.value),
+  };
+}
+
+function buildRecurringOccurrenceKey(template, occurrenceDate) {
+  const record = buildRecurringOccurrenceRecord(template, occurrenceDate);
+  return [
+    String(template?.id || "").trim(),
+    record.Date,
+    normalizeHeaderName(record.Categories),
+    normalizeAmountValue(record.Value),
+  ].join("|");
+}
+
+function compareRecurringOccurrenceDate(leftDate, rightDate) {
+  return String(leftDate || "").localeCompare(String(rightDate || ""));
+}
+
+function hasMatchingBudgetRow(record) {
+  const targetDate = normalizeDateValue(record?.Date);
+  const targetCategory = normalizeHeaderName(record?.Categories);
+  const targetAmount = roundCurrencyValue(parseAmount(record?.Value));
+
+  return state.budget.rows.some((row) => {
+    const rowDate = normalizeDateValue(row?.Date);
+    const rowCategory = normalizeHeaderName(row?.Categories);
+    const rowAmount = roundCurrencyValue(parseAmount(row?.Value));
+    return rowDate === targetDate && rowCategory === targetCategory && rowAmount === targetAmount;
+  });
+}
+
+function getRecurringStartDate(template) {
+  const startDate = normalizeDateValue(template?.startDate);
+  return startDate || "";
+}
+
+function addDaysToIsoDate(isoDate, days) {
+  const base = new Date(`${normalizeDateValue(isoDate)}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) {
+    return "";
+  }
+
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+function getDaysInUtcMonth(year, monthIndex) {
+  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+}
+
+function addMonthsToIsoDate(isoDate, monthsToAdd, anchorDay = null) {
+  const normalized = normalizeDateValue(isoDate);
+  if (!normalized) {
+    return "";
+  }
+
+  const [yearText, monthText, dayText] = normalized.split("-");
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const day = Number(anchorDay || dayText);
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || !Number.isInteger(day)) {
+    return "";
+  }
+
+  const totalMonths = monthIndex + monthsToAdd;
+  const targetYear = year + Math.floor(totalMonths / 12);
+  const targetMonthIndex = ((totalMonths % 12) + 12) % 12;
+  const safeDay = Math.min(day, getDaysInUtcMonth(targetYear, targetMonthIndex));
+  return new Date(Date.UTC(targetYear, targetMonthIndex, safeDay, 12)).toISOString().slice(0, 10);
+}
+
+function getNextRecurringOccurrenceDate(currentDate, period, anchorDay = null) {
+  const normalizedPeriod = normalizePlanPeriod(period);
+  if (normalizedPeriod === "weekly") {
+    return addDaysToIsoDate(currentDate, 7);
+  }
+
+  if (normalizedPeriod === "biweekly") {
+    return addDaysToIsoDate(currentDate, 14);
+  }
+
+  return addMonthsToIsoDate(currentDate, 1, anchorDay);
+}
+
+function getPendingRecurringOccurrences() {
+  if (!isRecurringAutomationAvailable()) {
+    return [];
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const pending = [];
+
+  getRecurringTemplates().forEach((template) => {
+    if (!template.autoCreate) {
+      return;
+    }
+
+    const startDate = getRecurringStartDate(template);
+    if (!startDate || startDate > today) {
+      return;
+    }
+
+    const anchorDay = Number(startDate.split("-")[2] || 1);
+    const generatedKeys = new Set(normalizeRecurringTrackedKeys(template.generatedKeys));
+    const dismissedKeys = new Set(normalizeRecurringTrackedKeys(template.dismissedKeys));
+    let cursor = startDate;
+    let iterations = 0;
+
+    while (cursor && compareRecurringOccurrenceDate(cursor, today) <= 0 && iterations < MAX_RECURRING_OCCURRENCES_PER_TEMPLATE) {
+      const record = buildRecurringOccurrenceRecord(template, cursor);
+      const key = buildRecurringOccurrenceKey(template, cursor);
+      const existsInBudget = hasMatchingBudgetRow(record);
+      if (
+        record.Date &&
+        record.Categories &&
+        record.Value !== "" &&
+        !generatedKeys.has(key) &&
+        !dismissedKeys.has(key) &&
+        !existsInBudget
+      ) {
+        pending.push({
+          key,
+          templateId: template.id,
+          templateLabel: template.label,
+          category: record.Categories,
+          date: record.Date,
+          value: record.Value,
+          period: template.period,
+        });
+      }
+
+      cursor = getNextRecurringOccurrenceDate(cursor, template.period, anchorDay);
+      iterations += 1;
+    }
+  });
+
+  const sortedPending = pending.sort((left, right) => {
+    const dateCompare = compareRecurringOccurrenceDate(left.date, right.date);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return String(left.templateLabel || "").localeCompare(String(right.templateLabel || ""), "fr-CA", {
+      sensitivity: "base",
+    });
+  });
+
+  syncRecurringReviewDrafts(sortedPending);
+  return sortedPending;
+}
+
+function getPendingRecurringOccurrenceMap() {
+  return new Map(getPendingRecurringOccurrences().map((occurrence) => [occurrence.key, occurrence]));
+}
+
+function updateRecurringTemplateTracking(templateId, updater) {
+  const index = getRecurringTemplates().findIndex((template) => template.id === templateId);
+  if (index === -1) {
+    return null;
+  }
+
+  const currentTemplate = getRecurringTemplates()[index];
+  const nextTemplate = sanitizeRecurringTemplate({
+    ...currentTemplate,
+    ...updater(currentTemplate),
+    id: currentTemplate.id,
+  });
+  if (!nextTemplate) {
+    return null;
+  }
+
+  state.recurringTemplates.splice(index, 1, nextTemplate);
+  persistRecurringTemplates();
+  return nextTemplate;
+}
+
+function updateRecurringTemplateSettings(templateId, changes) {
+  return updateRecurringTemplateTracking(templateId, (template) => ({
+    ...template,
+    ...changes,
+  }));
+}
+
+function markRecurringOccurrencesAsGenerated(occurrences) {
+  const grouped = new Map();
+  occurrences.forEach((occurrence) => {
+    if (!occurrence?.templateId || !occurrence?.key) {
+      return;
+    }
+
+    if (!grouped.has(occurrence.templateId)) {
+      grouped.set(occurrence.templateId, []);
+    }
+    grouped.get(occurrence.templateId).push(occurrence.key);
+  });
+
+  grouped.forEach((keys, templateId) => {
+    updateRecurringTemplateTracking(templateId, (template) => {
+      const generatedKeys = normalizeRecurringTrackedKeys([...(template.generatedKeys || []), ...keys]);
+      const dismissedKeys = normalizeRecurringTrackedKeys(
+        (template.dismissedKeys || []).filter((key) => !keys.includes(key))
+      );
+      return {
+        generatedKeys,
+        dismissedKeys,
+      };
+    });
+  });
+}
+
+function unmarkRecurringOccurrencesFromRecords(records) {
+  const sanitizedRecords = Array.isArray(records) ? records.map((record) => sanitizeBudgetRow(record)).filter((record) => record.Date && record.Categories) : [];
+  if (!sanitizedRecords.length) {
+    return;
+  }
+
+  getRecurringTemplates().forEach((template) => {
+    const removableKeys = sanitizedRecords
+      .filter((record) => {
+        const sameCategory = normalizeHeaderName(record.Categories) === normalizeHeaderName(template.category);
+        const sameAmount = roundCurrencyValue(parseAmount(record.Value)) === roundCurrencyValue(parseAmount(template.value));
+        return sameCategory && sameAmount;
+      })
+      .map((record) => buildRecurringOccurrenceKey(template, record.Date));
+
+    if (!removableKeys.length) {
+      return;
+    }
+
+    updateRecurringTemplateTracking(template.id, (currentTemplate) => ({
+      generatedKeys: normalizeRecurringTrackedKeys(
+        (currentTemplate.generatedKeys || []).filter((key) => !removableKeys.includes(key))
+      ),
+    }));
+  });
+}
+
+function unmarkRecurringOccurrencesByKeys(recurringKeys = []) {
+  const grouped = new Map();
+  recurringKeys
+    .map((key) => String(key || "").trim())
+    .filter(Boolean)
+    .forEach((key) => {
+      const templateId = key.split("|")[0];
+      if (!templateId) {
+        return;
+      }
+
+      if (!grouped.has(templateId)) {
+        grouped.set(templateId, []);
+      }
+      grouped.get(templateId).push(key);
+    });
+
+  grouped.forEach((keys, templateId) => {
+    updateRecurringTemplateTracking(templateId, (template) => ({
+      generatedKeys: normalizeRecurringTrackedKeys(
+        (template.generatedKeys || []).filter((key) => !keys.includes(key))
+      ),
+    }));
+  });
+}
+
+function dismissRecurringOccurrences(occurrences) {
+  const grouped = new Map();
+  occurrences.forEach((occurrence) => {
+    if (!occurrence?.templateId || !occurrence?.key) {
+      return;
+    }
+
+    if (!grouped.has(occurrence.templateId)) {
+      grouped.set(occurrence.templateId, []);
+    }
+    grouped.get(occurrence.templateId).push(occurrence.key);
+  });
+
+  grouped.forEach((keys, templateId) => {
+    updateRecurringTemplateTracking(templateId, (template) => ({
+      dismissedKeys: normalizeRecurringTrackedKeys([...(template.dismissedKeys || []), ...keys]),
+    }));
+  });
+}
+
+function restoreFormSnapshotAfterRecurringAction(snapshot) {
+  if (state.appTab === APP_TAB_FORM && state.activeView === JOURNAL_SHEET_NAME) {
+    applyTransactionFormSnapshot(snapshot);
+    refreshCategoryParentMeta();
+  }
+}
+
+async function addRecurringOccurrencesToBudget(occurrences, options = {}) {
+  if (!occurrences.length) {
+    return;
+  }
+
+  const newRecords = occurrences.map((occurrence) => sanitizeBudgetRow({
+    __id: createId(),
+    Date: occurrence.date,
+    Categories: occurrence.category,
+    Value: occurrence.value,
+  }));
+
+  newRecords.forEach((record) => {
+    state.budget.rows.push(record);
+    ensureBudgetCategoryAvailable(record.Categories);
+  });
+  state.budget.clearEndRow = Math.max(state.budget.clearEndRow, START_ROW + state.budget.rows.length + 8);
+  sortBudgetRowsInPlace(state.budget.rows);
+  markRecurringOccurrencesAsGenerated(occurrences);
+  persistDraft();
+
+  const actionLabel = occurrences.length === 1
+    ? `Transaction récurrente ajoutée : ${getDisplayCategoryLabel(occurrences[0].category) || occurrences[0].category}`
+    : `${occurrences.length} transactions récurrentes ajoutées.`;
+  const templateChanges = Array.isArray(options?.templateChanges)
+    ? options.templateChanges
+    : [];
+  pushUndoEntry({
+    kind: "add-recurring-batch",
+    records: newRecords,
+    recurringKeys: occurrences.map((occurrence) => occurrence.key).filter(Boolean),
+    templateChanges,
+  }, actionLabel);
+  clearRecurringReviewDrafts(occurrences.map((occurrence) => occurrence.key).filter(Boolean));
+  setLastAction(actionLabel);
+  renderAll();
+  void updateCloudPresenceTrack();
+  if (canUseSupabaseCloud()) {
+    try {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      await sendCloudActivityBroadcast(
+        "saved",
+        occurrences.length === 1
+          ? `la transaction récurrente ${getDisplayCategoryLabel(occurrences[0].category) || occurrences[0].category}`
+          : `${occurrences.length} transactions récurrentes`
+      );
+    } catch (error) {
+      console.error(error);
+      setLastAction(`${actionLabel} - synchronisation cloud en échec`);
+      renderAll();
+    }
+  }
+  await enqueueSourceSave({
+    automatic: true,
+    baseAction: actionLabel,
+  });
 }
 
 function getResolvedBudgetCategoryRule(label, planGroup = "", amountValue = null) {
@@ -3002,8 +3478,16 @@ function bindEvents() {
   refs.cardsEmpty.addEventListener("click", onEmptyStateAction);
   refs.formFields.addEventListener("click", onEmptyStateAction);
   refs.formFields.addEventListener("click", onRecurringTemplateAction);
+  refs.formFields.addEventListener("click", onRecurringReviewAction);
+  refs.formFields.addEventListener("input", onRecurringTemplateConfigChanged);
+  refs.formFields.addEventListener("change", onRecurringTemplateConfigChanged);
+  refs.formFields.addEventListener("input", onRecurringReviewDraftChanged);
+  refs.formFields.addEventListener("change", onRecurringReviewDraftChanged);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  refs.cardsGrid.addEventListener("click", onRecurringReviewAction);
+  refs.cardsGrid.addEventListener("input", onRecurringReviewDraftChanged);
+  refs.cardsGrid.addEventListener("change", onRecurringReviewDraftChanged);
   refs.transactionsViewToggle?.addEventListener("click", onTransactionsViewToggleClicked);
   refs.settingTheme.addEventListener("change", onThemeSettingChanged);
   refs.settingAutoRestore.addEventListener("change", onAutoRestoreSettingChanged);
@@ -3288,6 +3772,24 @@ async function onUndoLastActionRequested() {
   if (entry.kind === "create-record" && entry.record?.__id) {
     state.budget.rows = state.budget.rows.filter((row) => row.__id !== entry.record.__id);
     actionLabel = `Creation annulee: ${entry.record.Categories || entry.record.Date || "transaction"}`;
+  } else if (entry.kind === "add-recurring-batch" && entry.records?.length) {
+    const deletedIds = new Set(entry.records.map((record) => record.__id).filter(Boolean));
+    state.budget.rows = state.budget.rows.filter((row) => !deletedIds.has(row.__id));
+    if (entry.recurringKeys?.length) {
+      unmarkRecurringOccurrencesByKeys(entry.recurringKeys);
+    } else {
+      unmarkRecurringOccurrencesFromRecords(entry.records);
+    }
+    if (entry.templateChanges?.length) {
+      entry.templateChanges.forEach((change) => {
+        updateRecurringTemplateSettings(change.templateId, {
+          value: change.previousValue,
+        });
+      });
+    }
+    actionLabel = entry.records.length > 1
+      ? `${entry.records.length} transactions récurrentes annulées`
+      : `Transaction récurrente annulée: ${entry.records[0].Categories || entry.records[0].Date || "transaction"}`;
   } else if (entry.kind === "update-record" && entry.previousRecord?.__id) {
     const index = state.budget.rows.findIndex((row) => row.__id === entry.previousRecord.__id);
     if (index >= 0) {
@@ -5564,11 +6066,14 @@ function saveCurrentTransactionAsRecurringTemplate() {
 
   const snapshot = captureCurrentTransactionFormSnapshot();
   const internalCategory = getInternalCategoryLabel(snapshot.Categories);
+  const anchorDate = normalizeDateValue(snapshot.Date) || new Date().toISOString().slice(0, 10);
   const saved = upsertRecurringTemplate({
     label: internalCategory,
     category: internalCategory,
     value: snapshot.Value,
     period: DEFAULT_PLAN_PERIOD,
+    startDate: anchorDate,
+    autoCreate: false,
   });
 
   if (!saved) {
@@ -5633,6 +6138,184 @@ function onRecurringTemplateAction(event) {
     setLastAction("Modèle récurrent supprime.");
     refreshFormEditorPreservingValues(snapshot);
   }
+}
+
+function onRecurringTemplateConfigChanged(event) {
+  const field = event.target.closest("[data-recurring-setting]");
+  if (!field) {
+    return;
+  }
+
+  const templateId = String(field.dataset.templateId || "").trim();
+  const setting = String(field.dataset.recurringSetting || "").trim();
+  if (!templateId || !setting) {
+    return;
+  }
+
+  const snapshot = captureCurrentTransactionFormSnapshot();
+  let changes = null;
+
+  if (setting === "auto") {
+    changes = {
+      autoCreate: field.checked === true,
+    };
+  } else if (setting === "period") {
+    changes = {
+      period: normalizePlanPeriod(field.value),
+    };
+  } else if (setting === "start-date") {
+    changes = {
+      startDate: normalizeDateValue(field.value),
+      dismissedKeys: [],
+      generatedKeys: [],
+    };
+  }
+
+  if (!changes) {
+    return;
+  }
+
+  updateRecurringTemplateSettings(templateId, changes);
+  renderAll();
+  restoreFormSnapshotAfterRecurringAction(snapshot);
+}
+
+function onRecurringReviewDraftChanged(event) {
+  const field = event.target.closest("[data-recurring-draft]");
+  if (!field) {
+    return;
+  }
+
+  const occurrenceKey = String(field.dataset.occurrenceKey || "").trim();
+  const draftField = String(field.dataset.recurringDraft || "").trim();
+  if (!occurrenceKey || !draftField) {
+    return;
+  }
+
+  if (draftField === "value") {
+    updateRecurringReviewDraft(occurrenceKey, {
+      value: field.value,
+    });
+    const preview = field.closest(".recurring-review-card")?.querySelector("[data-recurring-preview-amount]");
+    if (preview) {
+      preview.textContent = formatCurrency(field.value);
+    }
+    return;
+  }
+
+  if (draftField === "update-template") {
+    updateRecurringReviewDraft(occurrenceKey, {
+      updateTemplate: field.checked === true,
+    });
+  }
+}
+
+function applyRecurringTemplateValueChanges(occurrences) {
+  const latestChangesByTemplate = new Map();
+
+  occurrences.forEach((occurrence) => {
+    if (!occurrence?.templateId || occurrence.updateTemplate !== true) {
+      return;
+    }
+
+    const current = latestChangesByTemplate.get(occurrence.templateId);
+    if (!current || compareRecurringOccurrenceDate(current.date, occurrence.date) <= 0) {
+      latestChangesByTemplate.set(occurrence.templateId, occurrence);
+    }
+  });
+
+  const templateChanges = [];
+  latestChangesByTemplate.forEach((occurrence, templateId) => {
+    const template = getRecurringTemplates().find((entry) => entry.id === templateId);
+    if (!template) {
+      return;
+    }
+
+    const previousValue = normalizeAmountValue(template.value);
+    const nextValue = normalizeAmountValue(occurrence.value);
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    updateRecurringTemplateSettings(templateId, {
+      value: nextValue,
+    });
+    templateChanges.push({
+      templateId,
+      previousValue,
+      nextValue,
+    });
+  });
+
+  return templateChanges;
+}
+
+async function onRecurringReviewAction(event) {
+  const actionButton = event.target.closest("[data-recurring-review-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  event.preventDefault();
+  const action = String(actionButton.dataset.recurringReviewAction || "").trim();
+  const occurrenceMap = getPendingRecurringOccurrenceMap();
+  const snapshot = captureCurrentTransactionFormSnapshot();
+
+  if (action === "add-all") {
+    const occurrences = Array.from(occurrenceMap.values()).map((occurrence) => applyDraftToRecurringOccurrence(occurrence));
+    const templateChanges = applyRecurringTemplateValueChanges(occurrences);
+    await addRecurringOccurrencesToBudget(occurrences, { templateChanges });
+    restoreFormSnapshotAfterRecurringAction(snapshot);
+    return;
+  }
+
+  if (action === "ignore-all") {
+    const occurrences = Array.from(occurrenceMap.values());
+    dismissRecurringOccurrences(occurrences);
+    clearRecurringReviewDrafts(occurrences.map((occurrence) => occurrence.key).filter(Boolean));
+    setLastAction(occurrences.length > 1 ? `${occurrences.length} occurrences récurrentes ignorées.` : "Occurrence récurrente ignorée.");
+    renderAll();
+    restoreFormSnapshotAfterRecurringAction(snapshot);
+    return;
+  }
+
+  const occurrenceKey = String(actionButton.dataset.occurrenceKey || "").trim();
+  if (!occurrenceKey || !occurrenceMap.has(occurrenceKey)) {
+    return;
+  }
+
+  const occurrence = occurrenceMap.get(occurrenceKey);
+  if (action === "add-one") {
+    const reviewedOccurrence = applyDraftToRecurringOccurrence(occurrence);
+    const templateChanges = applyRecurringTemplateValueChanges([reviewedOccurrence]);
+    await addRecurringOccurrencesToBudget([reviewedOccurrence], { templateChanges });
+    restoreFormSnapshotAfterRecurringAction(snapshot);
+    return;
+  }
+
+  if (action === "ignore-one") {
+    dismissRecurringOccurrences([occurrence]);
+    clearRecurringReviewDrafts([occurrence.key]);
+    setLastAction(`Occurrence ignorée : ${getDisplayCategoryLabel(occurrence.category) || occurrence.category}`);
+    renderAll();
+    restoreFormSnapshotAfterRecurringAction(snapshot);
+  }
+}
+
+function renderRecurringReviewCardConfig(occurrence, english) {
+  const reviewedOccurrence = applyDraftToRecurringOccurrence(occurrence);
+  return `
+    <div class="recurring-review-config">
+      <label class="recurring-config-field">
+        <span>${english ? "Amount" : "Montant"}</span>
+        <input type="text" inputmode="decimal" value="${escapeHtml(normalizeAmountValue(reviewedOccurrence.value))}" data-recurring-draft="value" data-occurrence-key="${escapeHtml(occurrence.key)}">
+      </label>
+      <label class="recurring-config-field recurring-config-switch">
+        <span>${english ? "Update template" : "Mettre à jour le modèle"}</span>
+        <input type="checkbox" data-recurring-draft="update-template" data-occurrence-key="${escapeHtml(occurrence.key)}" ${reviewedOccurrence.updateTemplate ? "checked" : ""}>
+      </label>
+    </div>
+  `;
 }
 
 function onSearchChanged(event) {
@@ -7296,8 +7979,9 @@ function renderJournalCards() {
   refs.recapView.classList.add("hidden");
   refs.cardsGrid.classList.toggle("compact-mode", getCurrentTransactionView() === "compact");
   const english = isEnglishUi();
+  const recurringReviewPanel = renderRecurringReviewPanel({ compact: true });
 
-  if (!state.budget.rows.length) {
+  if (!state.budget.rows.length && !recurringReviewPanel) {
     refs.cardsEmpty.classList.remove("hidden");
     refs.cardsEmpty.innerHTML = state.workbook
       ? [
@@ -7310,13 +7994,20 @@ function renderJournalCards() {
 
   const filteredRows = getFilteredJournalRows();
 
-  if (!filteredRows.length) {
+  if (!filteredRows.length && !recurringReviewPanel) {
     refs.cardsEmpty.classList.remove("hidden");
     refs.cardsEmpty.innerHTML = buildJournalEmptyStateMarkup();
     return;
   }
 
   refs.cardsEmpty.classList.add("hidden");
+  if (recurringReviewPanel) {
+    refs.cardsGrid.appendChild(recurringReviewPanel);
+  }
+
+  if (!filteredRows.length) {
+    return;
+  }
 
   if (getCurrentTransactionView() === "compact") {
     renderJournalCompactRows(filteredRows, english);
@@ -9609,6 +10300,10 @@ function renderEditor() {
   appendField(renderDateField(editingRow.Date));
   appendField(renderCategoryField(editingRow.Categories));
   appendField(renderValueField(editingRow.Value));
+  const recurringReviewPanel = renderRecurringReviewPanel();
+  if (recurringReviewPanel) {
+    refs.formFields.appendChild(recurringReviewPanel);
+  }
   refs.formFields.appendChild(renderRecurringTemplatesPanel());
 }
 
@@ -9677,6 +10372,63 @@ function renderPlanEditor() {
   }
 
   refreshPlanEditorPreview();
+}
+
+function renderRecurringReviewPanel(options = {}) {
+  const occurrences = getPendingRecurringOccurrences();
+  if (!occurrences.length) {
+    return null;
+  }
+
+  const english = getCurrentLanguage() === "en";
+  const section = document.createElement("section");
+  section.className = `recurring-review-panel${options.compact ? " is-compact" : ""}`;
+  section.innerHTML = `
+    <div class="recurring-panel-head">
+      <div>
+        <span class="section-kicker">${english ? "Recurring transactions to review" : "Transactions récurrentes à valider"}</span>
+        <h3>${english ? `${occurrences.length} due occurrence${occurrences.length > 1 ? "s" : ""}` : `${occurrences.length} occurrence${occurrences.length > 1 ? "s" : ""} prête${occurrences.length > 1 ? "s" : ""}`}</h3>
+        <p>${english ? "Mode B: review the due entries, adjust the amount if needed, then add them to your journal." : "Mode B : validez les écritures dues, ajustez le montant si besoin, puis ajoutez-les au journal."}</p>
+      </div>
+      <div class="recurring-review-actions">
+        <button type="button" class="button secondary" data-recurring-review-action="add-all">${english ? "Add all" : "Ajouter tout"}</button>
+        <button type="button" class="button ghost" data-recurring-review-action="ignore-all">${english ? "Ignore for now" : "Ignorer pour le moment"}</button>
+      </div>
+    </div>
+  `;
+
+  const list = document.createElement("div");
+  list.className = "recurring-review-list";
+  occurrences.forEach((occurrence) => {
+    const reviewedOccurrence = applyDraftToRecurringOccurrence(occurrence);
+    const card = document.createElement("article");
+    card.className = "recurring-review-card";
+    const categoryLabel = getDisplayCategoryLabel(reviewedOccurrence.category) || reviewedOccurrence.category;
+    const parentLabel = getBudgetFraCategoryLabel(reviewedOccurrence.category, "", reviewedOccurrence.value);
+    const metaParts = [
+      formatDateForDisplay(reviewedOccurrence.date) || reviewedOccurrence.date,
+      getPlanPeriodLabel(reviewedOccurrence.period),
+    ];
+    if (parentLabel) {
+      metaParts.push(parentLabel);
+    }
+    card.innerHTML = `
+      <div class="recurring-review-copy">
+        <span class="recurring-review-date">${escapeHtml(metaParts.join(" · "))}</span>
+        <strong>${escapeHtml(categoryLabel)}</strong>
+        ${renderRecurringReviewCardConfig(occurrence, english)}
+        <p data-recurring-preview-amount="true">${escapeHtml(formatCurrency(reviewedOccurrence.value))}</p>
+      </div>
+      <div class="recurring-review-actions">
+        <button type="button" class="button secondary" data-recurring-review-action="add-one" data-occurrence-key="${escapeHtml(occurrence.key)}">${english ? "Add" : "Ajouter"}</button>
+        <button type="button" class="button ghost" data-recurring-review-action="ignore-one" data-occurrence-key="${escapeHtml(occurrence.key)}">${english ? "Ignore" : "Ignorer"}</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  section.appendChild(list);
+  return section;
 }
 
 function refreshCategoryParentMeta() {
@@ -9889,12 +10641,15 @@ function renderRecurringTemplatesPanel() {
   const english = getCurrentLanguage() === "en";
 
   const templates = getRecurringTemplates();
+  const recurringAutomationAvailable = isRecurringAutomationAvailable();
+  const pendingOccurrences = getPendingRecurringOccurrences();
   const heading = document.createElement("div");
   heading.className = "recurring-panel-head";
   heading.innerHTML = `
     <div>
       <span class="section-kicker">${english ? "Recurring transactions" : "Transactions récurrentes"}</span>
       <h3>${english ? "Quick templates" : "Modèles rapides"}</h3>
+      <p class="recurring-panel-note">${recurringAutomationAvailable ? (english ? "Mode B: enable a rule, choose a frequency, then review due entries before adding them to the journal." : "Mode B : activez une règle, choisissez une fréquence, puis validez les écritures dues avant de les ajouter au journal.") : (english ? "Templates are unavailable until a budget is loaded." : "Les modèles restent indisponibles tant qu'un budget n'est pas chargé.")}</p>
     </div>
     <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
       ${english ? "Save transaction as template" : "Enregistrer la transaction comme modèle"}
@@ -9915,11 +10670,46 @@ function renderRecurringTemplatesPanel() {
     templates.forEach((template) => {
       const card = document.createElement("article");
       card.className = "recurring-card";
+      const pendingCount = pendingOccurrences.filter((occurrence) => occurrence.templateId === template.id).length;
+      const startDateLabel = template.startDate
+        ? (formatDateForDisplay(template.startDate) || template.startDate)
+        : (english ? "No start date" : "Aucune date de départ");
       card.innerHTML = `
         <div class="recurring-card-copy">
           <strong>${escapeHtml(getDisplayCategoryLabel(template.label) || template.label)}</strong>
           <p>${escapeHtml(getDisplayCategoryLabel(template.category) || template.category)} · ${escapeHtml(formatCurrency(parseAmount(template.value) || 0))} · ${escapeHtml(getPlanPeriodLabel(template.period))}</p>
+          <small class="recurring-card-status">${recurringAutomationAvailable
+            ? escapeHtml(
+              template.autoCreate
+                ? (pendingCount
+                  ? (english ? `${pendingCount} pending review · starts ${startDateLabel}` : `${pendingCount} en attente de validation · démarre le ${startDateLabel}`)
+                  : (english ? `Automatic rule active · starts ${startDateLabel}` : `Règle automatique active · démarre le ${startDateLabel}`))
+                : (english ? "Template available on demand" : "Modèle disponible à la demande")
+            )
+            : escapeHtml(english ? "Recurring review unavailable" : "Validation récurrente indisponible")}</small>
         </div>
+        ${recurringAutomationAvailable ? `
+          <div class="recurring-card-config">
+            <label class="recurring-config-field recurring-config-switch">
+              <span>${english ? "Automatic" : "Automatique"}</span>
+              <input type="checkbox" data-recurring-setting="auto" data-template-id="${escapeHtml(template.id)}" ${template.autoCreate ? "checked" : ""}>
+            </label>
+            <label class="recurring-config-field">
+              <span>${english ? "Frequency" : "Fréquence"}</span>
+              <select data-recurring-setting="period" data-template-id="${escapeHtml(template.id)}">
+                ${PLAN_PERIOD_OPTIONS.map((option) => `
+                  <option value="${escapeHtml(option.value)}" ${normalizePlanPeriod(template.period) === option.value ? "selected" : ""}>
+                    ${escapeHtml(getPlanPeriodLabel(option.value))}
+                  </option>
+                `).join("")}
+              </select>
+            </label>
+            <label class="recurring-config-field">
+              <span>${english ? "Start date" : "Date de départ"}</span>
+              <input type="date" value="${escapeHtml(template.startDate || "")}" data-recurring-setting="start-date" data-template-id="${escapeHtml(template.id)}">
+            </label>
+          </div>
+        ` : ""}
         <div class="recurring-card-actions">
           <button type="button" class="button secondary" data-recurring-action="use" data-template-id="${escapeHtml(template.id)}">${english ? "Use" : "Utiliser"}</button>
           <button type="button" class="button ghost" data-recurring-action="delete" data-template-id="${escapeHtml(template.id)}">${english ? "Delete" : "Supprimer"}</button>
