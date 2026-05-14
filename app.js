@@ -280,6 +280,9 @@ const UI_STRINGS = {
     "recurring.useCancelled": "Utilisation du modèle récurrent annulée.",
     "recurring.confirmCreateAndOpen": "Voulez-vous créer ce modèle récurrent et ouvrir l'onglet Récurrentes ?",
     "recurring.createCancelled": "Création du modèle récurrent annulée.",
+    "recurring.createButton": "Créer une récurrente",
+    "recurring.createUnavailable": "Chargez ou restaurez un budget avant de créer une récurrente.",
+    "recurring.createFlowHint": "Remplissez la transaction dans Formulaire, puis cliquez sur Enregistrer comme modèle.",
     "export.journalPreparing": "Préparation d'une copie Journalier",
     "export.journalShared": "Copie Journalier exportée et partagée depuis l'app mobile",
     "export.journalSuccess": "Copie Journalier exportée sans toucher au classeur source",
@@ -536,6 +539,9 @@ const UI_STRINGS = {
     "recurring.useCancelled": "Recurring template use cancelled.",
     "recurring.confirmCreateAndOpen": "Do you want to create this recurring template and open the Recurring tab?",
     "recurring.createCancelled": "Recurring template creation cancelled.",
+    "recurring.createButton": "Create recurring",
+    "recurring.createUnavailable": "Load or restore a budget before creating a recurring template.",
+    "recurring.createFlowHint": "Fill out the transaction in Form, then click Save as template.",
     "export.journalPreparing": "Preparing the Journal export copy",
     "export.journalShared": "Journal copy exported and shared from the mobile app",
     "export.journalSuccess": "Journal copy exported without touching the source workbook",
@@ -6478,6 +6484,22 @@ async function onRecurringTemplateAction(event) {
   }
 
   const action = String(actionButton.dataset.recurringAction || "").trim();
+  if (action === "create-new") {
+    if (!isRecurringAutomationAvailable()) {
+      setLastAction(t("recurring.createUnavailable"));
+      renderAll();
+      return;
+    }
+
+    startCreateMode();
+    setLastAction(t("recurring.createFlowHint"));
+    renderAll();
+    queueMicrotask(() => {
+      document.getElementById("field-categories")?.focus();
+    });
+    return;
+  }
+
   if (action === "save-current") {
     if (!window.confirm(t("recurring.confirmCreateAndOpen"))) {
       setLastAction(t("recurring.createCancelled"));
@@ -11512,11 +11534,16 @@ function renderRecurringTemplatesPanel(options = {}) {
       <h3>${english ? "Quick templates" : "Modèles rapides"}</h3>
       <p class="recurring-panel-note">${recurringAutomationAvailable ? (english ? "Mode B: enable a rule, choose a frequency, then review due entries before adding them to the journal." : "Mode B : activez une règle, choisissez une fréquence, puis validez les écritures dues avant de les ajouter au journal.") : (english ? "Templates are unavailable until a budget is loaded." : "Les modèles restent indisponibles tant qu'un budget n'est pas chargé.")}</p>
     </div>
-    ${showSaveButton ? `
-      <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
-        ${english ? "Save transaction as template" : "Enregistrer la transaction comme modèle"}
+    <div class="recurring-panel-toolbar">
+      <button type="button" class="button secondary recurring-create-button" data-recurring-action="create-new" ${recurringAutomationAvailable ? "" : "disabled"}>
+        ${escapeHtml(t("recurring.createButton"))}
       </button>
-    ` : ""}
+      ${showSaveButton ? `
+        <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
+          ${english ? "Save transaction as template" : "Enregistrer la transaction comme modèle"}
+        </button>
+      ` : ""}
+    </div>
   `;
 
   const list = document.createElement("div");

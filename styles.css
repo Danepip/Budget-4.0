@@ -2258,6 +2258,14 @@ textarea {
   flex-wrap: wrap;
 }
 
+.recurring-panel-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .recurring-panel-head h3 {
   margin: 0;
   font-size: 1.08rem;
