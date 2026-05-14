@@ -82,6 +82,10 @@
             <span class="app-tab-label">Formulaire</span>
             <span class="app-tab-meta">Nouvelle transaction</span>
           </button>
+          <button id="app-tab-recurring" class="app-tab" type="button" data-app-tab="recurring" role="tab" aria-selected="false">
+            <span class="app-tab-label">Récurrentes</span>
+            <span class="app-tab-meta">Modèles et règles</span>
+          </button>
           <button id="app-tab-analysis" class="app-tab" type="button" data-app-tab="analysis" role="tab" aria-selected="false">
             <span class="app-tab-label">Analyse</span>
             <span class="app-tab-meta">Comparaisons</span>
@@ -366,6 +370,7 @@
 
             <div id="form-actions" class="form-actions">
               <button class="button primary" type="submit" id="save-record" disabled>Enregistrer</button>
+              <button class="button ghost hidden" type="button" id="save-recurring-template" data-recurring-action="save-current" disabled>Enregistrer comme modèle</button>
               <button class="button ghost" type="button" id="cancel-edit" disabled>Réinitialiser</button>
             </div>
           </form>

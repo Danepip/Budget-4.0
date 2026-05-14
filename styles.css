@@ -1029,6 +1029,16 @@ textarea {
   gap: 12px;
 }
 
+.cards-grid.recurring-mode {
+  grid-template-columns: 1fr;
+}
+
+.recurring-hub {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 18px;
+}
+
 .recap-view {
   display: grid;
   gap: 18px;

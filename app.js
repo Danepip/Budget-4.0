@@ -31,6 +31,7 @@ const APP_TAB_DASHBOARD = "dashboard";
 const APP_TAB_PLAN = "plan";
 const APP_TAB_TRANSACTIONS = "transactions";
 const APP_TAB_FORM = "form";
+const APP_TAB_RECURRING = "recurring";
 const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
 const SUPPORTED_UI_LANGUAGES = ["fr", "en"];
@@ -52,6 +53,8 @@ const UI_STRINGS = {
     "tab.transactions.meta": "Liste des écritures",
     "tab.form.label": "Formulaire",
     "tab.form.meta": "Nouvelle transaction",
+    "tab.recurring.label": "Récurrentes",
+    "tab.recurring.meta": "Modèles et règles",
     "tab.analysis.label": "Analyse",
     "tab.analysis.meta": "Comparaisons",
     "tab.share.label": "Paramètres",
@@ -67,6 +70,8 @@ const UI_STRINGS = {
     "tab.transactions.viewCompact": "Compacte",
     "tab.form.title": "Formulaire",
     "tab.form.description": "Un espace dédié à la création et à la modification d'une transaction, sans distraction autour.",
+    "tab.recurring.title": "Transactions récurrentes",
+    "tab.recurring.description": "Gérez ici vos modèles rapides, règles automatiques et validations en attente, sans alourdir le formulaire.",
     "tab.analysis.title": "Analyse",
     "tab.analysis.description": "Des comparaisons claires entre revenu, dépenses, épargne et cash pour comprendre votre rythme.",
     "tab.share.title": "Paramètres",
@@ -234,6 +239,9 @@ const UI_STRINGS = {
     "cards.kickerAnalysis": "Comparaisons",
     "cards.titleAnalysis": "Revenu, dépenses et épargne en perspective",
     "cards.captionAnalysis": "Cette vue ajoute des comparaisons et des graphiques pertinents à partir de Journalier pour suivre l'équilibre entre revenu, dépenses, épargne et cash.",
+    "cards.kickerRecurring": "Récurrentes",
+    "cards.titleRecurring": "Modèles et validations récurrentes",
+    "cards.captionRecurring": "Regroupez ici vos modèles rapides, règles automatiques et écritures dues à valider avant ajout au journal.",
     "cards.kickerJournal": "Journalier",
     "cards.titleJournal": "Les écritures deviennent des fiches",
     "cards.captionJournal": "Cette vue utilise Journalier!D:F, garde la liste des catégories de Journalier!B et reprend le même filtre année/mois que le récapitulatif.",
@@ -244,6 +252,7 @@ const UI_STRINGS = {
     "form.kickerPlannedBudget": "Budget planifié",
     "form.kickerForm": "Formulaire",
     "form.save": "Enregistrer",
+    "form.saveRecurringTemplate": "Enregistrer comme modèle",
     "form.reset": "Réinitialiser",
     "form.newRecord": "Nouvelle fiche",
     "form.startFirst": "Démarrez d'abord votre budget local ou importez votre fichier Excel.",
@@ -269,6 +278,8 @@ const UI_STRINGS = {
     "form.editingLocal": "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.",
     "recurring.confirmUseSameMonth": "Le modèle récurrent « {label} » a déjà été utilisé pour {month}. Voulez-vous l'utiliser quand même ?",
     "recurring.useCancelled": "Utilisation du modèle récurrent annulée.",
+    "recurring.confirmCreateAndOpen": "Voulez-vous créer ce modèle récurrent et ouvrir l'onglet Récurrentes ?",
+    "recurring.createCancelled": "Création du modèle récurrent annulée.",
     "export.journalPreparing": "Préparation d'une copie Journalier",
     "export.journalShared": "Copie Journalier exportée et partagée depuis l'app mobile",
     "export.journalSuccess": "Copie Journalier exportée sans toucher au classeur source",
@@ -298,6 +309,8 @@ const UI_STRINGS = {
     "tab.transactions.meta": "Entries list",
     "tab.form.label": "Form",
     "tab.form.meta": "New transaction",
+    "tab.recurring.label": "Recurring",
+    "tab.recurring.meta": "Templates and rules",
     "tab.analysis.label": "Analysis",
     "tab.analysis.meta": "Comparisons",
     "tab.share.label": "Settings",
@@ -313,6 +326,8 @@ const UI_STRINGS = {
     "tab.transactions.viewCompact": "Compact",
     "tab.form.title": "Form",
     "tab.form.description": "A dedicated space to create and edit a transaction without distractions.",
+    "tab.recurring.title": "Recurring transactions",
+    "tab.recurring.description": "Manage your quick templates, automatic rules, and pending validations here without cluttering the form.",
     "tab.analysis.title": "Analysis",
     "tab.analysis.description": "Clear comparisons between income, expenses, savings, and cash to understand your rhythm.",
     "tab.share.title": "Settings",
@@ -480,6 +495,9 @@ const UI_STRINGS = {
     "cards.kickerAnalysis": "Comparisons",
     "cards.titleAnalysis": "Income, expenses, and savings in perspective",
     "cards.captionAnalysis": "This view adds useful comparisons and charts from Journalier to track the balance between income, expenses, savings, and cash.",
+    "cards.kickerRecurring": "Recurring",
+    "cards.titleRecurring": "Recurring templates and reviews",
+    "cards.captionRecurring": "Keep your quick templates, automatic rules, and due entries to review in one dedicated place.",
     "cards.kickerJournal": "Journal",
     "cards.titleJournal": "Entries become cards",
     "cards.captionJournal": "This view uses Journalier!D:F, keeps the category list from Journalier!B, and uses the same year/month filter as the recap.",
@@ -490,6 +508,7 @@ const UI_STRINGS = {
     "form.kickerPlannedBudget": "Planned budget",
     "form.kickerForm": "Form",
     "form.save": "Save",
+    "form.saveRecurringTemplate": "Save as template",
     "form.reset": "Reset",
     "form.newRecord": "New record",
     "form.startFirst": "Start your local budget first or import your Excel file.",
@@ -515,6 +534,8 @@ const UI_STRINGS = {
     "form.editingLocal": "Local standalone mode: your categories, recaps, and charts update every time you save.",
     "recurring.confirmUseSameMonth": "The recurring template \"{label}\" was already used for {month}. Do you still want to use it?",
     "recurring.useCancelled": "Recurring template use cancelled.",
+    "recurring.confirmCreateAndOpen": "Do you want to create this recurring template and open the Recurring tab?",
+    "recurring.createCancelled": "Recurring template creation cancelled.",
     "export.journalPreparing": "Preparing the Journal export copy",
     "export.journalShared": "Journal copy exported and shared from the mobile app",
     "export.journalSuccess": "Journal copy exported without touching the source workbook",
@@ -3352,6 +3373,7 @@ function normalizeAppTab(value) {
     value === APP_TAB_PLAN ||
     value === APP_TAB_TRANSACTIONS ||
     value === APP_TAB_FORM ||
+    value === APP_TAB_RECURRING ||
     value === APP_TAB_ANALYSIS ||
     value === APP_TAB_SHARE
   ) {
@@ -3384,7 +3406,7 @@ function syncActiveViewForCurrentTab() {
     return;
   }
 
-  if (state.appTab === APP_TAB_TRANSACTIONS || state.appTab === APP_TAB_FORM) {
+  if (state.appTab === APP_TAB_TRANSACTIONS || state.appTab === APP_TAB_FORM || state.appTab === APP_TAB_RECURRING) {
     state.activeView = JOURNAL_SHEET_NAME;
     return;
   }
@@ -3507,6 +3529,7 @@ function cacheDom() {
   refs.formTitle = document.getElementById("form-title");
   refs.formSubtitle = document.getElementById("form-subtitle");
   refs.saveButton = document.getElementById("save-record");
+  refs.saveRecurringTemplateButton = document.getElementById("save-recurring-template");
   refs.cancelButton = document.getElementById("cancel-edit");
   refs.recordsLabel = document.getElementById("records-label");
   refs.recordsCount = document.getElementById("records-count");
@@ -3592,9 +3615,13 @@ function bindEvents() {
   refs.formFields.addEventListener("change", onRecurringTemplateConfigChanged);
   refs.formFields.addEventListener("input", onRecurringReviewDraftChanged);
   refs.formFields.addEventListener("change", onRecurringReviewDraftChanged);
+  refs.formActions.addEventListener("click", onRecurringTemplateAction);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  refs.cardsGrid.addEventListener("click", onRecurringTemplateAction);
   refs.cardsGrid.addEventListener("click", onRecurringReviewAction);
+  refs.cardsGrid.addEventListener("input", onRecurringTemplateConfigChanged);
+  refs.cardsGrid.addEventListener("change", onRecurringTemplateConfigChanged);
   refs.cardsGrid.addEventListener("input", onRecurringReviewDraftChanged);
   refs.cardsGrid.addEventListener("change", onRecurringReviewDraftChanged);
   refs.transactionsViewToggle?.addEventListener("click", onTransactionsViewToggleClicked);
@@ -3961,6 +3988,8 @@ function getAppTabLabel(tab = state.appTab) {
       return t("tab.transactions.label");
     case APP_TAB_FORM:
       return t("tab.form.label");
+    case APP_TAB_RECURRING:
+      return t("tab.recurring.label");
     case APP_TAB_ANALYSIS:
       return t("tab.analysis.label");
     case APP_TAB_SHARE:
@@ -3983,6 +4012,10 @@ function buildCurrentEditActivityLabel() {
     }
 
     return "prepare une nouvelle transaction";
+  }
+
+  if (state.appTab === APP_TAB_RECURRING) {
+    return "gère les transactions récurrentes";
   }
 
   return "";
@@ -5533,6 +5566,7 @@ function persistDraft() {
       lastPulledAt: state.cloud.lastPulledAt,
       lastPushedAt: state.cloud.lastPushedAt,
     },
+    recurringTemplates: state.recurringTemplates,
     recapFilters: state.recapFilters,
     savedAt: new Date().toISOString(),
   };
@@ -5590,6 +5624,9 @@ function applyStoredDraft(draft) {
   state.cloud.alerts = sanitizeBudgetAlertSettings(draft.cloud?.alerts);
   state.cloud.lastPulledAt = String(draft.cloud?.lastPulledAt || state.cloud.lastPulledAt || "");
   state.cloud.lastPushedAt = String(draft.cloud?.lastPushedAt || state.cloud.lastPushedAt || "");
+  state.recurringTemplates = Array.isArray(draft.recurringTemplates)
+    ? draft.recurringTemplates.map((template) => sanitizeRecurringTemplate(template)).filter(Boolean)
+    : state.recurringTemplates;
   state.sourceSafety = createEmptySourceSafety();
   state.draftSavedAt = String(draft.savedAt || "");
 
@@ -6366,7 +6403,7 @@ async function syncRecurringTemplatesIfNeeded(actionLabel, activityLabel = "les 
   }
 }
 
-async function saveCurrentTransactionAsRecurringTemplate() {
+async function saveCurrentTransactionAsRecurringTemplate(options = {}) {
   if (!canSaveCurrentTransactionAsRecurringTemplate()) {
     setLastAction("Saisissez au moins une categorie et une valeur avant d'enregistrer un modèle récurrent.");
     refreshCategoryParentMeta();
@@ -6397,6 +6434,10 @@ async function saveCurrentTransactionAsRecurringTemplate() {
     `Modèle récurrent enregistre: ${snapshot.Categories}`,
     `le modèle récurrent ${snapshot.Categories}`
   );
+
+  if (options.openRecurringTab) {
+    setAppTab(APP_TAB_RECURRING);
+  }
 }
 
 function applyRecurringTemplateToForm(templateId) {
@@ -6438,7 +6479,13 @@ async function onRecurringTemplateAction(event) {
 
   const action = String(actionButton.dataset.recurringAction || "").trim();
   if (action === "save-current") {
-    await saveCurrentTransactionAsRecurringTemplate();
+    if (!window.confirm(t("recurring.confirmCreateAndOpen"))) {
+      setLastAction(t("recurring.createCancelled"));
+      renderAll();
+      return;
+    }
+
+    await saveCurrentTransactionAsRecurringTemplate({ openRecurringTab: true });
     return;
   }
 
@@ -8111,6 +8158,10 @@ function renderAppTabs() {
       title: t("tab.form.title"),
       description: t("tab.form.description"),
     },
+    [APP_TAB_RECURRING]: {
+      title: t("tab.recurring.title"),
+      description: t("tab.recurring.description"),
+    },
     [APP_TAB_ANALYSIS]: {
       title: t("tab.analysis.title"),
       description: t("tab.analysis.description"),
@@ -8125,10 +8176,11 @@ function renderAppTabs() {
   const showPlan = state.appTab === APP_TAB_PLAN;
   const showTransactions = state.appTab === APP_TAB_TRANSACTIONS;
   const showForm = state.appTab === APP_TAB_FORM;
+  const showRecurring = state.appTab === APP_TAB_RECURRING;
   const showAnalysis = state.appTab === APP_TAB_ANALYSIS;
   const showDashboard = state.appTab === APP_TAB_DASHBOARD;
   const showWelcome = shouldShowWelcomeScreen();
-  const showWideContent = !showShare && (showDashboard || showPlan || showForm || showAnalysis || showTransactions);
+  const showWideContent = !showShare && (showDashboard || showPlan || showForm || showRecurring || showAnalysis || showTransactions);
 
   refs.appTabTitle.textContent = currentMeta.title;
   refs.appTabDescription.textContent = currentMeta.description;
@@ -8236,6 +8288,13 @@ function renderSectionHeading() {
     return;
   }
 
+  if (state.appTab === APP_TAB_RECURRING) {
+    refs.cardsKicker.textContent = t("cards.kickerRecurring");
+    refs.cardsTitle.textContent = t("cards.titleRecurring");
+    refs.cardsCaption.textContent = t("cards.captionRecurring");
+    return;
+  }
+
   if (state.activeView === RECAP_SHEET_NAME) {
     refs.cardsKicker.textContent = t("cards.kickerRecap");
     refs.cardsTitle.textContent = t("cards.titleRecap");
@@ -8265,13 +8324,14 @@ function renderControls() {
   const planTab = state.appTab === APP_TAB_PLAN;
   const planEditing = planTab && state.planEditing;
   const formTab = state.appTab === APP_TAB_FORM;
+  const recurringTab = state.appTab === APP_TAB_RECURRING;
   const transactionTab = state.appTab === APP_TAB_TRANSACTIONS;
   const draft = readStoredDraft();
   const hasStoredDraft = Boolean(draft && draft.mode === "budget" && Array.isArray(draft.rows));
   const availableYears = getAvailableRecapYears();
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
 
-  refs.searchInput.disabled = !hasBudget || shareTab || formTab || planTab;
+  refs.searchInput.disabled = !hasBudget || shareTab || formTab || planTab || recurringTab;
   refs.searchInput.placeholder = recapActive
     ? t("toolbar.searchPlaceholderRecap")
     : analysisActive
@@ -8312,9 +8372,9 @@ function renderControls() {
   refs.restartButton.disabled = busy;
   refs.restartButton.title = t("toolbar.restartTitle");
   refs.filePickerField.classList.toggle("hidden", !shareTab);
-  refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab);
-  refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
-  refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab);
+  refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab || recurringTab);
+  refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab);
+  refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab);
   refs.recapRangeField.classList.add("hidden");
   refs.recapYearSelect.disabled = !hasBudget || !availableYears.length;
   refs.recapMonthSelect.disabled = !hasBudget || !availableMonths.length;
@@ -8722,6 +8782,7 @@ function getFilteredJournalRows() {
 function renderCards() {
   refs.cardsGrid.innerHTML = "";
   refs.recapView.innerHTML = "";
+  refs.cardsGrid.classList.remove("recurring-mode");
 
   if (state.mode !== "budget") {
     refs.cardsGrid.classList.remove("hidden");
@@ -8733,6 +8794,11 @@ function renderCards() {
 
   if (state.appTab === APP_TAB_DASHBOARD) {
     renderRecapView();
+    return;
+  }
+
+  if (state.appTab === APP_TAB_RECURRING) {
+    renderRecurringWorkspace();
     return;
   }
 
@@ -8823,6 +8889,25 @@ function renderJournalCards() {
 
     refs.cardsGrid.appendChild(card);
   });
+}
+
+function renderRecurringWorkspace() {
+  refs.cardsGrid.classList.remove("hidden");
+  refs.recapView.classList.add("hidden");
+  refs.cardsGrid.classList.remove("compact-mode");
+  refs.cardsGrid.classList.add("recurring-mode");
+  refs.cardsEmpty.classList.add("hidden");
+
+  const hub = document.createElement("div");
+  hub.className = "recurring-hub";
+
+  const reviewPanel = renderRecurringReviewPanel({ compact: true });
+  if (reviewPanel) {
+    hub.appendChild(reviewPanel);
+  }
+
+  hub.appendChild(renderRecurringTemplatesPanel({ showSaveButton: false }));
+  refs.cardsGrid.appendChild(hub);
 }
 
 function renderJournalCompactRows(filteredRows, english) {
@@ -10995,6 +11080,7 @@ function renderEditor() {
     if (refs.formKicker) {
       refs.formKicker.textContent = t("form.kickerPlannedBudget");
     }
+    refs.saveRecurringTemplateButton?.classList.add("hidden");
     renderPlanEditor();
     return;
   }
@@ -11004,9 +11090,13 @@ function renderEditor() {
   }
 
   refs.saveButton.textContent = t("form.save");
+  if (refs.saveRecurringTemplateButton) {
+    refs.saveRecurringTemplateButton.textContent = t("form.saveRecurringTemplate");
+  }
   refs.cancelButton.textContent = t("form.reset");
 
   if (state.mode !== "budget") {
+    refs.saveRecurringTemplateButton?.classList.add("hidden");
     refs.formTitle.textContent = t("form.newRecord");
     refs.formSubtitle.textContent = t("form.startFirst");
     refs.formFields.innerHTML = `<div class="empty-form">${buildStartupGuideMarkup({
@@ -11018,6 +11108,7 @@ function renderEditor() {
   }
 
   if (state.activeView !== JOURNAL_SHEET_NAME) {
+    refs.saveRecurringTemplateButton?.classList.add("hidden");
     const isRecapView = state.activeView === RECAP_SHEET_NAME;
     refs.formTitle.textContent = isRecapView ? t("form.readOnlyRecap") : t("form.readOnlyAnalysis");
     refs.formSubtitle.textContent = t("form.readOnlySubtitle");
@@ -11065,16 +11156,15 @@ function renderEditor() {
     : canUseSupabaseCloud()
       ? t("form.editingCloud")
       : t("form.editingLocal");
+  if (refs.saveRecurringTemplateButton) {
+    refs.saveRecurringTemplateButton.classList.toggle("hidden", state.appTab !== APP_TAB_FORM);
+    refs.saveRecurringTemplateButton.disabled = !canSaveCurrentTransactionAsRecurringTemplate();
+  }
   refs.formFields.innerHTML = "";
 
   appendField(renderDateField(editingRow.Date));
   appendField(renderCategoryField(editingRow.Categories));
   appendField(renderValueField(editingRow.Value));
-  const recurringReviewPanel = renderRecurringReviewPanel();
-  if (recurringReviewPanel) {
-    refs.formFields.appendChild(recurringReviewPanel);
-  }
-  refs.formFields.appendChild(renderRecurringTemplatesPanel());
 }
 
 function renderPlanEditor() {
@@ -11405,10 +11495,11 @@ function renderValueField(value) {
   return wrapper;
 }
 
-function renderRecurringTemplatesPanel() {
+function renderRecurringTemplatesPanel(options = {}) {
   const section = document.createElement("section");
   section.className = "recurring-panel";
   const english = getCurrentLanguage() === "en";
+  const showSaveButton = options.showSaveButton !== false;
 
   const templates = getRecurringTemplates();
   const recurringAutomationAvailable = isRecurringAutomationAvailable();
@@ -11421,9 +11512,11 @@ function renderRecurringTemplatesPanel() {
       <h3>${english ? "Quick templates" : "Modèles rapides"}</h3>
       <p class="recurring-panel-note">${recurringAutomationAvailable ? (english ? "Mode B: enable a rule, choose a frequency, then review due entries before adding them to the journal." : "Mode B : activez une règle, choisissez une fréquence, puis validez les écritures dues avant de les ajouter au journal.") : (english ? "Templates are unavailable until a budget is loaded." : "Les modèles restent indisponibles tant qu'un budget n'est pas chargé.")}</p>
     </div>
-    <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
-      ${english ? "Save transaction as template" : "Enregistrer la transaction comme modèle"}
-    </button>
+    ${showSaveButton ? `
+      <button type="button" class="button ghost recurring-save-button" data-recurring-action="save-current" ${canSaveCurrentTransactionAsRecurringTemplate() ? "" : "disabled"}>
+        ${english ? "Save transaction as template" : "Enregistrer la transaction comme modèle"}
+      </button>
+    ` : ""}
   `;
 
   const list = document.createElement("div");
