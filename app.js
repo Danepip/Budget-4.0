@@ -184,6 +184,7 @@ const UI_STRINGS = {
     "cloud.presenceEmptyBody": "Connectez-vous à un espace partagé pour lancer la collaboration en direct.",
     "cloud.livePrefix": "Activité en direct : {message}",
     "cloud.liveEmpty": "Aucune activité en direct pour le moment.",
+    "cloud.recurringSchemaOutdated": "Les récurrentes partagées nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
     "alerts.statusNotConfigured": "La fonction d'alerte email n'est pas configurée côté Supabase.",
     "alerts.statusNotReady": "Supabase doit être configuré pour activer les alertes email.",
     "alerts.statusDisabled": "Alertes email désactivées.",
@@ -274,6 +275,8 @@ const UI_STRINGS = {
     "export.completePreparing": "Préparation du classeur complet de l'application",
     "export.completeShared": "Classeur complet exporté et partagé depuis l'app mobile",
     "export.completeSuccess": "Classeur complet exporté avec toutes les informations de l'application",
+    "export.choicePrompt": "Exporter Excel\n1 - Exporter Journalier\n2 - Exporter classeur complet\nLaissez vide pour annuler.",
+    "export.choiceInvalid": "Choix d'export invalide.",
     "language.fr": "Français",
     "language.en": "English",
     "theme.auto": "Auto",
@@ -427,6 +430,7 @@ const UI_STRINGS = {
     "cloud.presenceEmptyBody": "Sign in to a shared space to start live collaboration.",
     "cloud.livePrefix": "Live activity: {message}",
     "cloud.liveEmpty": "No live activity at the moment.",
+    "cloud.recurringSchemaOutdated": "Shared recurring templates require the latest Supabase schema. Run the updated supabase/schema.sql script.",
     "alerts.statusNotConfigured": "The email alert function is not configured on the Supabase side.",
     "alerts.statusNotReady": "Supabase must be configured to enable email alerts.",
     "alerts.statusDisabled": "Email alerts are disabled.",
@@ -517,6 +521,8 @@ const UI_STRINGS = {
     "export.completePreparing": "Preparing the complete app workbook",
     "export.completeShared": "Complete workbook exported and shared from the mobile app",
     "export.completeSuccess": "Complete workbook exported with all app information",
+    "export.choicePrompt": "Excel export\n1 - Export Journal\n2 - Export full workbook\nLeave empty to cancel.",
+    "export.choiceInvalid": "Invalid export choice.",
     "language.fr": "Français",
     "language.en": "English",
     "theme.auto": "Auto",
@@ -993,11 +999,14 @@ let appShellReady = false;
 let sourceSaveQueue = Promise.resolve();
 let budgetSourcePlugin = null;
 let budgetAuthPlugin = null;
+let filesystemPlugin = null;
+let sharePlugin = null;
 let supabaseClient = null;
 let supabaseAuthSubscription = null;
 let supabaseRealtimeChannel = null;
 let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
+let recurringSupabaseSchemaReady = true;
 let nativeSupabaseRedirectListenerBound = false;
 let colorSchemeMedia = null;
 let colorSchemeListenerBound = false;
@@ -1320,6 +1329,14 @@ function persistRecurringTemplates() {
 
 function applyStoredRecurringTemplates() {
   state.recurringTemplates = readStoredRecurringTemplates();
+}
+
+function persistRecurringTemplatesIfPossible() {
+  if (!Array.isArray(state.recurringTemplates)) {
+    return;
+  }
+
+  persistRecurringTemplates();
 }
 
 function sanitizeHistoryEvent(rawEvent) {
@@ -4284,11 +4301,39 @@ function describeSupabaseError(error, fallbackMessage) {
     return `${fallbackMessage} La fonction create_budget_space n'est pas disponible ou pas a jour dans Supabase. Relancez le script schema.sql complet dans SQL Editor.`;
   }
 
+  if (isSupabaseRecurringSchemaMissing(error)) {
+    return `${fallbackMessage} ${t("cloud.recurringSchemaOutdated")}`;
+  }
+
   if (rawMessage) {
     return `${fallbackMessage} ${rawMessage}`;
   }
 
   return fallbackMessage;
+}
+
+function isSupabaseRecurringSchemaMissing(error) {
+  const haystack = String(
+    `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""} ${error?.code || ""}`
+  ).toLowerCase();
+
+  if (!haystack) {
+    return false;
+  }
+
+  return [
+    "budget_recurring_templates",
+    "generated_keys",
+    "dismissed_keys",
+    "template_id",
+    "start_date",
+    "auto_create",
+    "sort_order",
+  ].some((needle) => haystack.includes(needle));
+}
+
+function buildRecurringSchemaWarningMessage() {
+  return t("cloud.recurringSchemaOutdated");
 }
 
 async function consumeSupabaseAuthCallback(urlValue = window.location.href) {
@@ -4858,7 +4903,7 @@ function startSupabaseRealtime(spaceId) {
 
   stopSupabaseRealtime();
 
-  supabaseRealtimeChannel = supabaseClient
+  let channel = supabaseClient
     .channel(currentTopic, {
       config: {
         presence: {
@@ -4887,8 +4932,18 @@ function startSupabaseRealtime(spaceId) {
       schema: "public",
       table: "budget_plan_rows",
       filter: `space_id=eq.${spaceId}`,
-    }, queueCloudRefresh)
-    .subscribe((status) => {
+    }, queueCloudRefresh);
+
+  if (recurringSupabaseSchemaReady) {
+    channel = channel.on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "budget_recurring_templates",
+      filter: `space_id=eq.${spaceId}`,
+    }, queueCloudRefresh);
+  }
+
+  supabaseRealtimeChannel = channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void updateCloudPresenceTrack();
       }
@@ -4921,7 +4976,9 @@ async function publishLocalBudgetToSupabase() {
     const spaceId = state.cloud.space.id;
     const categoriesPayload = buildSupabaseCategoryPayload(spaceId);
     const planPayload = buildSupabasePlanPayload(spaceId);
+    const recurringTemplatesPayload = buildSupabaseRecurringTemplatePayload(spaceId);
     const transactionsPayload = buildSupabaseTransactionPayload(spaceId);
+    let recurringSchemaOutdated = false;
 
     let query = supabaseClient.from("budget_transactions").delete();
     let { error } = await query.eq("space_id", spaceId);
@@ -4939,6 +4996,16 @@ async function publishLocalBudgetToSupabase() {
     ({ error } = await query.eq("space_id", spaceId));
     if (error) {
       throw error;
+    }
+
+    query = supabaseClient.from("budget_recurring_templates").delete();
+    ({ error } = await query.eq("space_id", spaceId));
+    if (error) {
+      if (isSupabaseRecurringSchemaMissing(error)) {
+        recurringSchemaOutdated = true;
+      } else {
+        throw error;
+      }
     }
 
     if (categoriesPayload.length) {
@@ -4969,6 +5036,19 @@ async function publishLocalBudgetToSupabase() {
       }
     }
 
+    if (!recurringSchemaOutdated && recurringTemplatesPayload.length) {
+      ({ error } = await supabaseClient.from("budget_recurring_templates").upsert(recurringTemplatesPayload, {
+        onConflict: "space_id,template_id",
+      }));
+      if (error) {
+        if (isSupabaseRecurringSchemaMissing(error)) {
+          recurringSchemaOutdated = true;
+        } else {
+          throw error;
+        }
+      }
+    }
+
     if (transactionsPayload.length) {
       ({ error } = await supabaseClient.from("budget_transactions").upsert(transactionsPayload));
       if (error) {
@@ -4977,8 +5057,16 @@ async function publishLocalBudgetToSupabase() {
     }
 
     state.cloud.lastPushedAt = new Date().toISOString();
-    setCloudStatus(`Budget publie vers ${state.cloud.space.name}.`);
-    setLastAction(`Données locales publiees vers ${state.cloud.space.name}`);
+    recurringSupabaseSchemaReady = !recurringSchemaOutdated;
+    const successMessage = recurringSchemaOutdated
+      ? `Budget publie vers ${state.cloud.space.name}. ${buildRecurringSchemaWarningMessage()}`
+      : `Budget publie vers ${state.cloud.space.name}.`;
+    setCloudStatus(successMessage);
+    setLastAction(
+      recurringSchemaOutdated
+        ? `Données locales publiees vers ${state.cloud.space.name} - récurrentes partagées non synchronisées`
+        : `Données locales publiees vers ${state.cloud.space.name}`
+    );
     persistDraftIfPossible();
     void maybeSendBudgetAlertEmails("publication cloud");
   } catch (error) {
@@ -5003,7 +5091,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       renderAll();
     }
 
-    const [{ data: categories, error: categoriesError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }] = await Promise.all([
+    const [{ data: categories, error: categoriesError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult] = await Promise.all([
       supabaseClient
         .from("budget_categories")
         .select("name, position")
@@ -5023,7 +5111,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
         .order("sort_order", { ascending: true })
         .order("entry_date", { ascending: true })
         .order("created_at", { ascending: true }),
+      supabaseClient
+        .from("budget_recurring_templates")
+        .select("*")
+        .eq("space_id", spaceId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
     ]);
+    let recurringSchemaOutdated = false;
 
     if (categoriesError) {
       throw categoriesError;
@@ -5035,6 +5130,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
 
     if (transactionsError) {
       throw transactionsError;
+    }
+
+    if (recurringResult?.error) {
+      if (isSupabaseRecurringSchemaMissing(recurringResult.error)) {
+        recurringSchemaOutdated = true;
+      } else {
+        throw recurringResult.error;
+      }
     }
 
     state.mode = "budget";
@@ -5069,13 +5172,22 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
         group: normalizePlanGroup(row.plan_group, row.label),
       })).filter((row) => row.label),
     };
+    recurringSupabaseSchemaReady = !recurringSchemaOutdated;
+    if (!recurringSchemaOutdated) {
+      state.recurringTemplates = parseSupabaseRecurringTemplateRows(recurringResult?.data || []);
+      persistRecurringTemplatesIfPossible();
+    }
     state.cloud.lastPulledAt = new Date().toISOString();
 
     if (!options.preserveLastAction) {
       setLastAction(`Budget charge depuis ${state.cloud.space.name || "Supabase"}`);
     }
 
-    setCloudStatus(`Espace partage actif: ${state.cloud.space.name || "budget partagé"}.`);
+    setCloudStatus(
+      recurringSchemaOutdated
+        ? `Espace partage actif: ${state.cloud.space.name || "budget partagé"}. ${buildRecurringSchemaWarningMessage()}`
+        : `Espace partage actif: ${state.cloud.space.name || "budget partagé"}.`
+    );
     persistDraft();
     startSupabaseRealtime(spaceId);
     renderAll();
@@ -5134,6 +5246,40 @@ function buildSupabasePlanPayload(spaceId) {
 
 function stripPlanPeriodsFromPayload(planPayload) {
   return planPayload.map(({ plan_period: _planPeriod, ...row }) => row);
+}
+
+function buildSupabaseRecurringTemplatePayload(spaceId) {
+  return getRecurringTemplates()
+    .map((template, index) => ({
+      space_id: spaceId,
+      template_id: String(template.id || createId()).trim(),
+      label: String(template.label || "").trim(),
+      category: String(template.category || "").trim(),
+      amount: Number.isFinite(parseAmount(template.value)) ? parseAmount(template.value) : null,
+      period: normalizePlanPeriod(template.period),
+      start_date: normalizeDateValue(template.startDate) || null,
+      auto_create: template.autoCreate === true,
+      generated_keys: normalizeRecurringTrackedKeys(template.generatedKeys),
+      dismissed_keys: normalizeRecurringTrackedKeys(template.dismissedKeys),
+      sort_order: index,
+    }))
+    .filter((row) => row.template_id && row.label && row.category);
+}
+
+function parseSupabaseRecurringTemplateRows(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => sanitizeRecurringTemplate({
+      id: row.template_id,
+      label: row.label,
+      category: row.category,
+      value: normalizeAmountValue(row.amount),
+      period: row.period,
+      startDate: row.start_date,
+      autoCreate: row.auto_create,
+      generatedKeys: row.generated_keys,
+      dismissedKeys: row.dismissed_keys,
+    }))
+    .filter(Boolean);
 }
 
 function buildSupabaseTransactionPayload(spaceId) {
@@ -6050,12 +6196,42 @@ function onExportMenuToggleRequested(event) {
     return;
   }
 
+  if (isNativeAppRuntime()) {
+    void promptNativeExportChoiceAndRun();
+    return;
+  }
+
   setExportMenuOpen(!refs.exportMenu.classList.contains("is-open"));
 }
 
 async function onExportOptionRequested(exportKind) {
   setExportMenuOpen(false);
   await exportWorkbook(exportKind);
+}
+
+async function promptNativeExportChoiceAndRun() {
+  const rawChoice = window.prompt(t("export.choicePrompt"), "1");
+  if (rawChoice == null) {
+    return;
+  }
+
+  const normalizedChoice = String(rawChoice || "").trim();
+  if (!normalizedChoice) {
+    return;
+  }
+
+  if (normalizedChoice === "1") {
+    await exportWorkbook("journal");
+    return;
+  }
+
+  if (normalizedChoice === "2") {
+    await exportWorkbook("complete");
+    return;
+  }
+
+  setLastAction(t("export.choiceInvalid"));
+  renderStats();
 }
 
 function onRecapMonthPanelClicked(event) {
@@ -6173,7 +6349,24 @@ function refreshFormEditorPreservingValues(snapshot = captureCurrentTransactionF
   applyTransactionFormSnapshot(snapshot);
 }
 
-function saveCurrentTransactionAsRecurringTemplate() {
+async function syncRecurringTemplatesIfNeeded(actionLabel, activityLabel = "les transactions récurrentes") {
+  if (!canUseSupabaseCloud()) {
+    return true;
+  }
+
+  try {
+    await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+    await sendCloudActivityBroadcast("saved", activityLabel);
+    return true;
+  } catch (error) {
+    console.error(error);
+    setLastAction(`${actionLabel} - synchronisation cloud en échec`);
+    renderAll();
+    return false;
+  }
+}
+
+async function saveCurrentTransactionAsRecurringTemplate() {
   if (!canSaveCurrentTransactionAsRecurringTemplate()) {
     setLastAction("Saisissez au moins une categorie et une valeur avant d'enregistrer un modèle récurrent.");
     refreshCategoryParentMeta();
@@ -6200,6 +6393,10 @@ function saveCurrentTransactionAsRecurringTemplate() {
 
   setLastAction(`Modèle récurrent enregistre: ${snapshot.Categories}`);
   refreshFormEditorPreservingValues(snapshot);
+  await syncRecurringTemplatesIfNeeded(
+    `Modèle récurrent enregistre: ${snapshot.Categories}`,
+    `le modèle récurrent ${snapshot.Categories}`
+  );
 }
 
 function applyRecurringTemplateToForm(templateId) {
@@ -6233,7 +6430,7 @@ function applyRecurringTemplateToForm(templateId) {
   setLastAction(`Modèle appliqué : ${template.label}`);
 }
 
-function onRecurringTemplateAction(event) {
+async function onRecurringTemplateAction(event) {
   const actionButton = event.target.closest("[data-recurring-action]");
   if (!actionButton) {
     return;
@@ -6241,7 +6438,7 @@ function onRecurringTemplateAction(event) {
 
   const action = String(actionButton.dataset.recurringAction || "").trim();
   if (action === "save-current") {
-    saveCurrentTransactionAsRecurringTemplate();
+    await saveCurrentTransactionAsRecurringTemplate();
     return;
   }
 
@@ -6257,13 +6454,18 @@ function onRecurringTemplateAction(event) {
 
   if (action === "delete") {
     const snapshot = captureCurrentTransactionFormSnapshot();
+    const template = getRecurringTemplates().find((entry) => entry.id === templateId);
     deleteRecurringTemplate(templateId);
     setLastAction("Modèle récurrent supprime.");
     refreshFormEditorPreservingValues(snapshot);
+    await syncRecurringTemplatesIfNeeded(
+      "Modèle récurrent supprime.",
+      `le modèle récurrent ${(getDisplayCategoryLabel(template?.label) || template?.label || templateId)}`
+    );
   }
 }
 
-function onRecurringTemplateConfigChanged(event) {
+async function onRecurringTemplateConfigChanged(event) {
   const field = event.target.closest("[data-recurring-setting]");
   if (!field) {
     return;
@@ -6301,6 +6503,11 @@ function onRecurringTemplateConfigChanged(event) {
   updateRecurringTemplateSettings(templateId, changes);
   renderAll();
   restoreFormSnapshotAfterRecurringAction(snapshot);
+  const template = getRecurringTemplates().find((entry) => entry.id === templateId);
+  await syncRecurringTemplatesIfNeeded(
+    "Règle récurrente mise à jour.",
+    `la règle récurrente ${(getDisplayCategoryLabel(template?.label) || template?.label || templateId)}`
+  );
 }
 
 function onRecurringReviewDraftChanged(event) {
@@ -6399,6 +6606,10 @@ async function onRecurringReviewAction(event) {
     setLastAction(occurrences.length > 1 ? `${occurrences.length} occurrences récurrentes ignorées.` : "Occurrence récurrente ignorée.");
     renderAll();
     restoreFormSnapshotAfterRecurringAction(snapshot);
+    await syncRecurringTemplatesIfNeeded(
+      occurrences.length > 1 ? `${occurrences.length} occurrences récurrentes ignorées.` : "Occurrence récurrente ignorée.",
+      occurrences.length > 1 ? "les validations récurrentes" : `la validation récurrente ${getDisplayCategoryLabel(occurrences[0]?.category) || occurrences[0]?.category || ""}`.trim()
+    );
     return;
   }
 
@@ -6422,6 +6633,10 @@ async function onRecurringReviewAction(event) {
     setLastAction(`Occurrence ignorée : ${getDisplayCategoryLabel(occurrence.category) || occurrence.category}`);
     renderAll();
     restoreFormSnapshotAfterRecurringAction(snapshot);
+    await syncRecurringTemplatesIfNeeded(
+      `Occurrence ignorée : ${getDisplayCategoryLabel(occurrence.category) || occurrence.category}`,
+      `la validation récurrente ${getDisplayCategoryLabel(occurrence.category) || occurrence.category}`
+    );
   }
 }
 
@@ -6800,7 +7015,11 @@ async function exportWorkbook(exportKind = "journal") {
   try {
     const exportPayload = buildExportPayload(exportKind);
 
-    if (canUseNativeExcelExport()) {
+    if (isNativeAppRuntime()) {
+      if (!canUseNativeExcelExport()) {
+        throw new Error("L'export natif n'est pas disponible sur cet appareil");
+      }
+
       setLastAction(exportPayload.preparingMessage);
       renderStats();
       await exportWorkbookWithNativeShare(exportPayload.workbook, exportPayload.fileName);
@@ -6813,7 +7032,11 @@ async function exportWorkbook(exportKind = "journal") {
     renderStats();
   } catch (error) {
     console.error(error);
-    setLastAction(buildExportErrorMessage(error));
+    const errorMessage = buildExportErrorMessage(error);
+    setLastAction(errorMessage);
+    if (isNativeAppRuntime()) {
+      window.alert(errorMessage);
+    }
     renderStats();
   }
 }
@@ -7558,15 +7781,46 @@ function canUseAndroidAuthRedirect() {
 }
 
 function getFilesystemPlugin() {
-  return window.capacitorFilesystemPluginCapacitor?.Filesystem || null;
+  if (filesystemPlugin) {
+    return filesystemPlugin;
+  }
+
+  const Capacitor = getCapacitorRuntime();
+  filesystemPlugin = window.capacitorFilesystemPluginCapacitor?.Filesystem ||
+    (typeof Capacitor?.registerPlugin === "function" ? Capacitor.registerPlugin("Filesystem") : null) ||
+    Capacitor?.Plugins?.Filesystem ||
+    Capacitor?.Filesystem ||
+    null;
+
+  return filesystemPlugin;
 }
 
 function getFilesystemDirectory() {
-  return window.capacitorFilesystemPluginCapacitor?.FilesystemDirectory || null;
+  return (
+    window.capacitorFilesystemPluginCapacitor?.FilesystemDirectory ||
+    window.capacitorFilesystemPluginCapacitor?.Directory ||
+    window.Capacitor?.Plugins?.FilesystemDirectory ||
+    window.Capacitor?.FilesystemDirectory ||
+    {
+      Cache: "CACHE",
+      Data: "DATA",
+      Documents: "DOCUMENTS",
+    }
+  );
 }
 
 function getSharePlugin() {
-  return window.capacitorShare?.Share || null;
+  if (sharePlugin) {
+    return sharePlugin;
+  }
+
+  const Capacitor = getCapacitorRuntime();
+  sharePlugin = window.capacitorShare?.Share ||
+    (typeof Capacitor?.registerPlugin === "function" ? Capacitor.registerPlugin("Share") : null) ||
+    Capacitor?.Plugins?.Share ||
+    null;
+
+  return sharePlugin;
 }
 
 function isNativeAppRuntime() {
@@ -7588,19 +7842,22 @@ function canUseNativeExcelExport() {
   return Boolean(
     isNativeAppRuntime() &&
       getFilesystemPlugin() &&
-      getSharePlugin() &&
-      getFilesystemDirectory()?.Cache
+      getSharePlugin()
   );
+}
+
+function resolveNativeExportDirectory() {
+  const Directory = getFilesystemDirectory();
+  return Directory?.Cache || Directory?.Data || Directory?.Documents || null;
 }
 
 async function exportWorkbookWithNativeShare(workbook, fileName) {
   const Filesystem = getFilesystemPlugin();
   const Share = getSharePlugin();
-  const Directory = getFilesystemDirectory();
-  const shareSupport = typeof Share.canShare === "function" ? await Share.canShare() : { value: true };
+  const targetDirectory = resolveNativeExportDirectory();
 
-  if (!shareSupport?.value) {
-    throw new Error("Le partage natif n'est pas disponible sur cet appareil");
+  if (!Filesystem || !Share || !targetDirectory) {
+    throw new Error("L'export natif n'est pas disponible sur cet appareil");
   }
 
   const relativePath = `exports/${fileName}`;
@@ -7612,30 +7869,42 @@ async function exportWorkbookWithNativeShare(workbook, fileName) {
   await Filesystem.writeFile({
     path: relativePath,
     data: workbookData,
-    directory: Directory.Cache,
+    directory: targetDirectory,
     recursive: true,
   });
 
   const fileUri = await Filesystem.getUri({
     path: relativePath,
-    directory: Directory.Cache,
+    directory: targetDirectory,
   });
 
-  await Share.share({
+  try {
+    await Share.share({
       title: "Budget",
       text: "Classeur Budget exporte depuis l'app mobile.",
-    files: [fileUri.uri],
-    dialogTitle: "Partager le classeur Excel",
-  });
+      files: [fileUri.uri],
+      dialogTitle: "Partager le classeur Excel",
+    });
+  } catch (shareError) {
+    await Share.share({
+      title: "Budget",
+      text: "Classeur Budget exporte depuis l'app mobile.",
+      url: fileUri.uri,
+      dialogTitle: "Partager le classeur Excel",
+    });
+  }
 }
 
 function buildExportErrorMessage(error) {
   const rawMessage = String(error?.message || "").toLowerCase();
+  if (rawMessage.includes("export natif")) {
+    return "L'export a échoué : export natif indisponible";
+  }
   if (rawMessage.includes("share")) {
-    return "L'export a echoue: partage natif indisponible";
+    return "L'export a échoué : partage natif indisponible";
   }
 
-  return "L'export a echoue";
+  return "L'export a échoué";
 }
 
 function applyBudgetRowsToWorkbook(workbook, budgetModel) {
