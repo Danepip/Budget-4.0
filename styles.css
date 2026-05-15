@@ -2847,7 +2847,9 @@ textarea {
 }
 
 .category-manager-trigger {
-  justify-self: start;
+  justify-self: stretch;
+  width: 100%;
+  font-weight: 800;
 }
 
 .field-parent-chip.is-empty {
@@ -3740,6 +3742,14 @@ body[data-theme="dark"] .form-actions {
 
   .button {
     min-height: 54px;
+  }
+
+  .field-category-tools {
+    gap: 12px;
+  }
+
+  .category-manager-trigger {
+    min-height: 52px;
   }
 }
 

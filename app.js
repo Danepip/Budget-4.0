@@ -11800,7 +11800,7 @@ function renderCategoryField(value) {
 
   const manageButton = document.createElement("button");
   manageButton.type = "button";
-  manageButton.className = "button ghost category-manager-trigger";
+  manageButton.className = "button secondary category-manager-trigger";
   manageButton.textContent = t("form.manageCategories");
   manageButton.addEventListener("click", openCategoryManagerModal);
 
@@ -11813,7 +11813,7 @@ function renderCategoryField(value) {
   categoryInput.addEventListener("change", refreshCategoryParentMeta);
 
   parentMeta.append(parentLabelCaption, parentChip);
-  tools.append(parentMeta, manageButton);
+  tools.append(manageButton, parentMeta);
   wrapper.append(label, categoryInput, datalist, tools, hint);
   queueMicrotask(refreshCategoryParentMeta);
   return wrapper;
