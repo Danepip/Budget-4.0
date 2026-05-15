@@ -276,6 +276,38 @@ const UI_STRINGS = {
     "form.editingWorkbook": "Saisie directe de Journalier!D:F avec catégories prédéfinies depuis la colonne B.",
     "form.editingCloud": "Mode cloud partagé : chaque enregistrement met à jour vos vues locales et synchronise Supabase.",
     "form.editingLocal": "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.",
+    "form.manageCategories": "Gérer les catégories",
+    "categories.modalTitle": "Gérer les catégories",
+    "categories.modalDescription": "Créez ici une sous-catégorie dans une grande catégorie existante, ou ajoutez une nouvelle grande catégorie avec ses sous-catégories.",
+    "categories.addCategoryTitle": "Ajouter une sous-catégorie",
+    "categories.parentLabel": "Grande catégorie",
+    "categories.newCategoryLabel": "Nouvelle catégorie",
+    "categories.newCategoryPlaceholder": "Ex. Péage",
+    "categories.addCategoryAction": "Ajouter la catégorie",
+    "categories.createGroupTitle": "Créer une grande catégorie",
+    "categories.groupNameLabel": "Nom de la grande catégorie",
+    "categories.groupNamePlaceholder": "Ex. Voyages",
+    "categories.groupTypeLabel": "Type budgétaire",
+    "categories.groupCategoriesLabel": "Sous-catégories",
+    "categories.groupCategoriesHint": "Une ligne par sous-catégorie.",
+    "categories.groupCategoriesPlaceholder": "Ex. Hôtel\nRestaurant\nExcursions",
+    "categories.groupCreateAction": "Créer la grande catégorie",
+    "categories.typeExpenses": "Dépenses",
+    "categories.typeIncome": "Revenu",
+    "categories.typeSavings": "Épargne",
+    "categories.close": "Fermer",
+    "categories.missingParent": "Choisissez d'abord une grande catégorie.",
+    "categories.missingCategory": "Saisissez le nom de la nouvelle catégorie.",
+    "categories.categoryExists": "Cette catégorie existe déjà dans le budget.",
+    "categories.groupExists": "Cette grande catégorie existe déjà.",
+    "categories.missingGroupName": "Saisissez le nom de la grande catégorie.",
+    "categories.missingGroupCategories": "Ajoutez au moins une sous-catégorie.",
+    "categories.groupCategoryExists": "Une ou plusieurs sous-catégories existent déjà : {labels}.",
+    "categories.createdCategory": "Catégorie créée : {category} dans {parent}.",
+    "categories.createdGroup": "Grande catégorie créée : {group} ({count} {itemWord}).",
+    "categories.customExpenseDescription": "Dépenses personnalisées",
+    "categories.customIncomeDescription": "Revenus personnalisés",
+    "categories.customSavingsDescription": "Épargne personnalisée",
     "recurring.confirmUseSameMonth": "Le modèle récurrent « {label} » a déjà été utilisé pour {month}. Voulez-vous l'utiliser quand même ?",
     "recurring.useCancelled": "Utilisation du modèle récurrent annulée.",
     "recurring.confirmCreateAndOpen": "Voulez-vous créer ce modèle récurrent et ouvrir l'onglet Récurrentes ?",
@@ -535,6 +567,38 @@ const UI_STRINGS = {
     "form.editingWorkbook": "Direct entry into Journalier!D:F with predefined categories from column B.",
     "form.editingCloud": "Shared cloud mode: each save updates your local views and syncs with Supabase.",
     "form.editingLocal": "Local standalone mode: your categories, recaps, and charts update every time you save.",
+    "form.manageCategories": "Manage categories",
+    "categories.modalTitle": "Manage categories",
+    "categories.modalDescription": "Create a subcategory inside an existing main category, or add a new main category with its subcategories.",
+    "categories.addCategoryTitle": "Add a subcategory",
+    "categories.parentLabel": "Main category",
+    "categories.newCategoryLabel": "New category",
+    "categories.newCategoryPlaceholder": "Ex. Toll",
+    "categories.addCategoryAction": "Add category",
+    "categories.createGroupTitle": "Create a main category",
+    "categories.groupNameLabel": "Main category name",
+    "categories.groupNamePlaceholder": "Ex. Travel",
+    "categories.groupTypeLabel": "Budget type",
+    "categories.groupCategoriesLabel": "Subcategories",
+    "categories.groupCategoriesHint": "One subcategory per line.",
+    "categories.groupCategoriesPlaceholder": "Ex. Hotel\nDining\nExcursions",
+    "categories.groupCreateAction": "Create main category",
+    "categories.typeExpenses": "Expenses",
+    "categories.typeIncome": "Income",
+    "categories.typeSavings": "Savings",
+    "categories.close": "Close",
+    "categories.missingParent": "Choose a main category first.",
+    "categories.missingCategory": "Enter the name of the new category.",
+    "categories.categoryExists": "This category already exists in the budget.",
+    "categories.groupExists": "This main category already exists.",
+    "categories.missingGroupName": "Enter the name of the main category.",
+    "categories.missingGroupCategories": "Add at least one subcategory.",
+    "categories.groupCategoryExists": "One or more subcategories already exist: {labels}.",
+    "categories.createdCategory": "Category created: {category} in {parent}.",
+    "categories.createdGroup": "Main category created: {group} ({count} {itemWord}).",
+    "categories.customExpenseDescription": "Custom expenses",
+    "categories.customIncomeDescription": "Custom income",
+    "categories.customSavingsDescription": "Custom savings",
     "recurring.confirmUseSameMonth": "The recurring template \"{label}\" was already used for {month}. Do you still want to use it?",
     "recurring.useCancelled": "Recurring template use cancelled.",
     "recurring.confirmCreateAndOpen": "Do you want to create this recurring template and open the Recurring tab?",
@@ -1037,6 +1101,7 @@ let recurringSupabaseSchemaReady = true;
 let nativeSupabaseRedirectListenerBound = false;
 let colorSchemeMedia = null;
 let colorSchemeListenerBound = false;
+let categoryManagerModal = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -1064,7 +1129,137 @@ function createEmptyBudgetModel() {
     rows: [],
     categories: [],
     clearEndRow: START_ROW,
+    customGroups: [],
+    categoryAssignments: [],
   };
+}
+
+function normalizeBudgetCustomGroupTone(value, fallback = "default") {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["positive", "neutral", "negative", "default"].includes(normalized)
+    ? normalized
+    : fallback;
+}
+
+function getBudgetCustomGroupPlanMode(groupKey) {
+  const normalized = String(groupKey || "").trim();
+  const customGroup = Array.isArray(state?.budget?.customGroups)
+    ? state.budget.customGroups.find((entry) => String(entry?.key || "").trim() === normalized)
+    : null;
+
+  if (customGroup) {
+    return normalizePlanGroup(customGroup.planGroup, "");
+  }
+
+  if (normalized === "income") {
+    return "income";
+  }
+
+  if (normalized === "savings") {
+    return "savings";
+  }
+
+  return "expenses";
+}
+
+function getDefaultCustomGroupTone(planGroup) {
+  if (planGroup === "income") {
+    return "positive";
+  }
+
+  if (planGroup === "savings") {
+    return "neutral";
+  }
+
+  return "default";
+}
+
+function sanitizeBudgetCustomGroup(rawGroup, fallbackPosition = 0) {
+  const label = String(rawGroup?.label || "").trim();
+  if (!label) {
+    return null;
+  }
+
+  const rawKey = String(rawGroup?.key || "").trim();
+  const normalizedKey = rawKey
+    ? normalizeHeaderName(rawKey).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    : "";
+  const key = normalizedKey || `custom-${normalizeHeaderName(label).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || createId()}`;
+  const planGroup = getBudgetCustomGroupPlanMode(rawGroup?.planGroup || rawGroup?.mode || "expenses");
+  const tone = normalizeBudgetCustomGroupTone(rawGroup?.tone, getDefaultCustomGroupTone(planGroup));
+  const description = String(rawGroup?.description || "").trim();
+  const position = Number.isInteger(rawGroup?.position) ? rawGroup.position : fallbackPosition;
+
+  return {
+    key,
+    label,
+    planGroup,
+    tone,
+    description,
+    position,
+  };
+}
+
+function sanitizeBudgetCategoryAssignment(rawAssignment) {
+  const category = String(rawAssignment?.category || rawAssignment?.label || "").trim();
+  const groupKey = String(rawAssignment?.groupKey || rawAssignment?.parentKey || "").trim();
+  if (!category || !groupKey) {
+    return null;
+  }
+
+  return {
+    category,
+    groupKey,
+  };
+}
+
+function getBudgetCustomGroups() {
+  return (Array.isArray(state?.budget?.customGroups) ? state.budget.customGroups : [])
+    .map((entry, index) => sanitizeBudgetCustomGroup(entry, index))
+    .filter(Boolean);
+}
+
+function getBudgetCategoryAssignments() {
+  return (Array.isArray(state?.budget?.categoryAssignments) ? state.budget.categoryAssignments : [])
+    .map((entry) => sanitizeBudgetCategoryAssignment(entry))
+    .filter(Boolean);
+}
+
+function getBudgetCustomGroupMeta(groupKey) {
+  const normalized = String(groupKey || "").trim();
+  return getBudgetCustomGroups().find((entry) => entry.key === normalized) || null;
+}
+
+function getBudgetCategoryAssignment(label) {
+  const normalized = normalizeHeaderName(label);
+  return getBudgetCategoryAssignments().find(
+    (entry) => normalizeHeaderName(entry.category) === normalized
+  ) || null;
+}
+
+function getOrderedBudgetFraGroupKeys() {
+  const builtIn = [...BUDGET_FRA_GROUP_ORDER];
+  const custom = getBudgetCustomGroups()
+    .sort((left, right) => {
+      if (left.position !== right.position) {
+        return left.position - right.position;
+      }
+
+      return left.label.localeCompare(right.label, getUiLocale());
+    })
+    .map((entry) => entry.key)
+    .filter((key) => !builtIn.includes(key));
+
+  return [...builtIn, ...custom];
+}
+
+function getBudgetMainCategoryOptions() {
+  return getOrderedBudgetFraGroupKeys().map((key, index) => ({
+    key,
+    order: index,
+    label: getBudgetFraCategoryMeta(key).label || key,
+    planGroup: getBudgetCustomGroupPlanMode(key),
+  }));
 }
 
 function createEmptyRecapModel() {
@@ -1569,6 +1764,8 @@ function startLocalBudgetExperience(options = {}) {
     rows: [],
     categories,
     clearEndRow: START_ROW + categories.length + 2,
+    customGroups: [],
+    categoryAssignments: [],
   };
   state.recap = {
     available: true,
@@ -1792,6 +1989,96 @@ function ensureBudgetCategoryAvailable(category) {
   if (!exists) {
     state.budget.categories.push(label);
   }
+}
+
+function createCustomBudgetGroupKey(label) {
+  const baseKey = normalizeHeaderName(label).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "custom-group";
+  let nextKey = `custom-${baseKey}`;
+  let suffix = 2;
+  const existingKeys = new Set(getOrderedBudgetFraGroupKeys());
+
+  while (existingKeys.has(nextKey)) {
+    nextKey = `custom-${baseKey}-${suffix}`;
+    suffix += 1;
+  }
+
+  return nextKey;
+}
+
+function upsertBudgetCustomGroup(nextGroup) {
+  const group = sanitizeBudgetCustomGroup(nextGroup, getBudgetCustomGroups().length);
+  if (!group) {
+    return null;
+  }
+
+  const currentGroups = getBudgetCustomGroups();
+  const existingIndex = currentGroups.findIndex((entry) => entry.key === group.key);
+  if (existingIndex >= 0) {
+    currentGroups.splice(existingIndex, 1, {
+      ...currentGroups[existingIndex],
+      ...group,
+    });
+  } else {
+    currentGroups.push({
+      ...group,
+      position: currentGroups.length,
+    });
+  }
+
+  state.budget.customGroups = currentGroups;
+  return state.budget.customGroups.find((entry) => entry.key === group.key) || null;
+}
+
+function upsertBudgetCategoryAssignment(category, groupKey) {
+  const normalizedCategory = String(category || "").trim();
+  const normalizedGroupKey = String(groupKey || "").trim();
+  if (!normalizedCategory || !normalizedGroupKey) {
+    return null;
+  }
+
+  const assignments = getBudgetCategoryAssignments();
+  const existingIndex = assignments.findIndex(
+    (entry) => normalizeHeaderName(entry.category) === normalizeHeaderName(normalizedCategory)
+  );
+  const nextAssignment = {
+    category: normalizedCategory,
+    groupKey: normalizedGroupKey,
+  };
+
+  if (existingIndex >= 0) {
+    assignments.splice(existingIndex, 1, nextAssignment);
+  } else {
+    assignments.push(nextAssignment);
+  }
+
+  state.budget.categoryAssignments = assignments;
+  return nextAssignment;
+}
+
+function ensurePlanTemplateCategoryRow(category, planGroup = "expenses") {
+  const label = String(category || "").trim();
+  if (!label) {
+    return false;
+  }
+
+  const currentRows = ensurePlanTemplateSeeded();
+  const editableRows = clonePlanTemplateRows(currentRows).filter((row) => !isDerivedPlanLabel(row.label));
+  const alreadyExists = editableRows.some(
+    (row) => normalizeHeaderName(row.label) === normalizeHeaderName(label)
+  );
+
+  if (alreadyExists) {
+    return false;
+  }
+
+  editableRows.push({
+    label,
+    plan: "0",
+    period: DEFAULT_PLAN_PERIOD,
+    group: normalizePlanGroup(planGroup, label),
+  });
+  state.recap.planTemplate = resolvePlanTemplate(editableRows);
+  return true;
 }
 
 function getRecurringTemplates() {
@@ -2331,6 +2618,35 @@ function getResolvedBudgetCategoryRule(label, planGroup = "", amountValue = null
     return createReferenceBudgetResolvedRule(referenceItem, label);
   }
 
+  const assignment = getBudgetCategoryAssignment(label);
+  if (assignment) {
+    const parentKey = assignment.groupKey;
+    const parentMeta = getBudgetFraCategoryMeta(parentKey);
+    const normalizedPlanMode = getBudgetCustomGroupPlanMode(parentKey);
+    const includeInIncome = normalizedPlanMode === "income";
+    const includeInSavings = normalizedPlanMode === "savings";
+    const includeInExpenses = !includeInIncome && !includeInSavings;
+    const alertEligibleParents = new Set(BUDGET_FRA_RULES.map((rule) => rule.key));
+
+    return {
+      id: `custom-category-${normalizeHeaderName(label)}`,
+      normalizedKey: normalizeHeaderName(label),
+      canonicalKey: normalizeHeaderName(label),
+      label: String(label || "").trim(),
+      parent: parentKey,
+      parentMeta,
+      parentLabel: parentMeta?.label || "",
+      flowType: includeInIncome ? "income" : includeInSavings ? "savings" : "expense",
+      includeInIncome,
+      includeInExpenses,
+      includeInSavings,
+      includeInParentTotals: true,
+      alertGroup: alertEligibleParents.has(parentKey) ? parentKey : null,
+      suggestionTags: ["custom-category", parentKey],
+      notes: "Catégorie créée depuis la modale du formulaire.",
+    };
+  }
+
   if (BUDGET_RULES_API?.resolveBudgetCategoryRule) {
     return BUDGET_RULES_API.resolveBudgetCategoryRule(label, {
       planGroup,
@@ -2491,6 +2807,21 @@ function getBudgetFraCategoryMeta(categoryKey) {
       tone: "default",
     };
   }
+
+  const customGroup = getBudgetCustomGroupMeta(categoryKey);
+  if (customGroup) {
+    const fallbackDescription = customGroup.planGroup === "income"
+      ? t("categories.customIncomeDescription")
+      : customGroup.planGroup === "savings"
+        ? t("categories.customSavingsDescription")
+        : t("categories.customExpenseDescription");
+    return {
+      label: customGroup.label,
+      description: customGroup.description || fallbackDescription,
+      tone: customGroup.tone || getDefaultCustomGroupTone(customGroup.planGroup),
+    };
+  }
+
   const meta = BUDGET_FRA_GROUP_META[categoryKey] || BUDGET_FRA_GROUP_META.custom;
   if (!isEnglishUi()) {
     return meta;
@@ -2757,7 +3088,7 @@ function buildBudgetFraPlanEditorGroups(rows) {
     buckets.get(categoryKey).push(row);
   });
 
-  return BUDGET_FRA_GROUP_ORDER
+  return getOrderedBudgetFraGroupKeys()
     .map((key) => ({
       key,
       meta: getBudgetFraCategoryMeta(key),
@@ -2780,8 +3111,13 @@ function buildBudgetFraPlanEditorGroups(rows) {
 }
 
 function getPlanDisplayGroupKey(row) {
+  const assignment = getBudgetCategoryAssignment(row?.label);
+  if (assignment) {
+    return assignment.groupKey;
+  }
+
   const categoryKey = inferBudgetFraCategory(row.label, row.group, row.plan);
-  if (categoryKey && BUDGET_FRA_GROUP_ORDER.includes(categoryKey)) {
+  if (categoryKey && getOrderedBudgetFraGroupKeys().includes(categoryKey)) {
     return categoryKey;
   }
 
@@ -2876,7 +3212,7 @@ function buildBudgetFraGroupTotals(actualMap) {
 function buildBudgetFraGroupSummaries(actualMap) {
   const totals = buildBudgetFraGroupTotals(actualMap);
 
-  return BUDGET_FRA_GROUP_ORDER
+  return getOrderedBudgetFraGroupKeys()
     .map((key) => {
       const value = totals.get(key) || 0;
       if (value <= 0) {
@@ -5188,6 +5524,8 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     state.search = "";
     state.editingIndex = null;
     state.editorMode = "create";
+    const preservedCustomGroups = getBudgetCustomGroups();
+    const preservedCategoryAssignments = getBudgetCategoryAssignments();
     state.budget = {
       headers: ["Date", "Categories", "Value"],
       categories: (categories || []).map((row) => String(row.name || "").trim()).filter(Boolean),
@@ -5200,6 +5538,8 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
         }))
         .filter((row) => !isIgnoredBudgetTransactionRow(row)),
       clearEndRow: START_ROW + (transactions?.length || 0) + 8,
+      customGroups: preservedCustomGroups,
+      categoryAssignments: preservedCategoryAssignments,
     };
     state.recap = {
       available: true,
@@ -5560,6 +5900,8 @@ function persistDraft() {
     categories: state.budget.categories,
     rows: state.budget.rows,
     clearEndRow: state.budget.clearEndRow,
+    customGroups: state.budget.customGroups,
+    categoryAssignments: state.budget.categoryAssignments,
     recap: {
       available: state.recap.available,
       snapshotDate: state.recap.snapshotDate,
@@ -5598,6 +5940,12 @@ function applyStoredDraft(draft) {
       .map((row) => sanitizeBudgetRow(row))
       .filter((row) => !isIgnoredBudgetTransactionRow(row)),
     clearEndRow: Number.isFinite(draft.clearEndRow) ? draft.clearEndRow : START_ROW,
+    customGroups: Array.isArray(draft.customGroups)
+      ? draft.customGroups.map((entry, index) => sanitizeBudgetCustomGroup(entry, index)).filter(Boolean)
+      : [],
+    categoryAssignments: Array.isArray(draft.categoryAssignments)
+      ? draft.categoryAssignments.map((entry) => sanitizeBudgetCategoryAssignment(entry)).filter(Boolean)
+      : [],
   };
   state.recap = {
     available: Boolean(draft.recap?.available),
@@ -9393,19 +9741,20 @@ function getPlanComparisonFallbackOrder(label) {
 }
 
 function comparePlanComparisonRows(left, right, categoryOrderMap) {
+  const orderedGroupKeys = getOrderedBudgetFraGroupKeys();
   const resolveParentOrder = (row) => {
     if (!row.parentLabel) {
-      return BUDGET_FRA_GROUP_ORDER.length;
+      return orderedGroupKeys.length;
     }
-    const directIndex = BUDGET_FRA_GROUP_ORDER.findIndex(
+    const directIndex = orderedGroupKeys.findIndex(
       (key) => getBudgetFraCategoryMeta(key).label === row.parentLabel
     );
     if (directIndex >= 0) {
       return directIndex;
     }
     const inferredParent = inferBudgetFraCategory(row.label, row.group, row.actual || row.plan);
-    const inferredIndex = BUDGET_FRA_GROUP_ORDER.indexOf(inferredParent);
-    return inferredIndex >= 0 ? inferredIndex : BUDGET_FRA_GROUP_ORDER.length;
+    const inferredIndex = orderedGroupKeys.indexOf(inferredParent);
+    return inferredIndex >= 0 ? inferredIndex : orderedGroupKeys.length;
   };
 
   const leftParentOrder = resolveParentOrder(left);
@@ -10182,34 +10531,37 @@ function buildRecapPlanRows(actualMap, metrics, periodCount = 1) {
 }
 
 function getPlanComparisonParentMeta(row) {
+  const orderedGroupKeys = getOrderedBudgetFraGroupKeys();
   if (row.parentLabel) {
-    const directKey = BUDGET_FRA_GROUP_ORDER.find(
+    const directKey = orderedGroupKeys.find(
       (key) => getBudgetFraCategoryMeta(key).label === row.parentLabel
     );
 
     if (directKey) {
+      const directMode = getBudgetCustomGroupPlanMode(directKey);
       return {
         key: directKey,
         label: row.parentLabel,
-        order: BUDGET_FRA_GROUP_ORDER.indexOf(directKey),
-        mode: directKey === "income" ? "income" : directKey === "savings" ? "savings" : "expense",
+        order: orderedGroupKeys.indexOf(directKey),
+        mode: directMode === "income" ? "income" : directMode === "savings" ? "savings" : "expense",
       };
     }
 
     const inferredKey = inferBudgetFraCategory(row.label, row.group, row.actual || row.plan);
-    if (inferredKey && BUDGET_FRA_GROUP_ORDER.includes(inferredKey)) {
+    if (inferredKey && orderedGroupKeys.includes(inferredKey)) {
+      const inferredMode = getBudgetCustomGroupPlanMode(inferredKey);
       return {
         key: inferredKey,
         label: row.parentLabel,
-        order: BUDGET_FRA_GROUP_ORDER.indexOf(inferredKey),
-        mode: inferredKey === "income" ? "income" : inferredKey === "savings" ? "savings" : "expense",
+        order: orderedGroupKeys.indexOf(inferredKey),
+        mode: inferredMode === "income" ? "income" : inferredMode === "savings" ? "savings" : "expense",
       };
     }
 
     return {
       key: normalizeHeaderName(row.parentLabel) || "custom-parent",
       label: row.parentLabel,
-      order: BUDGET_FRA_GROUP_ORDER.length,
+      order: orderedGroupKeys.length,
       mode: "expense",
     };
   }
@@ -10217,7 +10569,7 @@ function getPlanComparisonParentMeta(row) {
   return {
     key: "unclassified",
     label: "Sans parent",
-    order: BUDGET_FRA_GROUP_ORDER.length + 1,
+    order: orderedGroupKeys.length + 1,
     mode: "expense",
   };
 }
@@ -11446,15 +11798,301 @@ function renderCategoryField(value) {
   const parentChip = document.createElement("span");
   parentChip.className = "field-parent-chip";
 
+  const manageButton = document.createElement("button");
+  manageButton.type = "button";
+  manageButton.className = "button ghost category-manager-trigger";
+  manageButton.textContent = t("form.manageCategories");
+  manageButton.addEventListener("click", openCategoryManagerModal);
+
+  const tools = document.createElement("div");
+  tools.className = "field-category-tools";
+
   const hint = document.createElement("p");
   hint.className = "field-hint";
   categoryInput.addEventListener("input", refreshCategoryParentMeta);
   categoryInput.addEventListener("change", refreshCategoryParentMeta);
 
   parentMeta.append(parentLabelCaption, parentChip);
-  wrapper.append(label, categoryInput, datalist, parentMeta, hint);
+  tools.append(parentMeta, manageButton);
+  wrapper.append(label, categoryInput, datalist, tools, hint);
   queueMicrotask(refreshCategoryParentMeta);
   return wrapper;
+}
+
+function getLocalizedBudgetPlanTypeLabel(planGroup) {
+  const normalized = normalizePlanGroup(planGroup, "");
+  if (normalized === "income") {
+    return t("categories.typeIncome");
+  }
+
+  if (normalized === "savings") {
+    return t("categories.typeSavings");
+  }
+
+  return t("categories.typeExpenses");
+}
+
+function hasBudgetCategoryLabel(label) {
+  const normalized = normalizeHeaderName(label);
+  if (!normalized) {
+    return false;
+  }
+
+  return state.budget.categories.some((entry) => normalizeHeaderName(entry) === normalized)
+    || resolvePlanTemplate(state.recap.planTemplate)
+      .filter((row) => !isDerivedPlanLabel(row.label))
+      .some((row) => normalizeHeaderName(row.label) === normalized)
+    || state.budget.rows.some((row) => normalizeHeaderName(row.Categories) === normalized);
+}
+
+function closeCategoryManagerModal() {
+  if (categoryManagerModal?.remove) {
+    categoryManagerModal.remove();
+  }
+  categoryManagerModal = null;
+}
+
+function buildCategoryManagerParentOptionsMarkup() {
+  return getBudgetMainCategoryOptions()
+    .map((option) => `
+      <option value="${escapeHtml(option.key)}">
+        ${escapeHtml(option.label)} · ${escapeHtml(getLocalizedBudgetPlanTypeLabel(option.planGroup))}
+      </option>
+    `)
+    .join("");
+}
+
+function collectCategoryManagerLines(rawValue) {
+  const seen = new Set();
+  return String(rawValue || "")
+    .split(/\r?\n+/)
+    .map((value) => String(value || "").trim())
+    .filter((value) => {
+      const key = normalizeHeaderName(value);
+      if (!key || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+}
+
+function saveCategoryManagerSnapshot(nextCategory = "") {
+  const snapshot = captureCurrentTransactionFormSnapshot();
+  if (nextCategory) {
+    snapshot.Categories = nextCategory;
+  }
+  closeCategoryManagerModal();
+  renderAll();
+  applyTransactionFormSnapshot(snapshot);
+}
+
+function handleCategoryManagerCreateCategory() {
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  const parentSelect = categoryManagerModal.querySelector("[data-category-manager-field='parent']");
+  const categoryInput = categoryManagerModal.querySelector("[data-category-manager-field='category']");
+  const parentKey = String(parentSelect?.value || "").trim();
+  const categoryLabel = String(categoryInput?.value || "").trim();
+
+  if (!parentKey) {
+    window.alert(t("categories.missingParent"));
+    parentSelect?.focus();
+    return;
+  }
+
+  if (!categoryLabel) {
+    window.alert(t("categories.missingCategory"));
+    categoryInput?.focus();
+    return;
+  }
+
+  if (hasBudgetCategoryLabel(categoryLabel)) {
+    window.alert(t("categories.categoryExists"));
+    categoryInput?.focus();
+    return;
+  }
+
+  ensureBudgetCategoryAvailable(categoryLabel);
+  upsertBudgetCategoryAssignment(categoryLabel, parentKey);
+  ensurePlanTemplateCategoryRow(categoryLabel, getBudgetCustomGroupPlanMode(parentKey));
+  persistDraftIfPossible();
+  setLastAction(t("categories.createdCategory", {
+    category: categoryLabel,
+    parent: getBudgetFraCategoryMeta(parentKey).label || parentKey,
+  }));
+  saveCategoryManagerSnapshot(categoryLabel);
+}
+
+function handleCategoryManagerCreateGroup() {
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  const groupNameInput = categoryManagerModal.querySelector("[data-category-manager-field='group-name']");
+  const groupTypeSelect = categoryManagerModal.querySelector("[data-category-manager-field='group-type']");
+  const groupCategoriesInput = categoryManagerModal.querySelector("[data-category-manager-field='group-categories']");
+  const groupLabel = String(groupNameInput?.value || "").trim();
+  const planGroup = normalizePlanGroup(groupTypeSelect?.value || "expenses", "");
+  const categories = collectCategoryManagerLines(groupCategoriesInput?.value || "");
+
+  if (!groupLabel) {
+    window.alert(t("categories.missingGroupName"));
+    groupNameInput?.focus();
+    return;
+  }
+
+  const groupExists = getBudgetMainCategoryOptions().some(
+    (option) => normalizeHeaderName(option.label) === normalizeHeaderName(groupLabel)
+  );
+  if (groupExists) {
+    window.alert(t("categories.groupExists"));
+    groupNameInput?.focus();
+    return;
+  }
+
+  if (!categories.length) {
+    window.alert(t("categories.missingGroupCategories"));
+    groupCategoriesInput?.focus();
+    return;
+  }
+
+  const duplicatedCategories = categories.filter((category) => hasBudgetCategoryLabel(category));
+  if (duplicatedCategories.length) {
+    window.alert(t("categories.groupCategoryExists", {
+      labels: duplicatedCategories.join(", "),
+    }));
+    groupCategoriesInput?.focus();
+    return;
+  }
+
+  const nextGroup = upsertBudgetCustomGroup({
+    key: createCustomBudgetGroupKey(groupLabel),
+    label: groupLabel,
+    planGroup,
+    tone: getDefaultCustomGroupTone(planGroup),
+    description: "",
+    position: getBudgetCustomGroups().length,
+  });
+
+  categories.forEach((category) => {
+    ensureBudgetCategoryAvailable(category);
+    upsertBudgetCategoryAssignment(category, nextGroup.key);
+    ensurePlanTemplateCategoryRow(category, planGroup);
+  });
+
+  persistDraftIfPossible();
+  setLastAction(t("categories.createdGroup", {
+    group: groupLabel,
+    count: categories.length,
+    itemWord: isEnglishUi()
+      ? (categories.length > 1 ? "subcategories" : "subcategory")
+      : (categories.length > 1 ? "sous-catégories" : "sous-catégorie"),
+  }));
+  saveCategoryManagerSnapshot(categories[0] || "");
+}
+
+function openCategoryManagerModal() {
+  if (state.mode !== "budget") {
+    return;
+  }
+
+  if (categoryManagerModal) {
+    categoryManagerModal.querySelector("[data-category-manager-field='category']")?.focus();
+    return;
+  }
+
+  const overlay = document.createElement("div");
+  overlay.className = "category-manager-modal";
+  overlay.innerHTML = `
+    <div class="category-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="category-manager-title">
+      <div class="category-manager-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(t("form.manageCategories"))}</p>
+          <h3 id="category-manager-title">${escapeHtml(t("categories.modalTitle"))}</h3>
+          <p>${escapeHtml(t("categories.modalDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-category-manager-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div class="category-manager-grid">
+        <section class="category-manager-card">
+          <h4>${escapeHtml(t("categories.addCategoryTitle"))}</h4>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.parentLabel"))}</span>
+            <select data-category-manager-field="parent">
+              ${buildCategoryManagerParentOptionsMarkup()}
+            </select>
+          </label>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.newCategoryLabel"))}</span>
+            <input type="text" data-category-manager-field="category" placeholder="${escapeHtml(t("categories.newCategoryPlaceholder"))}" autocomplete="off">
+          </label>
+          <div class="category-manager-actions">
+            <button type="button" class="button secondary" data-category-manager-action="create-category">${escapeHtml(t("categories.addCategoryAction"))}</button>
+          </div>
+        </section>
+        <section class="category-manager-card">
+          <h4>${escapeHtml(t("categories.createGroupTitle"))}</h4>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.groupNameLabel"))}</span>
+            <input type="text" data-category-manager-field="group-name" placeholder="${escapeHtml(t("categories.groupNamePlaceholder"))}" autocomplete="off">
+          </label>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.groupTypeLabel"))}</span>
+            <select data-category-manager-field="group-type">
+              <option value="expenses">${escapeHtml(t("categories.typeExpenses"))}</option>
+              <option value="income">${escapeHtml(t("categories.typeIncome"))}</option>
+              <option value="savings">${escapeHtml(t("categories.typeSavings"))}</option>
+            </select>
+          </label>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.groupCategoriesLabel"))}</span>
+            <textarea data-category-manager-field="group-categories" placeholder="${escapeHtml(t("categories.groupCategoriesPlaceholder"))}"></textarea>
+            <p class="field-hint">${escapeHtml(t("categories.groupCategoriesHint"))}</p>
+          </label>
+          <div class="category-manager-actions">
+            <button type="button" class="button primary" data-category-manager-action="create-group">${escapeHtml(t("categories.groupCreateAction"))}</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-category-manager-action]");
+    if (event.target === overlay || action?.dataset.categoryManagerAction === "close") {
+      closeCategoryManagerModal();
+      return;
+    }
+
+    if (!action) {
+      return;
+    }
+
+    if (action.dataset.categoryManagerAction === "create-category") {
+      handleCategoryManagerCreateCategory();
+      return;
+    }
+
+    if (action.dataset.categoryManagerAction === "create-group") {
+      handleCategoryManagerCreateGroup();
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeCategoryManagerModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  categoryManagerModal = overlay;
+  queueMicrotask(() => {
+    categoryManagerModal?.querySelector("[data-category-manager-field='category']")?.focus();
+  });
 }
 
 function renderValueField(value) {
