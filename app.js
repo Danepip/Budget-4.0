@@ -315,6 +315,9 @@ const UI_STRINGS = {
     "recurring.createButton": "Créer une récurrente",
     "recurring.createUnavailable": "Chargez ou restaurez un budget avant de créer une récurrente.",
     "recurring.createFlowHint": "Remplissez la transaction dans Formulaire, puis cliquez sur Enregistrer comme modèle.",
+    "recurring.duplicateTemplate": "Un modèle récurrent identique existe déjà pour {label} le {date} avec le montant {amount}.",
+    "recurring.duplicateTemplateSkipped": "Le doublon de modèle récurrent n'a pas été créé.",
+    "recurring.duplicateTemplateUpdateSkipped": "La mise à jour du modèle récurrent a été ignorée car un doublon identique existe déjà.",
     "export.journalPreparing": "Préparation d'une copie Journalier",
     "export.journalShared": "Copie Journalier exportée et partagée depuis l'app mobile",
     "export.journalSuccess": "Copie Journalier exportée sans toucher au classeur source",
@@ -606,6 +609,9 @@ const UI_STRINGS = {
     "recurring.createButton": "Create recurring",
     "recurring.createUnavailable": "Load or restore a budget before creating a recurring template.",
     "recurring.createFlowHint": "Fill out the transaction in Form, then click Save as template.",
+    "recurring.duplicateTemplate": "An identical recurring template already exists for {label} on {date} with amount {amount}.",
+    "recurring.duplicateTemplateSkipped": "The duplicate recurring template was not created.",
+    "recurring.duplicateTemplateUpdateSkipped": "The recurring template update was skipped because an identical duplicate already exists.",
     "export.journalPreparing": "Preparing the Journal export copy",
     "export.journalShared": "Journal copy exported and shared from the mobile app",
     "export.journalSuccess": "Journal copy exported without touching the source workbook",
@@ -1078,6 +1084,7 @@ const state = {
   editingIndex: null,
   editorMode: "create",
   planEditing: false,
+  formFeedback: "",
   lastAction: "En attente",
   budget: createEmptyBudgetModel(),
   recap: createEmptyRecapModel(),
@@ -1098,6 +1105,8 @@ let supabaseRealtimeChannel = null;
 let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
 let recurringSupabaseSchemaReady = true;
+let formFeedbackTimer = null;
+let appToastTimer = null;
 let nativeSupabaseRedirectListenerBound = false;
 let colorSchemeMedia = null;
 let colorSchemeListenerBound = false;
@@ -1520,6 +1529,53 @@ function sanitizeRecurringTemplate(rawTemplate) {
     generatedKeys,
     dismissedKeys,
   };
+}
+
+function isSameRecurringTemplateIdentity(leftTemplate, rightTemplate) {
+  const leftCategory = normalizeHeaderName(leftTemplate?.category || leftTemplate?.label);
+  const rightCategory = normalizeHeaderName(rightTemplate?.category || rightTemplate?.label);
+  const leftDate = normalizeDateValue(leftTemplate?.startDate || leftTemplate?.anchorDate || "");
+  const rightDate = normalizeDateValue(rightTemplate?.startDate || rightTemplate?.anchorDate || "");
+  const leftValue = normalizeAmountValue(leftTemplate?.value);
+  const rightValue = normalizeAmountValue(rightTemplate?.value);
+
+  if (!leftCategory || !rightCategory || !leftDate || !rightDate || leftValue === "" || rightValue === "") {
+    return false;
+  }
+
+  return leftCategory === rightCategory && leftDate === rightDate && leftValue === rightValue;
+}
+
+function findRecurringTemplateDuplicate(candidateTemplate, ignoreTemplateId = "") {
+  const candidate = sanitizeRecurringTemplate(candidateTemplate);
+  if (!candidate) {
+    return null;
+  }
+
+  return getRecurringTemplates().find((template) => {
+    if (!template) {
+      return false;
+    }
+
+    if (ignoreTemplateId && template.id === ignoreTemplateId) {
+      return false;
+    }
+
+    return isSameRecurringTemplateIdentity(template, candidate);
+  }) || null;
+}
+
+function buildRecurringTemplateDuplicateMessage(candidateTemplate) {
+  const candidate = sanitizeRecurringTemplate(candidateTemplate);
+  if (!candidate) {
+    return t("recurring.duplicateTemplateSkipped");
+  }
+
+  return t("recurring.duplicateTemplate", {
+    label: getDisplayCategoryLabel(candidate.label) || getDisplayCategoryLabel(candidate.category) || candidate.label || candidate.category,
+    date: formatDateForDisplay(candidate.startDate) || candidate.startDate,
+    amount: formatCurrency(candidate.value),
+  });
 }
 
 function readStoredRecurringTemplates() {
@@ -2101,10 +2157,7 @@ function upsertRecurringTemplate(nextTemplate) {
     return false;
   }
 
-  const existingIndex = getRecurringTemplates().findIndex(
-    (entry) => normalizeHeaderName(entry.label) === normalizeHeaderName(template.label)
-      || normalizeHeaderName(entry.category) === normalizeHeaderName(template.category)
-  );
+  const existingIndex = getRecurringTemplates().findIndex((entry) => entry.id === template.id);
 
   if (existingIndex >= 0) {
     state.recurringTemplates.splice(existingIndex, 1, {
@@ -3868,8 +3921,10 @@ function cacheDom() {
   refs.form = document.getElementById("record-form");
   refs.formFields = document.getElementById("form-fields");
   refs.formActions = document.getElementById("form-actions");
+  refs.formFeedback = document.getElementById("form-feedback");
   refs.formTitle = document.getElementById("form-title");
   refs.formSubtitle = document.getElementById("form-subtitle");
+  refs.appToast = document.getElementById("app-toast");
   refs.saveButton = document.getElementById("save-record");
   refs.saveRecurringTemplateButton = document.getElementById("save-recurring-template");
   refs.cancelButton = document.getElementById("cancel-edit");
@@ -6740,6 +6795,92 @@ function refreshFormEditorPreservingValues(snapshot = captureCurrentTransactionF
   applyTransactionFormSnapshot(snapshot);
 }
 
+function setFormFeedback(message = "") {
+  state.formFeedback = String(message || "").trim();
+}
+
+function clearFormFeedbackTimer() {
+  if (formFeedbackTimer) {
+    window.clearTimeout(formFeedbackTimer);
+    formFeedbackTimer = null;
+  }
+}
+
+function clearAppToastTimer() {
+  if (appToastTimer) {
+    window.clearTimeout(appToastTimer);
+    appToastTimer = null;
+  }
+}
+
+function showAppToast(message = "", durationMs = 3200) {
+  if (!refs.appToast) {
+    return;
+  }
+
+  clearAppToastTimer();
+  const content = String(message || "").trim();
+  refs.appToast.textContent = content;
+  refs.appToast.classList.toggle("hidden", !content);
+
+  if (!content || durationMs <= 0) {
+    return;
+  }
+
+  appToastTimer = window.setTimeout(() => {
+    refs.appToast.textContent = "";
+    refs.appToast.classList.add("hidden");
+    appToastTimer = null;
+  }, durationMs);
+}
+
+function showFormFeedback(message = "", durationMs = 3200) {
+  clearFormFeedbackTimer();
+  setFormFeedback(message);
+  renderFormFeedback(false);
+
+  if (!state.formFeedback || durationMs <= 0) {
+    return;
+  }
+
+  formFeedbackTimer = window.setTimeout(() => {
+    setFormFeedback("");
+    renderFormFeedback(false);
+    formFeedbackTimer = null;
+  }, durationMs);
+}
+
+function renderFormFeedback(forceHidden = false) {
+  if (!refs.formFeedback) {
+    return;
+  }
+
+  const hidden = forceHidden || !state.formFeedback;
+  refs.formFeedback.classList.toggle("hidden", hidden);
+  refs.formFeedback.textContent = hidden ? "" : state.formFeedback;
+}
+
+function prepareTransactionFormForNextEntry(record = {}, feedbackMessage = "") {
+  if (state.appTab !== APP_TAB_FORM || state.activeView !== JOURNAL_SHEET_NAME) {
+    return;
+  }
+
+  showFormFeedback(feedbackMessage);
+  refreshFormEditorPreservingValues({
+    Date: normalizeDateValue(record?.Date) || "",
+    Categories: "",
+    Value: "",
+  });
+
+  const categoryInput = document.getElementById("field-categories");
+  const valueInput = document.getElementById("field-value");
+  if (categoryInput) {
+    categoryInput.focus();
+  } else if (valueInput) {
+    valueInput.focus();
+  }
+}
+
 async function syncRecurringTemplatesIfNeeded(actionLabel, activityLabel = "les transactions récurrentes") {
   if (!canUseSupabaseCloud()) {
     return true;
@@ -6767,14 +6908,23 @@ async function saveCurrentTransactionAsRecurringTemplate(options = {}) {
   const snapshot = captureCurrentTransactionFormSnapshot();
   const internalCategory = getInternalCategoryLabel(snapshot.Categories);
   const anchorDate = normalizeDateValue(snapshot.Date) || new Date().toISOString().slice(0, 10);
-  const saved = upsertRecurringTemplate({
+  const nextTemplate = {
     label: internalCategory,
     category: internalCategory,
     value: snapshot.Value,
     period: DEFAULT_PLAN_PERIOD,
     startDate: anchorDate,
     autoCreate: false,
-  });
+  };
+
+  if (findRecurringTemplateDuplicate(nextTemplate)) {
+    window.alert(buildRecurringTemplateDuplicateMessage(nextTemplate));
+    setLastAction(t("recurring.duplicateTemplateSkipped"));
+    refreshFormEditorPreservingValues(snapshot);
+    return;
+  }
+
+  const saved = upsertRecurringTemplate(nextTemplate);
 
   if (!saved) {
     setLastAction("Le modèle récurrent n'a pas pu être enregistré.");
@@ -6917,13 +7067,27 @@ async function onRecurringTemplateConfigChanged(event) {
     return;
   }
 
+  const template = getRecurringTemplates().find((entry) => entry.id === templateId);
+  const nextTemplate = template ? {
+    ...template,
+    ...changes,
+  } : null;
+
+  if (nextTemplate && findRecurringTemplateDuplicate(nextTemplate, templateId)) {
+    window.alert(buildRecurringTemplateDuplicateMessage(nextTemplate));
+    setLastAction(t("recurring.duplicateTemplateUpdateSkipped"));
+    renderAll();
+    restoreFormSnapshotAfterRecurringAction(snapshot);
+    return;
+  }
+
   updateRecurringTemplateSettings(templateId, changes);
   renderAll();
   restoreFormSnapshotAfterRecurringAction(snapshot);
-  const template = getRecurringTemplates().find((entry) => entry.id === templateId);
+  const updatedTemplate = getRecurringTemplates().find((entry) => entry.id === templateId);
   await syncRecurringTemplatesIfNeeded(
     "Règle récurrente mise à jour.",
-    `la règle récurrente ${(getDisplayCategoryLabel(template?.label) || template?.label || templateId)}`
+    `la règle récurrente ${(getDisplayCategoryLabel(updatedTemplate?.label) || updatedTemplate?.label || templateId)}`
   );
 }
 
@@ -6981,6 +7145,17 @@ function applyRecurringTemplateValueChanges(occurrences) {
     const previousValue = normalizeAmountValue(template.value);
     const nextValue = normalizeAmountValue(occurrence.value);
     if (previousValue === nextValue) {
+      return;
+    }
+
+    const nextTemplate = {
+      ...template,
+      value: nextValue,
+    };
+
+    if (findRecurringTemplateDuplicate(nextTemplate, templateId)) {
+      window.alert(buildRecurringTemplateDuplicateMessage(nextTemplate));
+      setLastAction(t("recurring.duplicateTemplateUpdateSkipped"));
       return;
     }
 
@@ -7082,6 +7257,8 @@ function onSearchChanged(event) {
 function startCreateMode() {
   state.editorMode = "create";
   state.editingIndex = null;
+  clearFormFeedbackTimer();
+  setFormFeedback("");
   setAppTab(APP_TAB_FORM);
   void sendCloudActivityBroadcast("editing", "prepare une nouvelle transaction");
 }
@@ -7112,6 +7289,8 @@ function onToolbarActionRequested() {
 function resetEditor() {
   state.editorMode = "create";
   state.editingIndex = null;
+  clearFormFeedbackTimer();
+  setFormFeedback("");
   setAppTab(APP_TAB_TRANSACTIONS);
 }
 
@@ -7124,6 +7303,8 @@ function onEditorCancelRequested() {
     return;
   }
 
+  clearFormFeedbackTimer();
+  setFormFeedback("");
   resetEditor();
   void updateCloudPresenceTrack();
 }
@@ -7163,6 +7344,8 @@ function openEditor(index) {
 
   state.editorMode = "edit";
   state.editingIndex = index;
+  clearFormFeedbackTimer();
+  setFormFeedback("");
   setAppTab(APP_TAB_FORM);
   const rowLabel = state.budget.rows[index]?.Categories || state.budget.rows[index]?.Date || "une transaction";
   void sendCloudActivityBroadcast("editing", `modifie ${rowLabel}`);
@@ -7235,18 +7418,19 @@ async function onSaveRecord(event) {
   };
 
   if (!nextRecord.Date && !nextRecord.Categories && !nextRecord.Value) {
-    setLastAction("Transaction vide ignoree");
+    setLastAction("Transaction vide ignorée");
     renderStats();
     return;
   }
 
-  let actionLabel = "Transaction enregistree";
+  let actionLabel = "Transaction enregistrée";
   let collaborationLabel = "une transaction";
-  if (state.editorMode === "edit" && state.editingIndex !== null && state.budget.rows[state.editingIndex]) {
+  const wasEditing = state.editorMode === "edit" && state.editingIndex !== null && state.budget.rows[state.editingIndex];
+  if (wasEditing) {
     const previousRecord = sanitizeBudgetRow(state.budget.rows[state.editingIndex]);
     nextRecord.__id = state.budget.rows[state.editingIndex].__id;
     state.budget.rows[state.editingIndex] = nextRecord;
-    actionLabel = "Transaction mise a jour";
+    actionLabel = "Transaction mise à jour";
     collaborationLabel = `la transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
     pushUndoEntry({
       kind: "update-record",
@@ -7256,7 +7440,7 @@ async function onSaveRecord(event) {
     setLastAction(actionLabel);
   } else {
     state.budget.rows.push(nextRecord);
-    actionLabel = "Nouvelle transaction ajoutee";
+    actionLabel = "Nouvelle transaction ajoutée";
     collaborationLabel = `une transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
     pushUndoEntry({
       kind: "create-record",
@@ -7269,13 +7453,19 @@ async function onSaveRecord(event) {
   sortBudgetRowsInPlace(state.budget.rows);
   state.editingIndex = null;
   state.editorMode = "create";
-  setAppTab(APP_TAB_TRANSACTIONS);
+  if (wasEditing) {
+    setFormFeedback("");
+    setAppTab(APP_TAB_TRANSACTIONS);
+    showAppToast(actionLabel);
+  } else {
+    prepareTransactionFormForNextEntry(nextRecord, actionLabel);
+  }
   try {
     await enqueueCloudSync(() => syncSingleTransactionToSupabase(nextRecord));
     await sendCloudActivityBroadcast("saved", collaborationLabel);
   } catch (error) {
     console.error(error);
-    setLastAction(`${actionLabel} - sync cloud en echec`);
+    setLastAction(`${actionLabel} - synchronisation cloud en échec`);
     renderAll();
   }
   await enqueueSourceSave({
@@ -11450,6 +11640,8 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
 }
 
 function renderEditor() {
+  renderFormFeedback(true);
+
   if (state.appTab === APP_TAB_PLAN) {
     if (refs.formKicker) {
       refs.formKicker.textContent = t("form.kickerPlannedBudget");
@@ -11539,10 +11731,12 @@ function renderEditor() {
   appendField(renderDateField(editingRow.Date));
   appendField(renderCategoryField(editingRow.Categories));
   appendField(renderValueField(editingRow.Value));
+  renderFormFeedback(false);
 }
 
 function renderPlanEditor() {
   const english = getCurrentLanguage() === "en";
+  renderFormFeedback(true);
   refs.saveButton.textContent = t("form.saveBudget");
   refs.cancelButton.textContent = t("form.reloadValues");
 
