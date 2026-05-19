@@ -296,6 +296,10 @@ const UI_STRINGS = {
     "categories.typeIncome": "Revenu",
     "categories.typeSavings": "Épargne",
     "categories.close": "Fermer",
+    "categories.pickerTitle": "Choisir une catégorie",
+    "categories.pickerDescription": "Recherchez puis touchez une catégorie pour la remplir dans le formulaire.",
+    "categories.pickerSearchPlaceholder": "Rechercher une catégorie",
+    "categories.pickerEmpty": "Aucune catégorie ne correspond à votre recherche.",
     "categories.missingParent": "Choisissez d'abord une grande catégorie.",
     "categories.missingCategory": "Saisissez le nom de la nouvelle catégorie.",
     "categories.categoryExists": "Cette catégorie existe déjà dans le budget.",
@@ -318,6 +322,23 @@ const UI_STRINGS = {
     "recurring.duplicateTemplate": "Un modèle récurrent identique existe déjà pour {label} le {date} avec le montant {amount}.",
     "recurring.duplicateTemplateSkipped": "Le doublon de modèle récurrent n'a pas été créé.",
     "recurring.duplicateTemplateUpdateSkipped": "La mise à jour du modèle récurrent a été ignorée car un doublon identique existe déjà.",
+    "recurring.editOccurrence": "Modifier cette occurrence",
+    "recurring.editOccurrenceTitle": "Modifier cette occurrence",
+    "recurring.editOccurrenceDescription": "Ajustez seulement l'écriture due du moment. Le modèle n'est modifié que si vous cochez l'option prévue.",
+    "recurring.editOccurrenceSave": "Enregistrer cette occurrence",
+    "recurring.editOccurrenceSaved": "Occurrence récurrente mise à jour.",
+    "recurring.editOccurrenceTemplateToggle": "Mettre aussi à jour le modèle pour la suite",
+    "recurring.editOccurrencePreview": "Occurrence ajustée",
+    "recurring.viewOccurrences": "Voir occurrences",
+    "recurring.viewOccurrencesTitle": "Historique des occurrences",
+    "recurring.viewOccurrencesDescription": "Retrouvez les occurrences en attente, déjà ajoutées ou ignorées pour cette règle récurrente.",
+    "recurring.viewOccurrencesPending": "En attente",
+    "recurring.viewOccurrencesAdded": "Ajoutées",
+    "recurring.viewOccurrencesIgnored": "Ignorées",
+    "recurring.viewOccurrencesEmpty": "Aucune occurrence dans cette section pour le moment.",
+    "recurring.viewOccurrencesScheduled": "Occurrence prévue",
+    "recurring.viewOccurrencesNext": "Prochaine occurrence prévue",
+    "recurring.viewOccurrencesNoNext": "Aucune occurrence prévue",
     "export.journalPreparing": "Préparation d'une copie Journalier",
     "export.journalShared": "Copie Journalier exportée et partagée depuis l'app mobile",
     "export.journalSuccess": "Copie Journalier exportée sans toucher au classeur source",
@@ -590,6 +611,10 @@ const UI_STRINGS = {
     "categories.typeIncome": "Income",
     "categories.typeSavings": "Savings",
     "categories.close": "Close",
+    "categories.pickerTitle": "Choose a category",
+    "categories.pickerDescription": "Search and tap a category to fill it into the form.",
+    "categories.pickerSearchPlaceholder": "Search a category",
+    "categories.pickerEmpty": "No category matches your search.",
     "categories.missingParent": "Choose a main category first.",
     "categories.missingCategory": "Enter the name of the new category.",
     "categories.categoryExists": "This category already exists in the budget.",
@@ -612,6 +637,23 @@ const UI_STRINGS = {
     "recurring.duplicateTemplate": "An identical recurring template already exists for {label} on {date} with amount {amount}.",
     "recurring.duplicateTemplateSkipped": "The duplicate recurring template was not created.",
     "recurring.duplicateTemplateUpdateSkipped": "The recurring template update was skipped because an identical duplicate already exists.",
+    "recurring.editOccurrence": "Edit this occurrence",
+    "recurring.editOccurrenceTitle": "Edit this occurrence",
+    "recurring.editOccurrenceDescription": "Adjust only the current due entry. The template changes only if you enable the dedicated option.",
+    "recurring.editOccurrenceSave": "Save this occurrence",
+    "recurring.editOccurrenceSaved": "Recurring occurrence updated.",
+    "recurring.editOccurrenceTemplateToggle": "Also update the template for future entries",
+    "recurring.editOccurrencePreview": "Adjusted occurrence",
+    "recurring.viewOccurrences": "View occurrences",
+    "recurring.viewOccurrencesTitle": "Occurrence history",
+    "recurring.viewOccurrencesDescription": "Review pending, added, and ignored occurrences for this recurring rule.",
+    "recurring.viewOccurrencesPending": "Pending",
+    "recurring.viewOccurrencesAdded": "Added",
+    "recurring.viewOccurrencesIgnored": "Ignored",
+    "recurring.viewOccurrencesEmpty": "No occurrence in this section yet.",
+    "recurring.viewOccurrencesScheduled": "Scheduled occurrence",
+    "recurring.viewOccurrencesNext": "Next scheduled occurrence",
+    "recurring.viewOccurrencesNoNext": "No scheduled occurrence",
     "export.journalPreparing": "Preparing the Journal export copy",
     "export.journalShared": "Journal copy exported and shared from the mobile app",
     "export.journalSuccess": "Journal copy exported without touching the source workbook",
@@ -1111,6 +1153,9 @@ let nativeSupabaseRedirectListenerBound = false;
 let colorSchemeMedia = null;
 let colorSchemeListenerBound = false;
 let categoryManagerModal = null;
+let categoryPickerModal = null;
+let recurringOccurrenceEditorModal = null;
+let recurringOccurrencesHistoryModal = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -1656,6 +1701,8 @@ function sanitizeHistoryEntry(rawEntry) {
           templateId: String(change?.templateId || "").trim(),
           previousValue: normalizeAmountValue(change?.previousValue),
           nextValue: normalizeAmountValue(change?.nextValue),
+          previousStartDate: normalizeDateValue(change?.previousStartDate),
+          nextStartDate: normalizeDateValue(change?.nextStartDate),
         }))
         .filter((change) => change.templateId)
       : [],
@@ -2192,6 +2239,7 @@ function syncRecurringReviewDrafts(occurrences) {
 
     const currentDraft = state.recurringReviewDrafts?.[occurrence.key] || {};
     nextDrafts[occurrence.key] = {
+      date: normalizeDateValue(currentDraft.date ?? occurrence.date),
       value: normalizeAmountValue(currentDraft.value ?? occurrence.value),
       updateTemplate: currentDraft.updateTemplate === true,
     };
@@ -2202,6 +2250,7 @@ function syncRecurringReviewDrafts(occurrences) {
 function getRecurringReviewDraft(occurrence) {
   const currentDraft = state.recurringReviewDrafts?.[occurrence?.key] || {};
   return {
+    date: normalizeDateValue(currentDraft.date ?? occurrence?.date),
     value: normalizeAmountValue(currentDraft.value ?? occurrence?.value),
     updateTemplate: currentDraft.updateTemplate === true,
   };
@@ -2216,6 +2265,9 @@ function updateRecurringReviewDraft(occurrenceKey, changes = {}) {
   state.recurringReviewDrafts = {
     ...state.recurringReviewDrafts,
     [occurrenceKey]: {
+      date: Object.prototype.hasOwnProperty.call(changes, "date")
+        ? normalizeDateValue(changes.date)
+        : normalizeDateValue(currentDraft.date),
       value: Object.prototype.hasOwnProperty.call(changes, "value")
         ? normalizeAmountValue(changes.value)
         : normalizeAmountValue(currentDraft.value),
@@ -2244,6 +2296,7 @@ function applyDraftToRecurringOccurrence(occurrence) {
   const draft = getRecurringReviewDraft(occurrence);
   return {
     ...occurrence,
+    date: normalizeDateValue(draft.date || occurrence.date),
     value: draft.value,
     updateTemplate: draft.updateTemplate,
   };
@@ -2269,6 +2322,21 @@ function buildRecurringOccurrenceKey(template, occurrenceDate) {
 
 function compareRecurringOccurrenceDate(leftDate, rightDate) {
   return String(leftDate || "").localeCompare(String(rightDate || ""));
+}
+
+function parseRecurringOccurrenceKey(key) {
+  const rawKey = String(key || "").trim();
+  if (!rawKey) {
+    return null;
+  }
+
+  const [templateId = "", date = "", , value = ""] = rawKey.split("|");
+  return {
+    key: rawKey,
+    templateId: String(templateId || "").trim(),
+    date: normalizeDateValue(date),
+    value: normalizeAmountValue(value),
+  };
 }
 
 function hasMatchingBudgetRow(record) {
@@ -2496,6 +2564,88 @@ function updateRecurringTemplateSettings(templateId, changes) {
     ...template,
     ...changes,
   }));
+}
+
+function getNextScheduledRecurringOccurrence(template) {
+  if (!template?.autoCreate) {
+    return null;
+  }
+
+  const startDate = getRecurringStartDate(template);
+  if (!startDate) {
+    return null;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const anchorDay = Number(startDate.split("-")[2] || 1);
+  let cursor = startDate;
+  let iterations = 0;
+
+  while (cursor && iterations < MAX_RECURRING_OCCURRENCES_PER_TEMPLATE) {
+    if (compareRecurringOccurrenceDate(cursor, today) >= 0) {
+      return {
+        date: cursor,
+        value: normalizeAmountValue(template.value),
+      };
+    }
+
+    cursor = getNextRecurringOccurrenceDate(cursor, template.period, anchorDay);
+    iterations += 1;
+  }
+
+  return null;
+}
+
+function buildRecurringTemplateOccurrenceHistory(template) {
+  if (!template?.id) {
+    return {
+      pending: [],
+      added: [],
+      ignored: [],
+      nextScheduled: null,
+    };
+  }
+
+  const pending = getPendingRecurringOccurrences()
+    .filter((occurrence) => occurrence.templateId === template.id)
+    .map((occurrence) => {
+      const reviewed = applyDraftToRecurringOccurrence(occurrence);
+      return {
+        key: occurrence.key,
+        date: normalizeDateValue(reviewed.date),
+        value: normalizeAmountValue(reviewed.value),
+        status: "pending",
+      };
+    });
+
+  const added = normalizeRecurringTrackedKeys(template.generatedKeys)
+    .map((key) => parseRecurringOccurrenceKey(key))
+    .filter(Boolean)
+    .map((entry) => ({
+      key: entry.key,
+      date: entry.date,
+      value: entry.value,
+      status: "added",
+    }))
+    .sort((left, right) => compareRecurringOccurrenceDate(right.date, left.date));
+
+  const ignored = normalizeRecurringTrackedKeys(template.dismissedKeys)
+    .map((key) => parseRecurringOccurrenceKey(key))
+    .filter(Boolean)
+    .map((entry) => ({
+      key: entry.key,
+      date: entry.date,
+      value: entry.value,
+      status: "ignored",
+    }))
+    .sort((left, right) => compareRecurringOccurrenceDate(right.date, left.date));
+
+  return {
+    pending,
+    added,
+    ignored,
+    nextScheduled: getNextScheduledRecurringOccurrence(template),
+  };
 }
 
 function markRecurringOccurrencesAsGenerated(occurrences) {
@@ -4317,6 +4467,7 @@ async function onUndoLastActionRequested() {
       entry.templateChanges.forEach((change) => {
         updateRecurringTemplateSettings(change.templateId, {
           value: change.previousValue,
+          startDate: change.previousStartDate,
         });
       });
     }
@@ -7019,6 +7170,14 @@ async function onRecurringTemplateAction(event) {
     return;
   }
 
+  if (action === "view-occurrences") {
+    const template = getRecurringTemplates().find((entry) => entry.id === templateId);
+    if (template) {
+      openRecurringOccurrencesHistoryModal(template);
+    }
+    return;
+  }
+
   if (action === "delete") {
     const snapshot = captureCurrentTransactionFormSnapshot();
     const template = getRecurringTemplates().find((entry) => entry.id === templateId);
@@ -7144,13 +7303,18 @@ function applyRecurringTemplateValueChanges(occurrences) {
 
     const previousValue = normalizeAmountValue(template.value);
     const nextValue = normalizeAmountValue(occurrence.value);
-    if (previousValue === nextValue) {
+    const previousStartDate = normalizeDateValue(template.startDate);
+    const nextStartDate = normalizeDateValue(occurrence.date);
+    const hasValueChange = previousValue !== nextValue;
+    const hasStartDateChange = Boolean(nextStartDate) && previousStartDate !== nextStartDate;
+    if (!hasValueChange && !hasStartDateChange) {
       return;
     }
 
     const nextTemplate = {
       ...template,
-      value: nextValue,
+      value: hasValueChange ? nextValue : previousValue,
+      startDate: hasStartDateChange ? nextStartDate : previousStartDate,
     };
 
     if (findRecurringTemplateDuplicate(nextTemplate, templateId)) {
@@ -7160,12 +7324,15 @@ function applyRecurringTemplateValueChanges(occurrences) {
     }
 
     updateRecurringTemplateSettings(templateId, {
-      value: nextValue,
+      value: nextTemplate.value,
+      startDate: nextTemplate.startDate,
     });
     templateChanges.push({
       templateId,
       previousValue,
-      nextValue,
+      nextValue: nextTemplate.value,
+      previousStartDate,
+      nextStartDate: nextTemplate.startDate,
     });
   });
 
@@ -7211,6 +7378,12 @@ async function onRecurringReviewAction(event) {
   }
 
   const occurrence = occurrenceMap.get(occurrenceKey);
+  if (action === "edit-one") {
+    openRecurringOccurrenceEditorModal(occurrence);
+    restoreFormSnapshotAfterRecurringAction(snapshot);
+    return;
+  }
+
   if (action === "add-one") {
     const reviewedOccurrence = applyDraftToRecurringOccurrence(occurrence);
     const templateChanges = applyRecurringTemplateValueChanges([reviewedOccurrence]);
@@ -7234,16 +7407,33 @@ async function onRecurringReviewAction(event) {
 
 function renderRecurringReviewCardConfig(occurrence, english) {
   const reviewedOccurrence = applyDraftToRecurringOccurrence(occurrence);
+  const originalDate = normalizeDateValue(occurrence.date);
+  const reviewedDate = normalizeDateValue(reviewedOccurrence.date);
+  const originalValue = normalizeAmountValue(occurrence.value);
+  const reviewedValue = normalizeAmountValue(reviewedOccurrence.value);
+  const hasDateChange = reviewedDate && reviewedDate !== originalDate;
+  const hasValueChange = reviewedValue !== originalValue;
+  const chips = [];
+
+  if (hasDateChange) {
+    chips.push(`<span class="recurring-review-chip">${escapeHtml(`${english ? "Date" : "Date"} · ${formatDateForDisplay(reviewedDate) || reviewedDate}`)}</span>`);
+  }
+
+  if (hasValueChange) {
+    chips.push(`<span class="recurring-review-chip">${escapeHtml(`${t("recurring.editOccurrencePreview")} · ${formatCurrency(reviewedValue)}`)}</span>`);
+  }
+
+  if (reviewedOccurrence.updateTemplate) {
+    chips.push(`<span class="recurring-review-chip recurring-review-chip-model">${escapeHtml(english ? "Template will update" : "Le modèle sera mis à jour")}</span>`);
+  }
+
+  if (!chips.length) {
+    return "";
+  }
+
   return `
     <div class="recurring-review-config">
-      <label class="recurring-config-field">
-        <span>${english ? "Amount" : "Montant"}</span>
-        <input type="text" inputmode="decimal" value="${escapeHtml(normalizeAmountValue(reviewedOccurrence.value))}" data-recurring-draft="value" data-occurrence-key="${escapeHtml(occurrence.key)}">
-      </label>
-      <label class="recurring-config-field recurring-config-switch">
-        <span>${english ? "Update template" : "Mettre à jour le modèle"}</span>
-        <input type="checkbox" data-recurring-draft="update-template" data-occurrence-key="${escapeHtml(occurrence.key)}" ${reviewedOccurrence.updateTemplate ? "checked" : ""}>
-      </label>
+      ${chips.join("")}
     </div>
   `;
 }
@@ -8563,6 +8753,8 @@ function applyBudgetRowsToWorkbook(workbook, budgetModel) {
 }
 
 function renderAll() {
+  closeRecurringOccurrenceEditorModal();
+  closeRecurringOccurrencesHistoryModal();
   renderStaticUiText();
   syncActiveViewForCurrentTab();
   renderAppTabs();
@@ -11640,6 +11832,7 @@ function createRecapTableMarkup(title, subtitle, headers, rows) {
 }
 
 function renderEditor() {
+  closeCategoryPickerModal();
   renderFormFeedback(true);
 
   if (state.appTab === APP_TAB_PLAN) {
@@ -11848,6 +12041,7 @@ function renderRecurringReviewPanel(options = {}) {
         <p data-recurring-preview-amount="true">${escapeHtml(formatCurrency(reviewedOccurrence.value))}</p>
       </div>
       <div class="recurring-review-actions">
+        <button type="button" class="button ghost" data-recurring-review-action="edit-one" data-occurrence-key="${escapeHtml(occurrence.key)}">${escapeHtml(t("recurring.editOccurrence"))}</button>
         <button type="button" class="button secondary" data-recurring-review-action="add-one" data-occurrence-key="${escapeHtml(occurrence.key)}">${english ? "Add" : "Ajouter"}</button>
         <button type="button" class="button ghost" data-recurring-review-action="ignore-one" data-occurrence-key="${escapeHtml(occurrence.key)}">${english ? "Ignore" : "Ignorer"}</button>
       </div>
@@ -11886,6 +12080,108 @@ function refreshCategoryParentMeta() {
   if (recurringSaveButton) {
     recurringSaveButton.disabled = !canSaveCurrentTransactionAsRecurringTemplate();
   }
+}
+
+function getAvailableFormCategoryDisplayLabels() {
+  const seen = new Set();
+  return buildAvailableFormCategories()
+    .flatMap((group) => group.items)
+    .map((category) => getDisplayCategoryLabel(category))
+    .filter((category) => {
+      const key = normalizeHeaderName(category);
+      if (!key || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+}
+
+function getAvailableFormCategoryPickerOptions() {
+  const seen = new Set();
+  return buildAvailableFormCategories()
+    .flatMap((group) => group.items.map((item) => ({
+      value: getDisplayCategoryLabel(item),
+      parentLabel: group.label,
+    })))
+    .filter((option) => {
+      const key = normalizeHeaderName(option.value);
+      if (!key || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+}
+
+function getFilteredFormCategoryDisplayLabels(query = "", labels = getAvailableFormCategoryDisplayLabels()) {
+  const normalizedQuery = normalizeHeaderName(query);
+  if (!normalizedQuery) {
+    return labels.slice(0, 12);
+  }
+
+  const exact = [];
+  const startsWith = [];
+  const includes = [];
+
+  labels.forEach((label) => {
+    const normalizedLabel = normalizeHeaderName(label);
+    if (!normalizedLabel) {
+      return;
+    }
+
+    if (normalizedLabel === normalizedQuery) {
+      exact.push(label);
+      return;
+    }
+
+    if (normalizedLabel.startsWith(normalizedQuery)) {
+      startsWith.push(label);
+      return;
+    }
+
+    if (normalizedLabel.includes(normalizedQuery)) {
+      includes.push(label);
+    }
+  });
+
+  return [...exact, ...startsWith, ...includes].slice(0, 12);
+}
+
+function getFilteredFormCategoryPickerOptions(query = "", options = getAvailableFormCategoryPickerOptions()) {
+  const normalizedQuery = normalizeHeaderName(query);
+  if (!normalizedQuery) {
+    return options.slice(0, 18);
+  }
+
+  const exact = [];
+  const startsWith = [];
+  const includes = [];
+
+  options.forEach((option) => {
+    const normalizedLabel = normalizeHeaderName(option.value);
+    if (!normalizedLabel) {
+      return;
+    }
+
+    if (normalizedLabel === normalizedQuery) {
+      exact.push(option);
+      return;
+    }
+
+    if (normalizedLabel.startsWith(normalizedQuery)) {
+      startsWith.push(option);
+      return;
+    }
+
+    if (normalizedLabel.includes(normalizedQuery)) {
+      includes.push(option);
+    }
+  });
+
+  return [...exact, ...startsWith, ...includes].slice(0, 18);
 }
 
 function renderBudgetSummaryGrid(rows) {
@@ -11964,23 +12260,10 @@ function renderCategoryField(value) {
   categoryInput.id = "field-categories";
   categoryInput.name = "Categories";
   categoryInput.type = "text";
-  categoryInput.setAttribute("list", "budget-category-options");
   categoryInput.setAttribute("autocomplete", "off");
   categoryInput.placeholder = english ? "Type or choose a category" : "Tapez ou choisissez une catégorie";
   categoryInput.value = getDisplayCategoryLabel(value || "");
-
-  const datalist = document.createElement("datalist");
-  datalist.id = "budget-category-options";
-  Array.from(new Set(
-    buildAvailableFormCategories()
-      .flatMap((group) => group.items)
-      .map((category) => getDisplayCategoryLabel(category))
-      .filter(Boolean)
-  )).forEach((category) => {
-      const option = document.createElement("option");
-      option.value = category;
-      datalist.appendChild(option);
-  });
+  const availableLabels = getAvailableFormCategoryDisplayLabels();
 
   const parentMeta = document.createElement("div");
   parentMeta.className = "field-parent-meta";
@@ -12008,7 +12291,39 @@ function renderCategoryField(value) {
 
   parentMeta.append(parentLabelCaption, parentChip);
   tools.append(manageButton, parentMeta);
-  wrapper.append(label, categoryInput, datalist, tools, hint);
+
+  if (isAndroidNativeRuntime()) {
+    categoryInput.readOnly = true;
+    categoryInput.setAttribute("inputmode", "none");
+    categoryInput.setAttribute("aria-haspopup", "dialog");
+    categoryInput.setAttribute("aria-expanded", "false");
+    categoryInput.classList.add("android-category-picker-trigger");
+    categoryInput.addEventListener("click", () => {
+      categoryInput.setAttribute("aria-expanded", "true");
+      openCategoryPickerModal(categoryInput);
+    });
+    categoryInput.addEventListener("keydown", (event) => {
+      if (!["Enter", " ", "Spacebar", "ArrowDown"].includes(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+      categoryInput.setAttribute("aria-expanded", "true");
+      openCategoryPickerModal(categoryInput);
+    });
+    wrapper.append(label, categoryInput, tools, hint);
+  } else {
+    const datalist = document.createElement("datalist");
+    datalist.id = "budget-category-options";
+    availableLabels.forEach((category) => {
+      const option = document.createElement("option");
+      option.value = category;
+      datalist.appendChild(option);
+    });
+    categoryInput.setAttribute("list", "budget-category-options");
+    wrapper.append(label, categoryInput, datalist, tools, hint);
+  }
+
   queueMicrotask(refreshCategoryParentMeta);
   return wrapper;
 }
@@ -12044,6 +12359,31 @@ function closeCategoryManagerModal() {
     categoryManagerModal.remove();
   }
   categoryManagerModal = null;
+}
+
+function closeCategoryPickerModal() {
+  const field = document.getElementById("field-categories");
+  if (field) {
+    field.setAttribute("aria-expanded", "false");
+  }
+  if (categoryPickerModal?.remove) {
+    categoryPickerModal.remove();
+  }
+  categoryPickerModal = null;
+}
+
+function closeRecurringOccurrenceEditorModal() {
+  if (recurringOccurrenceEditorModal?.remove) {
+    recurringOccurrenceEditorModal.remove();
+  }
+  recurringOccurrenceEditorModal = null;
+}
+
+function closeRecurringOccurrencesHistoryModal() {
+  if (recurringOccurrencesHistoryModal?.remove) {
+    recurringOccurrencesHistoryModal.remove();
+  }
+  recurringOccurrencesHistoryModal = null;
 }
 
 function buildCategoryManagerParentOptionsMarkup() {
@@ -12194,6 +12534,8 @@ function openCategoryManagerModal() {
     return;
   }
 
+  closeCategoryPickerModal();
+
   if (categoryManagerModal) {
     categoryManagerModal.querySelector("[data-category-manager-field='category']")?.focus();
     return;
@@ -12287,6 +12629,297 @@ function openCategoryManagerModal() {
   queueMicrotask(() => {
     categoryManagerModal?.querySelector("[data-category-manager-field='category']")?.focus();
   });
+}
+
+function openCategoryPickerModal(categoryInput) {
+  if (!isAndroidNativeRuntime() || state.mode !== "budget" || !categoryInput) {
+    return;
+  }
+
+  if (categoryPickerModal) {
+    categoryPickerModal.querySelector("[data-category-picker-field='search']")?.focus();
+    return;
+  }
+
+  const currentValue = String(categoryInput.value || "").trim();
+  const overlay = document.createElement("div");
+  overlay.className = "category-picker-modal";
+  overlay.innerHTML = `
+    <div class="category-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="category-picker-title">
+      <div class="category-picker-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(getCurrentLanguage() === "en" ? "Category" : "Catégorie")}</p>
+          <h3 id="category-picker-title">${escapeHtml(t("categories.pickerTitle"))}</h3>
+          <p>${escapeHtml(t("categories.pickerDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-category-picker-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <label class="field-card">
+        <span>${escapeHtml(getCurrentLanguage() === "en" ? "Search" : "Recherche")}</span>
+        <input
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          value="${escapeHtml(currentValue)}"
+          placeholder="${escapeHtml(t("categories.pickerSearchPlaceholder"))}"
+          data-category-picker-field="search"
+        >
+      </label>
+      <div class="category-picker-results" data-category-picker-results></div>
+    </div>
+  `;
+
+  const results = overlay.querySelector("[data-category-picker-results]");
+  const searchInput = overlay.querySelector("[data-category-picker-field='search']");
+  const availableOptions = getAvailableFormCategoryPickerOptions();
+
+  const renderOptions = () => {
+    const matches = getFilteredFormCategoryPickerOptions(searchInput?.value || "", availableOptions);
+    if (!results) {
+      return;
+    }
+
+    if (!matches.length) {
+      results.innerHTML = `<p class="category-picker-empty">${escapeHtml(t("categories.pickerEmpty"))}</p>`;
+      return;
+    }
+
+    results.innerHTML = matches.map((option) => {
+      const selected = normalizeHeaderName(option.value) === normalizeHeaderName(currentValue);
+      return `
+        <button
+          type="button"
+          class="category-picker-option${selected ? " is-selected" : ""}"
+          data-category-picker-option="${escapeHtml(option.value)}"
+        >
+          <span class="category-picker-option-label">${escapeHtml(option.value)}</span>
+          <span class="category-picker-option-parent">${escapeHtml(option.parentLabel || (getCurrentLanguage() === "en" ? "None" : "Aucune"))}</span>
+        </button>
+      `;
+    }).join("");
+  };
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-category-picker-action]");
+    if (event.target === overlay || action?.dataset.categoryPickerAction === "close") {
+      closeCategoryPickerModal();
+      categoryInput.focus();
+      return;
+    }
+
+    const option = event.target.closest("[data-category-picker-option]");
+    if (!option) {
+      return;
+    }
+
+    categoryInput.value = String(option.dataset.categoryPickerOption || "").trim();
+    refreshCategoryParentMeta();
+    closeCategoryPickerModal();
+    window.setTimeout(() => {
+      document.getElementById("field-value")?.focus();
+    }, 80);
+  });
+
+  overlay.addEventListener("input", (event) => {
+    if (event.target === searchInput) {
+      renderOptions();
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeCategoryPickerModal();
+      categoryInput.focus();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  categoryPickerModal = overlay;
+  renderOptions();
+  queueMicrotask(() => {
+    searchInput?.focus();
+    searchInput?.select?.();
+  });
+}
+
+function openRecurringOccurrenceEditorModal(occurrence) {
+  if (!occurrence?.key) {
+    return;
+  }
+
+  if (recurringOccurrenceEditorModal) {
+    recurringOccurrenceEditorModal.remove();
+    recurringOccurrenceEditorModal = null;
+  }
+
+  const english = getCurrentLanguage() === "en";
+  const reviewedOccurrence = applyDraftToRecurringOccurrence(occurrence);
+  const categoryLabel = getDisplayCategoryLabel(reviewedOccurrence.category) || reviewedOccurrence.category;
+  const parentLabel = getBudgetFraCategoryLabel(reviewedOccurrence.category, "", reviewedOccurrence.value)
+    || (english ? "None" : "Aucune");
+  const overlay = document.createElement("div");
+  overlay.className = "recurring-occurrence-modal";
+  overlay.innerHTML = `
+    <div class="recurring-occurrence-dialog" role="dialog" aria-modal="true" aria-labelledby="recurring-occurrence-title">
+      <div class="recurring-occurrence-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Recurring review" : "Validation récurrente")}</p>
+          <h3 id="recurring-occurrence-title">${escapeHtml(t("recurring.editOccurrenceTitle"))}</h3>
+          <p>${escapeHtml(t("recurring.editOccurrenceDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-recurring-occurrence-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div class="recurring-occurrence-summary">
+        <strong>${escapeHtml(categoryLabel)}</strong>
+        <span>${escapeHtml(parentLabel)}</span>
+      </div>
+      <div class="recurring-occurrence-grid">
+        <label class="field-card">
+          <span>${escapeHtml(english ? "Date" : "Date")}</span>
+          <input type="date" value="${escapeHtml(toDateInputValue(reviewedOccurrence.date))}" data-recurring-occurrence-field="date">
+        </label>
+        <label class="field-card">
+          <span>${escapeHtml(english ? "Amount" : "Montant")}</span>
+          <input type="text" inputmode="decimal" value="${escapeHtml(normalizeAmountValue(reviewedOccurrence.value))}" data-recurring-occurrence-field="value">
+        </label>
+      </div>
+      <label class="recurring-occurrence-toggle">
+        <input type="checkbox" data-recurring-occurrence-field="update-template" ${reviewedOccurrence.updateTemplate ? "checked" : ""}>
+        <span>${escapeHtml(t("recurring.editOccurrenceTemplateToggle"))}</span>
+      </label>
+      <div class="recurring-occurrence-actions">
+        <button type="button" class="button secondary" data-recurring-occurrence-action="save">${escapeHtml(t("recurring.editOccurrenceSave"))}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-recurring-occurrence-action]");
+    if (event.target === overlay || action?.dataset.recurringOccurrenceAction === "close") {
+      closeRecurringOccurrenceEditorModal();
+      return;
+    }
+
+    if (action?.dataset.recurringOccurrenceAction !== "save") {
+      return;
+    }
+
+    const dateField = overlay.querySelector("[data-recurring-occurrence-field='date']");
+    const valueField = overlay.querySelector("[data-recurring-occurrence-field='value']");
+    const updateTemplateField = overlay.querySelector("[data-recurring-occurrence-field='update-template']");
+    updateRecurringReviewDraft(occurrence.key, {
+      date: dateField?.value,
+      value: valueField?.value,
+      updateTemplate: updateTemplateField?.checked === true,
+    });
+    closeRecurringOccurrenceEditorModal();
+    setLastAction(t("recurring.editOccurrenceSaved"));
+    renderAll();
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeRecurringOccurrenceEditorModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  recurringOccurrenceEditorModal = overlay;
+  queueMicrotask(() => {
+    recurringOccurrenceEditorModal?.querySelector("[data-recurring-occurrence-field='value']")?.focus();
+  });
+}
+
+function openRecurringOccurrencesHistoryModal(template) {
+  if (!template?.id) {
+    return;
+  }
+
+  closeRecurringOccurrencesHistoryModal();
+
+  const english = getCurrentLanguage() === "en";
+  const history = buildRecurringTemplateOccurrenceHistory(template);
+  const displayLabel = getDisplayCategoryLabel(template.label) || template.label;
+  const categoryLabel = getDisplayCategoryLabel(template.category) || template.category;
+  const nextScheduledLabel = history.nextScheduled?.date
+    ? `${formatDateForDisplay(history.nextScheduled.date) || history.nextScheduled.date} · ${formatCurrency(history.nextScheduled.value)}`
+    : t("recurring.viewOccurrencesNoNext");
+
+  const renderHistoryEntries = (entries, emptyLabel) => {
+    if (!entries.length) {
+      return `<p class="recurring-history-empty">${escapeHtml(emptyLabel)}</p>`;
+    }
+
+    return `
+      <div class="recurring-history-entries">
+        ${entries.map((entry) => `
+          <article class="recurring-history-entry">
+            <strong>${escapeHtml(formatDateForDisplay(entry.date) || entry.date || t("recurring.viewOccurrencesScheduled"))}</strong>
+            <span>${escapeHtml(formatCurrency(entry.value))}</span>
+          </article>
+        `).join("")}
+      </div>
+    `;
+  };
+
+  const overlay = document.createElement("div");
+  overlay.className = "recurring-occurrence-modal recurring-history-modal";
+  overlay.innerHTML = `
+    <div class="recurring-occurrence-dialog recurring-history-dialog" role="dialog" aria-modal="true" aria-labelledby="recurring-history-title">
+      <div class="recurring-occurrence-head recurring-history-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Recurring transactions" : "Transactions récurrentes")}</p>
+          <h3 id="recurring-history-title">${escapeHtml(t("recurring.viewOccurrencesTitle"))}</h3>
+          <p>${escapeHtml(t("recurring.viewOccurrencesDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-recurring-history-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div class="recurring-occurrence-summary recurring-history-summary">
+        <strong>${escapeHtml(displayLabel)}</strong>
+        <span>${escapeHtml(categoryLabel)} · ${escapeHtml(formatCurrency(template.value))} · ${escapeHtml(getPlanPeriodLabel(template.period))}</span>
+        <span>${escapeHtml(`${t("recurring.viewOccurrencesNext")} · ${nextScheduledLabel}`)}</span>
+      </div>
+      <div class="recurring-history-sections">
+        <section class="recurring-history-section">
+          <div class="recurring-history-section-head">
+            <strong>${escapeHtml(t("recurring.viewOccurrencesPending"))}</strong>
+            <span>${history.pending.length}</span>
+          </div>
+          ${renderHistoryEntries(history.pending, t("recurring.viewOccurrencesEmpty"))}
+        </section>
+        <section class="recurring-history-section">
+          <div class="recurring-history-section-head">
+            <strong>${escapeHtml(t("recurring.viewOccurrencesAdded"))}</strong>
+            <span>${history.added.length}</span>
+          </div>
+          ${renderHistoryEntries(history.added, t("recurring.viewOccurrencesEmpty"))}
+        </section>
+        <section class="recurring-history-section">
+          <div class="recurring-history-section-head">
+            <strong>${escapeHtml(t("recurring.viewOccurrencesIgnored"))}</strong>
+            <span>${history.ignored.length}</span>
+          </div>
+          ${renderHistoryEntries(history.ignored, t("recurring.viewOccurrencesEmpty"))}
+        </section>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-recurring-history-action]");
+    if (event.target === overlay || action?.dataset.recurringHistoryAction === "close") {
+      closeRecurringOccurrencesHistoryModal();
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeRecurringOccurrencesHistoryModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  recurringOccurrencesHistoryModal = overlay;
 }
 
 function renderValueField(value) {
@@ -12434,6 +13067,7 @@ function renderRecurringTemplatesPanel(options = {}) {
         ` : ""}
         <div class="recurring-card-actions">
           <button type="button" class="button secondary" data-recurring-action="use" data-template-id="${escapeHtml(template.id)}">${english ? "Use" : "Utiliser"}</button>
+          <button type="button" class="button ghost" data-recurring-action="view-occurrences" data-template-id="${escapeHtml(template.id)}">${escapeHtml(t("recurring.viewOccurrences"))}</button>
           <button type="button" class="button ghost" data-recurring-action="delete" data-template-id="${escapeHtml(template.id)}">${english ? "Delete" : "Supprimer"}</button>
         </div>
       `;
