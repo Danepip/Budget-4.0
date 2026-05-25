@@ -1166,6 +1166,7 @@ let categoryManagerModal = null;
 let categoryPickerModal = null;
 let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
+let analysisTransactionsModal = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -4217,6 +4218,7 @@ function bindEvents() {
   refs.formActions.addEventListener("click", onRecurringTemplateAction);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  refs.recapView.addEventListener("click", onAnalysisInteraction);
   refs.cardsGrid.addEventListener("click", onRecurringTemplateAction);
   refs.cardsGrid.addEventListener("click", onRecurringReviewAction);
   refs.cardsGrid.addEventListener("input", onRecurringTemplateConfigChanged);
@@ -4428,6 +4430,457 @@ function onTransactionsViewToggleClicked(event) {
   persistUiSettings();
   renderCards();
   renderControls();
+}
+
+function onAnalysisInteraction(event) {
+  if (state.appTab !== APP_TAB_ANALYSIS) {
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-analysis-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  const action = String(actionButton.dataset.analysisAction || "").trim();
+  if (!action) {
+    return;
+  }
+
+  event.preventDefault();
+
+  if (action === "open-transactions") {
+    openAnalysisTransactionsModal(actionButton.dataset.analysisQuery || "");
+    return;
+  }
+
+  if (action === "open-metric-transactions") {
+    openAnalysisMetricTransactionsModal(actionButton.dataset.analysisMetric || "");
+    return;
+  }
+
+  if (action === "filter-period") {
+    applyAnalysisPeriodSelection(
+      actionButton.dataset.analysisYear || "",
+      actionButton.dataset.analysisMonth || ""
+    );
+    return;
+  }
+
+  if (action === "scroll-section") {
+    scrollToAnalysisSection(actionButton.dataset.analysisTargetSection || "");
+    return;
+  }
+
+  if (action === "open-plan-group") {
+    openAnalysisPlanGroup(actionButton.dataset.analysisGroupKey || "");
+  }
+}
+
+function openTransactionsWithSearch(query) {
+  closeAnalysisTransactionsModal();
+  setAppTab(APP_TAB_TRANSACTIONS);
+  const normalizedQuery = String(query || "").trim().toLowerCase();
+  state.search = normalizedQuery;
+  if (refs.searchInput) {
+    refs.searchInput.value = normalizedQuery;
+  }
+  persistDraftIfPossible();
+  renderAll();
+}
+
+function buildJournalRowSearchHaystack(row) {
+  return [
+    row.Date,
+    formatDateForDisplay(row.Date),
+    row.Categories,
+    getDisplayCategoryLabel(row.Categories || ""),
+    getBudgetFraCategoryLabel(row.Categories || "", "", row.Value),
+    row.Value,
+    formatCurrency(row.Value),
+  ].join(" ").toLowerCase();
+}
+
+function getFilteredBudgetRowsForQuery(query, options = {}) {
+  const normalizedQuery = String(query || "").trim().toLowerCase();
+  const limitToRecapPeriod = options.limitToRecapPeriod !== false;
+
+  return state.budget.rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => {
+      if (limitToRecapPeriod && hasActiveRecapPeriodFilter() && !matchesRecapPeriod(row)) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return buildJournalRowSearchHaystack(row).includes(normalizedQuery);
+    })
+    .sort((left, right) => compareBudgetRowsForDisplay(left.row, right.row, left.index, right.index));
+}
+
+function getFilteredBudgetRowsForAnalysisMetric(metricLabel) {
+  const normalizedMetric = normalizeHeaderName(metricLabel);
+
+  return state.budget.rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => {
+      if (hasActiveRecapPeriodFilter() && !matchesRecapPeriod(row)) {
+        return false;
+      }
+
+      const rule = getResolvedBudgetCategoryRule(row.Categories || "", "", row.Value);
+      const amount = parseAmount(row.Value);
+
+      if (normalizedMetric === "income") {
+        return rule.includeInIncome;
+      }
+
+      if (normalizedMetric === "expenses") {
+        return rule.includeInExpenses && getExpenseContributionAmount(amount) > 0;
+      }
+
+      if (normalizedMetric === "savings") {
+        return rule.includeInSavings && Math.abs(amount) > 0;
+      }
+
+      if (normalizedMetric === "cash") {
+        return (rule.includeInIncome || rule.includeInExpenses || rule.includeInSavings) && Math.abs(amount) > 0;
+      }
+
+      return false;
+    })
+    .sort((left, right) => compareBudgetRowsForDisplay(left.row, right.row, left.index, right.index));
+}
+
+function buildAnalysisTransactionsModalStats(rows) {
+  const total = rows.reduce((sum, entry) => sum + parseAmount(entry.row?.Value), 0);
+  return {
+    count: rows.length,
+    total: roundCurrencyValue(total),
+  };
+}
+
+function closeAnalysisTransactionsModal() {
+  if (analysisTransactionsModal?.remove) {
+    analysisTransactionsModal.remove();
+  }
+  analysisTransactionsModal = null;
+}
+
+function getAnalysisMetricTransactionsModalCopy(metricLabel, count) {
+  const english = isEnglishUi();
+  const normalizedMetric = normalizeHeaderName(metricLabel);
+
+  if (normalizedMetric === "income") {
+    return {
+      title: english ? "Income details" : "Détail du revenu",
+      description: english
+        ? "Income lines captured over the active filtered period."
+        : "Lignes de revenu prises en compte sur la période filtrée active.",
+      empty: english
+        ? "No income line matches the current filtered period."
+        : "Aucune ligne de revenu ne correspond à la période filtrée actuelle.",
+    };
+  }
+
+  if (normalizedMetric === "expenses") {
+    return {
+      title: english ? "Expense details" : "Détail des dépenses",
+      description: english
+        ? "Expense lines contributing to the current analysis."
+        : "Lignes de dépense qui alimentent l'analyse en cours.",
+      empty: english
+        ? "No expense line matches the current filtered period."
+        : "Aucune ligne de dépense ne correspond à la période filtrée actuelle.",
+    };
+  }
+
+  if (normalizedMetric === "savings") {
+    return {
+      title: english ? "Savings details" : "Détail de l'épargne",
+      description: english
+        ? "Savings lines, including seasonal savings, for the active filtered period."
+        : "Lignes d'épargne, y compris saisonnières, sur la période filtrée active.",
+      empty: english
+        ? "No savings line matches the current filtered period."
+        : "Aucune ligne d'épargne ne correspond à la période filtrée actuelle.",
+    };
+  }
+
+  if (normalizedMetric === "cash") {
+    return {
+      title: "Cash",
+      description: english
+        ? `Cash is derived from ${count} income, expense, and savings line(s) over the current filtered period.`
+        : `Le cash est calculé à partir de ${count} ligne(s) de revenu, de dépense et d'épargne sur la période filtrée actuelle.`,
+      empty: english
+        ? "No line contributes to cash on the current filtered period."
+        : "Aucune ligne ne contribue au cash sur la période filtrée actuelle.",
+    };
+  }
+
+  return {
+    title: getMetricDisplayLabel(metricLabel),
+    description: english
+      ? "Detailed lines for this metric."
+      : "Lignes détaillées pour cet indicateur.",
+    empty: english
+      ? "No line matches this metric."
+      : "Aucune ligne ne correspond à cet indicateur.",
+  };
+}
+
+function openAnalysisTransactionsModal(query) {
+  if (state.mode !== "budget") {
+    return;
+  }
+
+  closeAnalysisTransactionsModal();
+
+  const english = isEnglishUi();
+  const normalizedQuery = String(query || "").trim();
+  const rows = getFilteredBudgetRowsForQuery(normalizedQuery, { limitToRecapPeriod: true });
+  const stats = buildAnalysisTransactionsModalStats(rows);
+  const periodLabel = buildRecapPeriodLabel();
+  const resultTitle = normalizedQuery || (english ? "Filtered transactions" : "Transactions filtrées");
+
+  const overlay = document.createElement("div");
+  overlay.className = "analysis-transactions-modal";
+  overlay.innerHTML = `
+    <div class="analysis-transactions-dialog" role="dialog" aria-modal="true" aria-labelledby="analysis-transactions-title">
+      <div class="analysis-transactions-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Analysis detail" : "Détail d'analyse")}</p>
+          <h3 id="analysis-transactions-title">${escapeHtml(resultTitle)}</h3>
+          <p>${escapeHtml(english
+            ? `Transactions found for ${periodLabel}. You stay in Analysis and can open the full Transactions tab if needed.`
+            : `Transactions trouvées pour ${periodLabel}. Vous restez dans Analyse et pouvez ouvrir l'onglet Transactions si besoin.`)}</p>
+        </div>
+        <button type="button" class="button ghost" data-analysis-transactions-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div class="analysis-transactions-summary">
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(english ? "Results" : "Résultats")}</span>
+          <strong>${stats.count}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(english ? "Total" : "Total")}</span>
+          <strong>${escapeHtml(formatSignedCurrency(stats.total))}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(english ? "Period" : "Période")}</span>
+          <strong>${escapeHtml(periodLabel)}</strong>
+        </article>
+      </div>
+      <div class="analysis-transactions-results">
+        ${rows.length ? rows.map(({ row }) => {
+          const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
+          const categoryLabel = getDisplayCategoryLabel(row.Categories || "") || row.Categories || (english ? "Undefined category" : "Catégorie non définie");
+          const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value) || (english ? "No main category" : "Aucune grande catégorie");
+          return `
+            <article class="analysis-transaction-item">
+              <div class="analysis-transaction-copy">
+                <span class="analysis-transaction-date">${escapeHtml(dateLabel)}</span>
+                <strong>${escapeHtml(categoryLabel)}</strong>
+                <p>${escapeHtml(parentLabel)}</p>
+              </div>
+              <span class="analysis-transaction-amount">${escapeHtml(formatCurrency(row.Value) || row.Value || "-")}</span>
+            </article>
+          `;
+        }).join("") : `
+          <p class="analysis-transactions-empty">${escapeHtml(english
+            ? "No transaction matches this analysis detail on the current period."
+            : "Aucune transaction ne correspond à ce détail d'analyse sur la période en cours.")}</p>
+        `}
+      </div>
+      <div class="analysis-transactions-actions">
+        <button type="button" class="button secondary" data-analysis-transactions-action="open-full">${escapeHtml(english ? "Open in Transactions" : "Ouvrir dans Transactions")}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-analysis-transactions-action]");
+    if (event.target === overlay || action?.dataset.analysisTransactionsAction === "close") {
+      closeAnalysisTransactionsModal();
+      return;
+    }
+
+    if (action?.dataset.analysisTransactionsAction === "open-full") {
+      openTransactionsWithSearch(normalizedQuery);
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeAnalysisTransactionsModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  analysisTransactionsModal = overlay;
+}
+
+function openAnalysisMetricTransactionsModal(metricLabel) {
+  if (state.mode !== "budget") {
+    return;
+  }
+
+  closeAnalysisTransactionsModal();
+
+  const english = isEnglishUi();
+  const normalizedMetric = String(metricLabel || "").trim();
+  const rows = getFilteredBudgetRowsForAnalysisMetric(normalizedMetric);
+  const stats = buildAnalysisTransactionsModalStats(rows);
+  const periodLabel = buildRecapPeriodLabel();
+  const copy = getAnalysisMetricTransactionsModalCopy(normalizedMetric, stats.count);
+
+  const overlay = document.createElement("div");
+  overlay.className = "analysis-transactions-modal";
+  overlay.innerHTML = `
+    <div class="analysis-transactions-dialog" role="dialog" aria-modal="true" aria-labelledby="analysis-transactions-title">
+      <div class="analysis-transactions-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Analysis detail" : "Détail d'analyse")}</p>
+          <h3 id="analysis-transactions-title">${escapeHtml(copy.title)}</h3>
+          <p>${escapeHtml(copy.description)}</p>
+        </div>
+        <button type="button" class="button ghost" data-analysis-transactions-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div class="analysis-transactions-summary">
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(english ? "Results" : "Résultats")}</span>
+          <strong>${stats.count}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(english ? "Total" : "Total")}</span>
+          <strong>${escapeHtml(formatSignedCurrency(stats.total))}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(english ? "Period" : "Période")}</span>
+          <strong>${escapeHtml(periodLabel)}</strong>
+        </article>
+      </div>
+      <div class="analysis-transactions-results">
+        ${rows.length ? rows.map(({ row }) => {
+          const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
+          const categoryLabel = getDisplayCategoryLabel(row.Categories || "") || row.Categories || (english ? "Undefined category" : "Catégorie non définie");
+          const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value) || (english ? "No main category" : "Aucune grande catégorie");
+          return `
+            <article class="analysis-transaction-item">
+              <div class="analysis-transaction-copy">
+                <span class="analysis-transaction-date">${escapeHtml(dateLabel)}</span>
+                <strong>${escapeHtml(categoryLabel)}</strong>
+                <p>${escapeHtml(parentLabel)}</p>
+              </div>
+              <span class="analysis-transaction-amount">${escapeHtml(formatCurrency(row.Value) || row.Value || "-")}</span>
+            </article>
+          `;
+        }).join("") : `
+          <p class="analysis-transactions-empty">${escapeHtml(copy.empty)}</p>
+        `}
+      </div>
+      <div class="analysis-transactions-actions">
+        <button type="button" class="button secondary" data-analysis-transactions-action="open-full-metric">${escapeHtml(english ? "Open in Transactions" : "Ouvrir dans Transactions")}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-analysis-transactions-action]");
+    if (event.target === overlay || action?.dataset.analysisTransactionsAction === "close") {
+      closeAnalysisTransactionsModal();
+      return;
+    }
+
+    if (action?.dataset.analysisTransactionsAction === "open-full-metric") {
+      closeAnalysisTransactionsModal();
+      setAppTab(APP_TAB_TRANSACTIONS);
+      refs.searchInput && (refs.searchInput.value = "");
+      state.search = "";
+      persistDraftIfPossible();
+      renderAll();
+      showToast(english
+        ? `${copy.title}: open the filtered period in Transactions.`
+        : `${copy.title} : la période filtrée est ouverte dans Transactions.`);
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeAnalysisTransactionsModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  analysisTransactionsModal = overlay;
+}
+
+function applyAnalysisPeriodSelection(year, month) {
+  const normalizedYear = String(year || "").trim();
+  const normalizedMonth = String(month || "").padStart(2, "0").trim();
+  const availableYears = getAvailableRecapYears();
+
+  if (!normalizedYear || !normalizedMonth || !availableYears.includes(normalizedYear)) {
+    return;
+  }
+
+  const availableMonths = getAvailableRecapMonths(normalizedYear);
+  if (!availableMonths.includes(normalizedMonth)) {
+    return;
+  }
+
+  state.recapFilters.year = normalizedYear;
+  state.recapFilters.months = [normalizedMonth];
+  state.recapFilters.month = normalizedMonth;
+  persistDraft();
+  renderAll();
+  scrollToAnalysisSection("trends");
+}
+
+function scrollToAnalysisSection(sectionName) {
+  const normalizedSection = String(sectionName || "").trim();
+  if (!normalizedSection || !refs.recapView) {
+    return;
+  }
+
+  const section = refs.recapView.querySelector(`[data-analysis-section="${normalizedSection}"]`);
+  if (!section) {
+    return;
+  }
+
+  if (typeof section.scrollIntoView === "function") {
+    section.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+}
+
+function openAnalysisPlanGroup(groupKey) {
+  const normalizedGroupKey = String(groupKey || "").trim();
+  if (!normalizedGroupKey || !refs.recapView) {
+    return;
+  }
+
+  const planGroup = refs.recapView.querySelector(`[data-analysis-group-key="${normalizedGroupKey}"]`);
+  if (!planGroup) {
+    return;
+  }
+
+  if (planGroup.tagName === "DETAILS") {
+    planGroup.open = true;
+  }
+
+  if (typeof planGroup.scrollIntoView === "function") {
+    planGroup.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
 }
 
 function clonePlanTemplateRows(rows) {
@@ -9571,32 +10024,7 @@ function buildWorkbookLabel() {
 }
 
 function getFilteredJournalRows() {
-  const query = state.search;
-
-  return state.budget.rows
-    .map((row, index) => ({ row, index }))
-    .filter(({ row }) => {
-      if (hasActiveRecapPeriodFilter() && !matchesRecapPeriod(row)) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-        const haystack = [
-          row.Date,
-          formatDateForDisplay(row.Date),
-          row.Categories,
-          getDisplayCategoryLabel(row.Categories || ""),
-          getBudgetFraCategoryLabel(row.Categories || "", "", row.Value),
-          row.Value,
-          formatCurrency(row.Value),
-        ].join(" ").toLowerCase();
-
-      return haystack.includes(query);
-    })
-    .sort((left, right) => compareBudgetRowsForDisplay(left.row, right.row, left.index, right.index));
+  return getFilteredBudgetRowsForQuery(state.search, { limitToRecapPeriod: true });
 }
 
 function renderCards() {
@@ -9915,6 +10343,7 @@ function buildLiveAnalysisView() {
   const filteredRows = getFilteredRecapSourceRows();
   const actualMap = buildActualAmountMap(filteredRows);
   const snapshot = computeMetricSnapshot(actualMap);
+  const groupSummaries = buildBudgetFraGroupSummaries(actualMap);
   const ruleAlerts = buildBudgetFraRuleAlerts(actualMap, snapshot);
   const suggestions = buildBudgetFraSuggestions(actualMap, snapshot);
   const allSeriesRows = buildAnalysisSeriesRows();
@@ -9936,6 +10365,8 @@ function buildLiveAnalysisView() {
     available: true,
     periodLabel: buildRecapPeriodLabel(),
     chartCount,
+    snapshot,
+    groupSummaries,
     metricCards: buildAnalysisMetricCards(snapshot),
     comparisonRows: buildAnalysisComparisonRows(snapshot),
     seriesRows,
@@ -10320,10 +10751,10 @@ function buildRecapMetrics(actualMap) {
 
 function buildAnalysisMetricCards(snapshot) {
   return [
-    { label: "Income", value: snapshot.income, tone: "positive" },
-    { label: "Expenses", value: snapshot.expenses, tone: "negative" },
-    { label: "Savings", value: snapshot.totalSavings, tone: "neutral" },
-    { label: "Cash", value: snapshot.cash, tone: snapshot.cash >= 0 ? "positive" : "negative" },
+    { label: "Income", value: snapshot.income, tone: "positive", action: "open-metric-transactions", metric: "Income" },
+    { label: "Expenses", value: snapshot.expenses, tone: "negative", action: "open-metric-transactions", metric: "Expenses" },
+    { label: "Savings", value: snapshot.totalSavings, tone: "neutral", action: "open-metric-transactions", metric: "Savings" },
+    { label: "Cash", value: snapshot.cash, tone: snapshot.cash >= 0 ? "positive" : "negative", action: "open-metric-transactions", metric: "Cash" },
   ];
 }
 
@@ -10691,6 +11122,8 @@ function buildAnalysisSeriesRows() {
       key: row.key,
       label: row.label,
       shortLabel: row.shortLabel,
+      filterYear: row.filterYear,
+      filterMonth: row.filterMonth,
       income: snapshot.income,
       expenses: snapshot.expenses,
       savings: snapshot.totalSavings,
@@ -10734,6 +11167,8 @@ function getAnalysisBucketForDate(dateParts, mode) {
       sortKey: buildYearMonthKey(dateParts.year, dateParts.month),
       label: formatMonthLabel(dateParts.month),
       shortLabel: formatMonthShortLabel(dateParts.year, dateParts.month, false),
+      filterYear: dateParts.year,
+      filterMonth: dateParts.month,
     };
   }
 
@@ -10747,8 +11182,10 @@ function getAnalysisBucketForDate(dateParts, mode) {
       sortKey: dateParts.year,
       label: dateParts.year,
       shortLabel: dateParts.year,
-      };
-    }
+      filterYear: dateParts.year,
+      filterMonth: dateParts.month,
+    };
+  }
 
   if (mode === "filtered_months") {
     if (!selectedMonths.includes(dateParts.month)) {
@@ -10760,6 +11197,8 @@ function getAnalysisBucketForDate(dateParts, mode) {
       sortKey: buildYearMonthKey(dateParts.year, dateParts.month),
       label: formatMonthShortLabel(dateParts.year, dateParts.month, true),
       shortLabel: formatMonthShortLabel(dateParts.year, dateParts.month, false),
+      filterYear: dateParts.year,
+      filterMonth: dateParts.month,
     };
   }
 
@@ -10768,6 +11207,8 @@ function getAnalysisBucketForDate(dateParts, mode) {
     sortKey: buildYearMonthKey(dateParts.year, dateParts.month),
     label: formatMonthShortLabel(dateParts.year, dateParts.month, true),
     shortLabel: formatMonthShortLabel(dateParts.year, dateParts.month, false),
+    filterYear: dateParts.year,
+    filterMonth: dateParts.month,
   };
 }
 
@@ -11304,7 +11745,6 @@ function createRecapMarkup(recapView) {
       </div>
       ${createSmartDashboardMarkup(recapView)}
       ${state.settings.showBudgetFraAlerts ? createBudgetFraAlertMarkup(recapView.ruleAlerts.slice(0, 4)) : ""}
-      ${createBudgetFraSummaryMarkup(recapView.groupSummaries)}
       ${state.settings.showBudgetFraSuggestions ? createBudgetFraSuggestionMarkup(recapView.suggestions.slice(0, 3)) : ""}
     </div>
   `;
@@ -11468,6 +11908,163 @@ function createBudgetFraSuggestionMarkup(rows) {
   `;
 }
 
+function getAnalysisPrimaryExpenseRow(analysisView) {
+  if (!analysisView?.expenseBreakdown?.available || !Array.isArray(analysisView.expenseBreakdown.rows)) {
+    return null;
+  }
+
+  return analysisView.expenseBreakdown.rows.find((row) => row && row.label) || null;
+}
+
+function getAnalysisLargestGapGroup(planGroups) {
+  return (Array.isArray(planGroups) ? planGroups : [])
+    .slice()
+    .sort((left, right) => Math.abs(right.delta || 0) - Math.abs(left.delta || 0))[0] || null;
+}
+
+function buildAnalysisOverviewCards(analysisView) {
+  const english = isEnglishUi();
+  const snapshot = analysisView?.snapshot || computeMetricSnapshot(new Map());
+  const primaryExpense = getAnalysisPrimaryExpenseRow(analysisView);
+  const gapGroup = getAnalysisLargestGapGroup(analysisView?.planGroups);
+  const primaryAlert = Array.isArray(analysisView?.ruleAlerts) && analysisView.ruleAlerts.length
+    ? analysisView.ruleAlerts[0]
+    : null;
+
+  const cards = [
+    {
+      kicker: english ? "Net cash" : "Cash net",
+      title: formatSignedCurrency(snapshot.cash),
+      body: snapshot.cash >= 0
+        ? (english
+          ? "Available after expenses and savings for the filtered period."
+          : "Disponible après dépenses et épargne sur la période filtrée.")
+        : (english
+          ? "Negative on the filtered period: this is the first number to monitor."
+          : "Négatif sur la période filtrée : c'est le premier chiffre à surveiller."),
+      tone: snapshot.cash >= 0 ? "tone-positive" : "tone-negative",
+      action: "scroll-section",
+      section: "comparison",
+      actionLabel: english ? "See budget totals" : "Voir les indicateurs",
+    },
+    {
+      kicker: english ? "Top expense family" : "Poste dominant",
+      title: primaryExpense?.label || (english ? "No dominant family" : "Aucun poste dominant"),
+      body: primaryExpense
+        ? `${primaryExpense.displayValue} · ${primaryExpense.shareLabel}`
+        : (english
+          ? "No expense category stands out yet."
+          : "Aucune catégorie de dépense ne ressort encore."),
+      tone: "tone-neutral",
+      action: primaryExpense ? "open-transactions" : "",
+      query: primaryExpense?.label || "",
+      actionLabel: primaryExpense
+        ? (english ? "Open transactions" : "Ouvrir les transactions")
+        : "",
+    },
+    {
+      kicker: english ? "Largest budget gap" : "Écart principal",
+      title: gapGroup?.label || (english ? "No gap detected" : "Aucun écart détecté"),
+      body: gapGroup
+        ? `${formatSignedCurrency(gapGroup.delta)} · ${gapGroup.statusLabel}`
+        : (english
+          ? "Plan and actual remain aligned on this period."
+          : "Le plan et le réel restent alignés sur cette période."),
+      tone: Math.abs(gapGroup?.delta || 0) > 0.01
+        ? ((gapGroup?.delta || 0) > 0 ? "tone-negative" : "tone-positive")
+        : "tone-default",
+      action: gapGroup ? "open-plan-group" : "",
+      groupKey: gapGroup?.key || "",
+      actionLabel: gapGroup
+        ? (english ? "Open plan vs actual" : "Ouvrir Plan vs réel")
+        : "",
+    },
+    {
+      kicker: english ? "Analysis period" : "Période analysée",
+      title: analysisView?.periodLabel || (english ? "All data" : "Toutes les données"),
+      body: english
+        ? `${analysisView?.transactionCount || 0} transaction(s) over ${getBudgetPeriodCountLabel(analysisView?.budgetPeriodCount || 1)}.`
+        : `${analysisView?.transactionCount || 0} transaction(s) sur ${getBudgetPeriodCountLabel(analysisView?.budgetPeriodCount || 1)}.`,
+      tone: "tone-default",
+      action: "scroll-section",
+      section: "trends",
+      actionLabel: english ? "See trends" : "Voir les tendances",
+    },
+  ];
+
+  if (primaryAlert) {
+    cards.push({
+      kicker: english ? "Main alert" : "Alerte principale",
+      title: primaryAlert.title,
+      body: primaryAlert.detail,
+      tone: primaryAlert.tone === "risk"
+        ? "tone-negative"
+        : primaryAlert.tone === "good"
+          ? "tone-positive"
+          : "tone-accent",
+      action: "scroll-section",
+      section: "alerts",
+      actionLabel: english ? "Open alerts" : "Ouvrir les alertes",
+      wide: true,
+    });
+  }
+
+  return cards;
+}
+
+function createAnalysisOverviewMarkup(analysisView) {
+  const english = isEnglishUi();
+  const cards = buildAnalysisOverviewCards(analysisView);
+  return `
+    <section class="recap-section" data-analysis-section="summary">
+      <div class="recap-section-head">
+        <h3>${english ? "Budget pilot summary" : "Résumé du pilotage"}</h3>
+        <p>${english
+          ? "A quick reading to understand where to act first before opening the detailed charts."
+          : "Une lecture rapide pour comprendre où agir en premier avant d'ouvrir les graphiques détaillés."}</p>
+      </div>
+      <div class="smart-dashboard-grid analysis-overview-grid">
+        ${cards.map((card) => `
+          <article
+            class="smart-dashboard-card ${card.tone}${card.wide ? " tone-wide" : ""}${card.action ? " is-clickable" : ""}"
+            ${card.action ? `data-analysis-action="${escapeHtml(card.action)}"` : ""}
+            ${card.query ? `data-analysis-query="${escapeHtml(card.query)}"` : ""}
+            ${card.groupKey ? `data-analysis-group-key="${escapeHtml(card.groupKey)}"` : ""}
+            ${card.section ? `data-analysis-target-section="${escapeHtml(card.section)}"` : ""}
+          >
+            <span class="smart-dashboard-kicker">${escapeHtml(card.kicker)}</span>
+            <strong>${escapeHtml(card.title)}</strong>
+            <p>${escapeHtml(card.body)}</p>
+            ${card.actionLabel ? `<span class="analysis-card-link">${escapeHtml(card.actionLabel)}</span>` : ""}
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function getAnalysisMetricActionConfig(label) {
+  const normalized = normalizeHeaderName(label);
+  if (normalized === "income") {
+    return {
+      action: "open-transactions",
+      query: getBudgetFraCategoryMeta("income").label,
+    };
+  }
+
+  if (normalized === "savings") {
+    return {
+      action: "open-transactions",
+      query: getBudgetFraCategoryMeta("savings").label,
+    };
+  }
+
+  return {
+    action: "scroll-section",
+    section: "plan",
+  };
+}
+
 function createAnalysisMarkup(analysisView) {
   const comparisonMaxValue = Math.max(
     ...analysisView.comparisonRows.map((row) => row.value),
@@ -11484,12 +12081,20 @@ function createAnalysisMarkup(analysisView) {
         ${analysisView.metricCards.map((metric) => createRecapMetricMarkup(metric)).join("")}
       </div>
 
-      <section class="recap-section">
+      ${createAnalysisOverviewMarkup(analysisView)}
+
+      ${state.settings.showBudgetFraAlerts ? `
+        <div data-analysis-section="alerts">
+          ${createBudgetFraAlertMarkup(analysisView.ruleAlerts)}
+        </div>
+      ` : ""}
+
+      <section class="recap-section" data-analysis-section="charts">
         <div class="recap-section-head">
           <h3>${english ? "Budget charts" : "Graphiques budgétaires"}</h3>
           <p>${english
-            ? "A more visual read of your flows, expense categories, and monthly habits."
-            : "Une lecture plus visuelle de vos flux, de vos catégories de dépenses et de vos habitudes mensuelles."}</p>
+            ? "A more visual read of your flows, expense categories, and monthly habits. Tap a category or a period to open its detail."
+            : "Une lecture plus visuelle de vos flux, de vos catégories de dépenses et de vos habitudes mensuelles. Touchez une catégorie ou une période pour ouvrir son détail."}</p>
         </div>
         <div class="analysis-visual-grid">
           ${createAnalysisCashFlowMarkup(analysisView.cashFlow)}
@@ -11498,7 +12103,7 @@ function createAnalysisMarkup(analysisView) {
         </div>
       </section>
 
-      <section class="recap-section">
+      <section class="recap-section" data-analysis-section="comparison">
         <div class="recap-section-head">
           <h3>${english ? "Metric comparison" : "Comparaison des indicateurs"}</h3>
           <p>${english
@@ -11510,11 +12115,9 @@ function createAnalysisMarkup(analysisView) {
         </div>
       </section>
 
-      ${state.settings.showBudgetFraAlerts ? createBudgetFraAlertMarkup(analysisView.ruleAlerts) : ""}
-
       ${state.settings.showBudgetFraSuggestions ? createBudgetFraSuggestionMarkup(analysisView.suggestions.slice(0, 4)) : ""}
 
-      <section class="recap-section">
+      <section class="recap-section" data-analysis-section="trends">
         <div class="recap-section-head">
           <h3>${escapeHtml(analysisView.trendTitle)}</h3>
           <p>${escapeHtml(analysisView.trendSubtitle)}</p>
@@ -11570,7 +12173,7 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
   const english = getCurrentLanguage() === "en";
   if (!Array.isArray(groups) || !groups.length) {
     return `
-      <section class="recap-section">
+      <section class="recap-section" data-analysis-section="plan">
         <div class="recap-section-head">
           <h3>${english ? "Plan vs actual" : "Plan vs réel"}</h3>
           <p>${english
@@ -11583,7 +12186,7 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
   }
 
   return `
-    <section class="recap-section">
+    <section class="recap-section" data-analysis-section="plan">
       <div class="recap-section-head">
         <h3>${english ? "Plan vs actual" : "Plan vs réel"}</h3>
         <p>${english
@@ -11599,8 +12202,11 @@ function createAnalysisPlanGroupsMarkup(groups, budgetPeriodCount) {
 
 function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
   const english = getCurrentLanguage() === "en";
+  const sortedRows = group.rows.slice().sort(
+    (left, right) => Math.abs(right.delta || 0) - Math.abs(left.delta || 0)
+  );
   return `
-    <details class="analysis-plan-group">
+    <details class="analysis-plan-group" data-analysis-group-key="${escapeHtml(group.key)}">
       <summary class="analysis-plan-group-summary">
         <div class="analysis-plan-group-copy">
           <span class="analysis-plan-group-kicker">${english ? "Main category" : "Grande catégorie"}</span>
@@ -11616,6 +12222,10 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
             <span>${english ? "Actual" : "Réel"}</span>
             <strong>${escapeHtml(formatCurrency(group.actual))}</strong>
           </div>
+          <div class="analysis-plan-stat">
+            <span>${english ? "Gap" : "Écart"}</span>
+            <strong class="${group.delta > 0 ? "analysis-delta-negative" : group.delta < 0 ? "analysis-delta-positive" : ""}">${escapeHtml(formatSignedCurrency(group.delta))}</strong>
+          </div>
           <div class="analysis-plan-status-wrap">
             ${createRecapStatusChipMarkup(group.statusLabel, group.statusTone)}
           </div>
@@ -11629,15 +12239,17 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
                 <th>${english ? "Category" : "Catégorie"}</th>
                 <th class="numeric">${english ? "Budget" : "Budget"} (${escapeHtml(getBudgetPeriodCountLabel(budgetPeriodCount))})</th>
                 <th class="numeric">${english ? "Actual" : "Réel"}</th>
+                <th class="numeric">${english ? "Gap" : "Écart"}</th>
                 <th>${english ? "Status" : "Statut"}</th>
               </tr>
             </thead>
             <tbody>
-              ${group.rows.map((row) => `
+              ${sortedRows.map((row) => `
                 <tr>
                   <td>${escapeHtml(getDisplayCategoryLabel(row.label) || row.label)}</td>
                   <td class="numeric">${escapeHtml(formatCurrency(row.plan))}</td>
                   <td class="numeric">${escapeHtml(formatCurrency(row.actual))}</td>
+                  <td class="numeric ${row.delta > 0 ? "analysis-delta-negative" : row.delta < 0 ? "analysis-delta-positive" : ""}">${escapeHtml(formatSignedCurrency(row.delta))}</td>
                   <td>${createRecapStatusChipMarkup(row.statusLabel, row.statusTone)}</td>
                 </tr>
               `).join("")}
@@ -11650,8 +12262,14 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
 }
 
 function createAnalysisMetricBarMarkup(row, maxValue) {
+  const actionConfig = getAnalysisMetricActionConfig(row.label);
   return `
-    <article class="analysis-bar-card analysis-bar-card-${row.tone}">
+    <article
+      class="analysis-bar-card analysis-bar-card-${row.tone} analysis-clickable"
+      data-analysis-action="${escapeHtml(actionConfig.action)}"
+      ${actionConfig.query ? `data-analysis-query="${escapeHtml(actionConfig.query)}"` : ""}
+      ${actionConfig.section ? `data-analysis-target-section="${escapeHtml(actionConfig.section)}"` : ""}
+    >
       <div class="analysis-bar-head">
         <span>${escapeHtml(getMetricDisplayLabel(row.label))}</span>
         <strong>${escapeHtml(row.displayValue)}</strong>
@@ -11756,13 +12374,18 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
         </div>
         <div class="analysis-donut-legend">
           ${expenseBreakdown.rows.map((row) => `
-            <div class="analysis-donut-item">
+            <button
+              type="button"
+              class="analysis-donut-item analysis-clickable"
+              data-analysis-action="open-transactions"
+              data-analysis-query="${escapeHtml(row.label)}"
+            >
               <span class="analysis-donut-swatch" style="background:${row.color};"></span>
               <div>
                 <strong>${escapeHtml(row.label)}</strong>
                 <span>${escapeHtml(row.displayValue)} · ${escapeHtml(row.shareLabel)}</span>
               </div>
-            </div>
+            </button>
           `).join("")}
         </div>
       </div>
@@ -11796,7 +12419,12 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
       </div>
       <div class="analysis-benchmark-list">
         ${categoryBenchmark.rows.map((row) => `
-          <article class="analysis-benchmark-row">
+          <button
+            type="button"
+            class="analysis-benchmark-row analysis-clickable"
+            data-analysis-action="open-transactions"
+            data-analysis-query="${escapeHtml(row.label)}"
+          >
             <div class="analysis-benchmark-head">
               <strong>${escapeHtml(row.label)}</strong>
               <span>${escapeHtml(row.currentDisplayValue)} / ${escapeHtml(row.averageDisplayValue)}</span>
@@ -11805,7 +12433,7 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
               <span class="analysis-benchmark-bar average" style="width:${row.averagePercent}%;"></span>
               <span class="analysis-benchmark-bar current ${row.tone}" style="width:${row.currentPercent}%;"></span>
             </div>
-          </article>
+          </button>
         `).join("")}
       </div>
       <div class="analysis-benchmark-legend">
@@ -11818,7 +12446,13 @@ function createAnalysisBenchmarkMarkup(categoryBenchmark) {
 
 function createAnalysisPeriodGroupMarkup(row, maxValue) {
   return `
-    <article class="analysis-period-group">
+    <button
+      type="button"
+      class="analysis-period-group analysis-clickable"
+      data-analysis-action="filter-period"
+      data-analysis-year="${escapeHtml(row.filterYear || "")}"
+      data-analysis-month="${escapeHtml(row.filterMonth || "")}"
+    >
       <div class="analysis-period-bars">
         <span class="analysis-mini-bar income" style="height: ${buildChartScale(row.income, maxValue, 10)}%;"></span>
         <span class="analysis-mini-bar expenses" style="height: ${buildChartScale(row.expenses, maxValue, 10)}%;"></span>
@@ -11826,14 +12460,18 @@ function createAnalysisPeriodGroupMarkup(row, maxValue) {
       </div>
       <strong class="analysis-period-label">${escapeHtml(row.shortLabel)}</strong>
       <span class="analysis-period-meta">${escapeHtml(formatSignedCurrency(row.cash))}</span>
-    </article>
+    </button>
   `;
 }
 
 function createRecapMetricMarkup(metric) {
   const iconMarkup = getMetricIconMarkup(metric.label);
   return `
-    <article class="recap-metric recap-metric-${metric.tone}">
+    <article
+      class="recap-metric recap-metric-${metric.tone}${metric.action ? " analysis-clickable" : ""}"
+      ${metric.action ? `data-analysis-action="${escapeHtml(metric.action)}"` : ""}
+      ${metric.metric ? `data-analysis-metric="${escapeHtml(metric.metric)}"` : ""}
+    >
       <div class="recap-metric-head">
         ${iconMarkup ? `<span class="recap-metric-icon recap-metric-icon-${escapeHtml(getMetricIconKey(metric.label))}" aria-hidden="true">${iconMarkup}</span>` : ""}
         <span class="recap-metric-label">${escapeHtml(getMetricDisplayLabel(metric.label))}</span>
