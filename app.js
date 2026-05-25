@@ -339,6 +339,11 @@ const UI_STRINGS = {
     "recurring.viewOccurrencesScheduled": "Occurrence prévue",
     "recurring.viewOccurrencesNext": "Prochaine occurrence prévue",
     "recurring.viewOccurrencesNoNext": "Aucune occurrence prévue",
+    "recurring.viewOccurrencesPendingCount": "À traiter",
+    "recurring.viewOccurrencesAddedSummary": "Ajoutées (résumé)",
+    "recurring.viewOccurrencesIgnoredSummary": "Ignorées (résumé)",
+    "recurring.viewOccurrencesYearTotal": "{year} · {count} au total",
+    "recurring.viewOccurrencesMonthCount": "{month} · {count}",
     "export.journalPreparing": "Préparation d'une copie Journalier",
     "export.journalShared": "Copie Journalier exportée et partagée depuis l'app mobile",
     "export.journalSuccess": "Copie Journalier exportée sans toucher au classeur source",
@@ -654,6 +659,11 @@ const UI_STRINGS = {
     "recurring.viewOccurrencesScheduled": "Scheduled occurrence",
     "recurring.viewOccurrencesNext": "Next scheduled occurrence",
     "recurring.viewOccurrencesNoNext": "No scheduled occurrence",
+    "recurring.viewOccurrencesPendingCount": "To review",
+    "recurring.viewOccurrencesAddedSummary": "Added (summary)",
+    "recurring.viewOccurrencesIgnoredSummary": "Ignored (summary)",
+    "recurring.viewOccurrencesYearTotal": "{year} · {count} total",
+    "recurring.viewOccurrencesMonthCount": "{month} · {count}",
     "export.journalPreparing": "Preparing the Journal export copy",
     "export.journalShared": "Journal copy exported and shared from the mobile app",
     "export.journalSuccess": "Journal copy exported without touching the source workbook",
@@ -2596,12 +2606,52 @@ function getNextScheduledRecurringOccurrence(template) {
   return null;
 }
 
+function buildRecurringOccurrenceGroupedSummary(entries) {
+  const grouped = new Map();
+
+  entries.forEach((entry) => {
+    const date = normalizeDateValue(entry?.date);
+    if (!date) {
+      return;
+    }
+
+    const yearKey = date.slice(0, 4);
+    const monthKey = date.slice(0, 7);
+    if (!grouped.has(yearKey)) {
+      grouped.set(yearKey, new Map());
+    }
+
+    const yearGroup = grouped.get(yearKey);
+    yearGroup.set(monthKey, (yearGroup.get(monthKey) || 0) + 1);
+  });
+
+  return Array.from(grouped.entries())
+    .sort((left, right) => String(right[0]).localeCompare(String(left[0])))
+    .map(([year, monthsMap]) => {
+      const months = Array.from(monthsMap.entries())
+        .sort((left, right) => String(right[0]).localeCompare(String(left[0])))
+        .map(([monthKey, count]) => ({
+          key: monthKey,
+          label: formatMonthYearLabelFromIso(`${monthKey}-01`) || monthKey,
+          count,
+        }));
+
+      return {
+        year,
+        total: months.reduce((sum, month) => sum + month.count, 0),
+        months,
+      };
+    });
+}
+
 function buildRecurringTemplateOccurrenceHistory(template) {
   if (!template?.id) {
     return {
       pending: [],
-      added: [],
-      ignored: [],
+      addedGroups: [],
+      ignoredGroups: [],
+      addedCount: 0,
+      ignoredCount: 0,
       nextScheduled: null,
     };
   }
@@ -2642,8 +2692,10 @@ function buildRecurringTemplateOccurrenceHistory(template) {
 
   return {
     pending,
-    added,
-    ignored,
+    addedGroups: buildRecurringOccurrenceGroupedSummary(added),
+    ignoredGroups: buildRecurringOccurrenceGroupedSummary(ignored),
+    addedCount: added.length,
+    ignoredCount: ignored.length,
     nextScheduled: getNextScheduledRecurringOccurrence(template),
   };
 }
@@ -5167,17 +5219,22 @@ async function syncSupabaseSession() {
     state.cloud.email = data.session.user.email;
   }
 
-  if (state.cloud.user) {
-    setCloudStatus(hasCloudSpaceSelected()
-      ? `Connecté à Supabase. Espace actif : ${state.cloud.space.name || state.cloud.space.joinCode || "budget partagé"}.`
-      : "Connecté à Supabase. Créez ou rejoignez un espace partagé.");
-    if (hasCloudSpaceSelected()) {
-      await attachToCurrentCloudSpace({
-        silent: true,
-        preserveLastAction: true,
-      });
+    if (state.cloud.user) {
+      setCloudStatus(hasCloudSpaceSelected()
+        ? `Connecté à Supabase. Espace actif : ${state.cloud.space.name || state.cloud.space.joinCode || "budget partagé"}.`
+        : "Connecté à Supabase. Créez ou rejoignez un espace partagé.");
+      if (hasCloudSpaceSelected()) {
+        try {
+          await attachToCurrentCloudSpace({
+            silent: true,
+            preserveLastAction: true,
+            loadBudget: true,
+          });
+        } catch (error) {
+          console.error(error);
+        }
+      }
     }
-  }
 
   renderAll();
 }
@@ -5437,7 +5494,18 @@ async function attachToCurrentCloudSpace(options = {}) {
     return;
   }
 
+  const shouldLoadBudget = options.loadBudget === true;
   await loadCloudSpaceMetadata(state.cloud.space.id, options);
+  if (shouldLoadBudget) {
+    try {
+      await loadBudgetFromSupabase(state.cloud.space.id, options);
+    } catch (error) {
+      startSupabaseRealtime(state.cloud.space.id);
+      throw error;
+    }
+    return;
+  }
+
   startSupabaseRealtime(state.cloud.space.id);
 }
 
@@ -12845,7 +12913,7 @@ function openRecurringOccurrencesHistoryModal(template) {
     ? `${formatDateForDisplay(history.nextScheduled.date) || history.nextScheduled.date} · ${formatCurrency(history.nextScheduled.value)}`
     : t("recurring.viewOccurrencesNoNext");
 
-  const renderHistoryEntries = (entries, emptyLabel) => {
+  const renderPendingEntries = (entries, emptyLabel) => {
     if (!entries.length) {
       return `<p class="recurring-history-empty">${escapeHtml(emptyLabel)}</p>`;
     }
@@ -12856,6 +12924,29 @@ function openRecurringOccurrencesHistoryModal(template) {
           <article class="recurring-history-entry">
             <strong>${escapeHtml(formatDateForDisplay(entry.date) || entry.date || t("recurring.viewOccurrencesScheduled"))}</strong>
             <span>${escapeHtml(formatCurrency(entry.value))}</span>
+          </article>
+        `).join("")}
+      </div>
+    `;
+  };
+
+  const renderGroupedSummary = (groups, emptyLabel) => {
+    if (!groups.length) {
+      return `<p class="recurring-history-empty">${escapeHtml(emptyLabel)}</p>`;
+    }
+
+    return `
+      <div class="recurring-history-groups">
+        ${groups.map((group) => `
+          <article class="recurring-history-group">
+            <div class="recurring-history-group-head">
+              <strong>${escapeHtml(t("recurring.viewOccurrencesYearTotal", { year: group.year, count: group.total }))}</strong>
+            </div>
+            <div class="recurring-history-group-months">
+              ${group.months.map((month) => `
+                <span class="recurring-history-month-chip">${escapeHtml(t("recurring.viewOccurrencesMonthCount", { month: month.label, count: month.count }))}</span>
+              `).join("")}
+            </div>
           </article>
         `).join("")}
       </div>
@@ -12879,27 +12970,41 @@ function openRecurringOccurrencesHistoryModal(template) {
         <span>${escapeHtml(categoryLabel)} · ${escapeHtml(formatCurrency(template.value))} · ${escapeHtml(getPlanPeriodLabel(template.period))}</span>
         <span>${escapeHtml(`${t("recurring.viewOccurrencesNext")} · ${nextScheduledLabel}`)}</span>
       </div>
+      <div class="recurring-history-stats">
+        <article class="recurring-history-stat">
+          <span>${escapeHtml(t("recurring.viewOccurrencesPendingCount"))}</span>
+          <strong>${history.pending.length}</strong>
+        </article>
+        <article class="recurring-history-stat">
+          <span>${escapeHtml(t("recurring.viewOccurrencesAdded"))}</span>
+          <strong>${history.addedCount}</strong>
+        </article>
+        <article class="recurring-history-stat">
+          <span>${escapeHtml(t("recurring.viewOccurrencesIgnored"))}</span>
+          <strong>${history.ignoredCount}</strong>
+        </article>
+      </div>
       <div class="recurring-history-sections">
         <section class="recurring-history-section">
           <div class="recurring-history-section-head">
             <strong>${escapeHtml(t("recurring.viewOccurrencesPending"))}</strong>
             <span>${history.pending.length}</span>
           </div>
-          ${renderHistoryEntries(history.pending, t("recurring.viewOccurrencesEmpty"))}
+          ${renderPendingEntries(history.pending, t("recurring.viewOccurrencesEmpty"))}
         </section>
         <section class="recurring-history-section">
           <div class="recurring-history-section-head">
-            <strong>${escapeHtml(t("recurring.viewOccurrencesAdded"))}</strong>
-            <span>${history.added.length}</span>
+            <strong>${escapeHtml(t("recurring.viewOccurrencesAddedSummary"))}</strong>
+            <span>${history.addedCount}</span>
           </div>
-          ${renderHistoryEntries(history.added, t("recurring.viewOccurrencesEmpty"))}
+          ${renderGroupedSummary(history.addedGroups, t("recurring.viewOccurrencesEmpty"))}
         </section>
         <section class="recurring-history-section">
           <div class="recurring-history-section-head">
-            <strong>${escapeHtml(t("recurring.viewOccurrencesIgnored"))}</strong>
-            <span>${history.ignored.length}</span>
+            <strong>${escapeHtml(t("recurring.viewOccurrencesIgnoredSummary"))}</strong>
+            <span>${history.ignoredCount}</span>
           </div>
-          ${renderHistoryEntries(history.ignored, t("recurring.viewOccurrencesEmpty"))}
+          ${renderGroupedSummary(history.ignoredGroups, t("recurring.viewOccurrencesEmpty"))}
         </section>
       </div>
     </div>

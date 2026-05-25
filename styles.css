@@ -2554,6 +2554,34 @@ textarea {
   margin-top: 16px;
 }
 
+.recurring-history-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.recurring-history-stat {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: rgba(244, 250, 248, 0.82);
+}
+
+.recurring-history-stat span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recurring-history-stat strong {
+  font-size: 1.55rem;
+}
+
 .recurring-history-section {
   display: grid;
   gap: 12px;
@@ -2590,6 +2618,38 @@ textarea {
 .recurring-history-entries {
   display: grid;
   gap: 10px;
+}
+
+.recurring-history-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.recurring-history-group {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.recurring-history-group-months {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recurring-history-month-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(47, 125, 116, 0.1);
+  color: var(--teal);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .recurring-history-entry {
@@ -3333,6 +3393,10 @@ body.native-android .category-autocomplete-panel-android {
     width: 100%;
   }
 
+  .recurring-history-stats {
+    grid-template-columns: 1fr;
+  }
+
   .recurring-history-entry {
     flex-direction: column;
     align-items: flex-start;
@@ -3715,20 +3779,29 @@ body[data-theme="dark"] .recurring-occurrence-toggle {
 }
 
 body[data-theme="dark"] .recurring-history-section,
-body[data-theme="dark"] .recurring-history-entry {
+body[data-theme="dark"] .recurring-history-entry,
+body[data-theme="dark"] .recurring-history-stat,
+body[data-theme="dark"] .recurring-history-group {
   border-color: var(--line);
   box-shadow: var(--soft-card-shadow);
 }
 
-body[data-theme="dark"] .recurring-history-section {
+body[data-theme="dark"] .recurring-history-section,
+body[data-theme="dark"] .recurring-history-stat {
   background: rgba(21, 35, 42, 0.92);
 }
 
-body[data-theme="dark"] .recurring-history-entry {
+body[data-theme="dark"] .recurring-history-entry,
+body[data-theme="dark"] .recurring-history-group {
   background: linear-gradient(180deg, rgba(20, 33, 39, 0.96), rgba(14, 24, 30, 0.94));
 }
 
 body[data-theme="dark"] .recurring-history-section-head span {
+  background: rgba(47, 125, 116, 0.18);
+  color: #7be0c5;
+}
+
+body[data-theme="dark"] .recurring-history-month-chip {
   background: rgba(47, 125, 116, 0.18);
   color: #7be0c5;
 }
