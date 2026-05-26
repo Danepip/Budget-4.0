@@ -3435,6 +3435,21 @@ body.native-android .category-autocomplete-panel-android {
   line-height: 1.7;
 }
 
+.category-manager-feedback {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(55, 146, 108, 0.22);
+  background: rgba(220, 246, 232, 0.88);
+  color: #1f5d46;
+  font-weight: 700;
+  line-height: 1.5;
+  box-shadow: 0 10px 22px rgba(24, 51, 59, 0.12);
+}
+
 .category-manager-grid {
   display: grid;
   gap: 18px;
@@ -4150,6 +4165,12 @@ body[data-theme="dark"] .category-manager-dialog {
   border-color: var(--line);
   background: linear-gradient(180deg, rgba(21, 34, 40, 0.98), rgba(16, 27, 33, 0.96));
   box-shadow: 0 28px 60px rgba(0, 0, 0, 0.42);
+}
+
+body[data-theme="dark"] .category-manager-feedback {
+  border-color: rgba(91, 201, 157, 0.24);
+  background: rgba(23, 69, 53, 0.88);
+  color: #baf4da;
 }
 
 body[data-theme="dark"] .category-manager-card {

@@ -13492,24 +13492,84 @@ function collectCategoryManagerLines(rawValue) {
     });
 }
 
-function saveCategoryManagerSnapshot(nextCategory = "", previousCategory = "") {
+function renderCategoryManagerFeedback(message = "", tone = "success") {
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  const feedback = categoryManagerModal.querySelector("[data-category-manager-field='feedback']");
+  if (!feedback) {
+    return;
+  }
+
+  const hasMessage = Boolean(String(message || "").trim());
+  feedback.classList.toggle("hidden", !hasMessage);
+  feedback.dataset.tone = hasMessage ? tone : "";
+  feedback.textContent = hasMessage ? String(message).trim() : "";
+  if (hasMessage && typeof feedback.scrollIntoView === "function") {
+    feedback.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+function refreshCategoryManagerAfterSave({
+  nextCategory = "",
+  previousCategory = "",
+  noticeMessage = "",
+  focusSelector = "",
+  resetCategoryCreate = false,
+  resetGroupCreate = false,
+  selectedEditCategory = "",
+  selectedEditGroup = "",
+} = {}) {
   const snapshot = captureCurrentTransactionFormSnapshot();
   if (nextCategory) {
     if (!previousCategory || normalizeHeaderName(snapshot.Categories) === normalizeHeaderName(previousCategory)) {
       snapshot.Categories = nextCategory;
     }
   }
-  closeCategoryManagerModal();
   renderAll();
   applyTransactionFormSnapshot(snapshot);
+
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  if (resetCategoryCreate) {
+    const categoryInput = categoryManagerModal.querySelector("[data-category-manager-field='category']");
+    if (categoryInput) {
+      categoryInput.value = "";
+    }
+  }
+
+  if (resetGroupCreate) {
+    const groupNameInput = categoryManagerModal.querySelector("[data-category-manager-field='group-name']");
+    const groupCategoriesInput = categoryManagerModal.querySelector("[data-category-manager-field='group-categories']");
+    if (groupNameInput) {
+      groupNameInput.value = "";
+    }
+    if (groupCategoriesInput) {
+      groupCategoriesInput.value = "";
+    }
+  }
+
+  syncCategoryManagerEditCategoryFields(selectedEditCategory || nextCategory || previousCategory);
+  syncCategoryManagerEditGroupFields(selectedEditGroup);
+  renderCategoryManagerFeedback(noticeMessage, "success");
+  if (noticeMessage) {
+    showAppToast(noticeMessage, 4200);
+  }
+
+  if (focusSelector) {
+    categoryManagerModal.querySelector(focusSelector)?.focus();
+  }
 }
 
 function queueCategoryManagerCloudSync() {
   if (!canUseSupabaseCloud()) {
-    return;
+    return Promise.resolve();
   }
 
-  void enqueueCloudSync(() => publishLocalBudgetToSupabase());
+  return enqueueCloudSync(() => publishLocalBudgetToSupabase());
 }
 
 function syncCategoryManagerEditCategoryFields(selectedLabel = "") {
@@ -13591,7 +13651,7 @@ function syncCategoryManagerEditGroupFields(selectedGroupKey = "") {
   }
 }
 
-function handleCategoryManagerCreateCategory() {
+async function handleCategoryManagerCreateCategory() {
   if (!categoryManagerModal) {
     return;
   }
@@ -13623,15 +13683,22 @@ function handleCategoryManagerCreateCategory() {
   upsertBudgetCategoryAssignment(categoryLabel, parentKey);
   ensurePlanTemplateCategoryRow(categoryLabel, getBudgetCustomGroupPlanMode(parentKey));
   persistDraftIfPossible();
-  queueCategoryManagerCloudSync();
-  setLastAction(t("categories.createdCategory", {
+  await queueCategoryManagerCloudSync();
+  const confirmationMessage = t("categories.createdCategory", {
     category: categoryLabel,
     parent: getBudgetFraCategoryMeta(parentKey).label || parentKey,
-  }));
-  saveCategoryManagerSnapshot(categoryLabel);
+  });
+  setLastAction(confirmationMessage);
+  refreshCategoryManagerAfterSave({
+    nextCategory: categoryLabel,
+    noticeMessage: confirmationMessage,
+    focusSelector: "[data-category-manager-field='category']",
+    resetCategoryCreate: true,
+    selectedEditCategory: categoryLabel,
+  });
 }
 
-function handleCategoryManagerUpdateCategory() {
+async function handleCategoryManagerUpdateCategory() {
   if (!categoryManagerModal) {
     return;
   }
@@ -13670,15 +13737,22 @@ function handleCategoryManagerUpdateCategory() {
 
   updateBudgetCategoryLabelEverywhere(currentLabel, nextLabel, parentKey);
   persistDraftIfPossible();
-  queueCategoryManagerCloudSync();
-  setLastAction(t("categories.updatedCategory", {
+  await queueCategoryManagerCloudSync();
+  const confirmationMessage = t("categories.updatedCategory", {
     category: nextLabel,
     parent: getBudgetFraCategoryMeta(parentKey).label || parentKey,
-  }));
-  saveCategoryManagerSnapshot(nextLabel, currentLabel);
+  });
+  setLastAction(confirmationMessage);
+  refreshCategoryManagerAfterSave({
+    nextCategory: nextLabel,
+    previousCategory: currentLabel,
+    noticeMessage: confirmationMessage,
+    focusSelector: "[data-category-manager-field='edit-category-name']",
+    selectedEditCategory: nextLabel,
+  });
 }
 
-function handleCategoryManagerCreateGroup() {
+async function handleCategoryManagerCreateGroup() {
   if (!categoryManagerModal) {
     return;
   }
@@ -13736,18 +13810,25 @@ function handleCategoryManagerCreateGroup() {
   });
 
   persistDraftIfPossible();
-  queueCategoryManagerCloudSync();
-  setLastAction(t("categories.createdGroup", {
+  await queueCategoryManagerCloudSync();
+  const confirmationMessage = t("categories.createdGroup", {
     group: groupLabel,
     count: categories.length,
     itemWord: isEnglishUi()
       ? (categories.length > 1 ? "subcategories" : "subcategory")
       : (categories.length > 1 ? "sous-catégories" : "sous-catégorie"),
-  }));
-  saveCategoryManagerSnapshot(categories[0] || "");
+  });
+  setLastAction(confirmationMessage);
+  refreshCategoryManagerAfterSave({
+    nextCategory: categories[0] || "",
+    noticeMessage: confirmationMessage,
+    focusSelector: "[data-category-manager-field='group-name']",
+    resetGroupCreate: true,
+    selectedEditGroup: nextGroup.key,
+  });
 }
 
-function handleCategoryManagerUpdateGroup() {
+async function handleCategoryManagerUpdateGroup() {
   if (!categoryManagerModal) {
     return;
   }
@@ -13781,11 +13862,16 @@ function handleCategoryManagerUpdateGroup() {
 
   updateBudgetMainCategoryDefinition(groupKey, groupLabel, planGroup);
   persistDraftIfPossible();
-  queueCategoryManagerCloudSync();
-  setLastAction(t("categories.updatedGroup", {
+  await queueCategoryManagerCloudSync();
+  const confirmationMessage = t("categories.updatedGroup", {
     group: groupLabel,
-  }));
-  saveCategoryManagerSnapshot();
+  });
+  setLastAction(confirmationMessage);
+  refreshCategoryManagerAfterSave({
+    noticeMessage: confirmationMessage,
+    focusSelector: "[data-category-manager-field='edit-group-name']",
+    selectedEditGroup: groupKey,
+  });
 }
 
 function openCategoryManagerModal() {
@@ -13812,6 +13898,7 @@ function openCategoryManagerModal() {
         </div>
         <button type="button" class="button ghost" data-category-manager-action="close">${escapeHtml(t("categories.close"))}</button>
       </div>
+      <p class="category-manager-feedback hidden" data-category-manager-field="feedback" role="status" aria-live="polite"></p>
       <div class="category-manager-grid">
         <section class="category-manager-card">
           <h4>${escapeHtml(t("categories.addCategoryTitle"))}</h4>
@@ -13915,22 +14002,22 @@ function openCategoryManagerModal() {
     }
 
     if (action.dataset.categoryManagerAction === "create-category") {
-      handleCategoryManagerCreateCategory();
+      void handleCategoryManagerCreateCategory();
       return;
     }
 
     if (action.dataset.categoryManagerAction === "update-category") {
-      handleCategoryManagerUpdateCategory();
+      void handleCategoryManagerUpdateCategory();
       return;
     }
 
     if (action.dataset.categoryManagerAction === "create-group") {
-      handleCategoryManagerCreateGroup();
+      void handleCategoryManagerCreateGroup();
       return;
     }
 
     if (action.dataset.categoryManagerAction === "update-group") {
-      handleCategoryManagerUpdateGroup();
+      void handleCategoryManagerUpdateGroup();
     }
   });
 
