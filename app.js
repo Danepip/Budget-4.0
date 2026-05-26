@@ -2896,12 +2896,6 @@ async function addRecurringOccurrencesToBudget(occurrences, options = {}) {
 
 function getResolvedBudgetCategoryRule(label, planGroup = "", amountValue = null) {
   const amount = parseAmount(amountValue);
-  const referenceItem = getReferenceBudgetTemplateItem(label);
-
-  if (referenceItem) {
-    return createReferenceBudgetResolvedRule(referenceItem, label);
-  }
-
   const assignment = getBudgetCategoryAssignment(label);
   if (assignment) {
     const parentKey = assignment.groupKey;
@@ -2929,6 +2923,12 @@ function getResolvedBudgetCategoryRule(label, planGroup = "", amountValue = null
       suggestionTags: ["custom-category", parentKey],
       notes: "Catégorie créée depuis la modale du formulaire.",
     };
+  }
+
+  const referenceItem = getReferenceBudgetTemplateItem(label);
+
+  if (referenceItem) {
+    return createReferenceBudgetResolvedRule(referenceItem, label);
   }
 
   if (BUDGET_RULES_API?.resolveBudgetCategoryRule) {
