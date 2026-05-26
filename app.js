@@ -190,6 +190,7 @@ const UI_STRINGS = {
     "cloud.livePrefix": "Activité en direct : {message}",
     "cloud.liveEmpty": "Aucune activité en direct pour le moment.",
     "cloud.recurringSchemaOutdated": "Les récurrentes partagées nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
+    "cloud.categorySchemaOutdated": "Les catégories partagées nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
     "alerts.statusNotConfigured": "La fonction d'alerte email n'est pas configurée côté Supabase.",
     "alerts.statusNotReady": "Supabase doit être configuré pour activer les alertes email.",
     "alerts.statusDisabled": "Alertes email désactivées.",
@@ -524,6 +525,7 @@ const UI_STRINGS = {
     "cloud.livePrefix": "Live activity: {message}",
     "cloud.liveEmpty": "No live activity at the moment.",
     "cloud.recurringSchemaOutdated": "Shared recurring templates require the latest Supabase schema. Run the updated supabase/schema.sql script.",
+    "cloud.categorySchemaOutdated": "Shared categories require the latest Supabase schema. Run the updated supabase/schema.sql script.",
     "alerts.statusNotConfigured": "The email alert function is not configured on the Supabase side.",
     "alerts.statusNotReady": "Supabase must be configured to enable email alerts.",
     "alerts.statusDisabled": "Email alerts are disabled.",
@@ -1185,6 +1187,7 @@ let supabaseRealtimeChannel = null;
 let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
 let recurringSupabaseSchemaReady = true;
+let categorySupabaseSchemaReady = true;
 let formFeedbackTimer = null;
 let appToastTimer = null;
 let nativeSupabaseRedirectListenerBound = false;
@@ -5419,6 +5422,10 @@ function describeSupabaseError(error, fallbackMessage) {
     return `${fallbackMessage} ${t("cloud.recurringSchemaOutdated")}`;
   }
 
+  if (isSupabaseCategorySchemaMissing(error)) {
+    return `${fallbackMessage} ${t("cloud.categorySchemaOutdated")}`;
+  }
+
   if (rawMessage) {
     return `${fallbackMessage} ${rawMessage}`;
   }
@@ -5448,6 +5455,28 @@ function isSupabaseRecurringSchemaMissing(error) {
 
 function buildRecurringSchemaWarningMessage() {
   return t("cloud.recurringSchemaOutdated");
+}
+
+function isSupabaseCategorySchemaMissing(error) {
+  const haystack = String(
+    `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""} ${error?.code || ""}`
+  ).toLowerCase();
+
+  if (!haystack) {
+    return false;
+  }
+
+  return [
+    "budget_category_groups",
+    "group_key",
+    "plan_group",
+    "group_description",
+    "group_position",
+  ].some((needle) => haystack.includes(needle));
+}
+
+function buildCategorySchemaWarningMessage() {
+  return t("cloud.categorySchemaOutdated");
 }
 
 async function consumeSupabaseAuthCallback(urlValue = window.location.href) {
@@ -6064,6 +6093,15 @@ function startSupabaseRealtime(spaceId) {
       filter: `space_id=eq.${spaceId}`,
     }, queueCloudRefresh);
 
+  if (categorySupabaseSchemaReady) {
+    channel = channel.on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "budget_category_groups",
+      filter: `space_id=eq.${spaceId}`,
+    }, queueCloudRefresh);
+  }
+
   if (recurringSupabaseSchemaReady) {
     channel = channel.on("postgres_changes", {
       event: "*",
@@ -6105,10 +6143,12 @@ async function publishLocalBudgetToSupabase() {
 
     const spaceId = state.cloud.space.id;
     const categoriesPayload = buildSupabaseCategoryPayload(spaceId);
+    const categoryGroupsPayload = buildSupabaseCategoryGroupPayload(spaceId);
     const planPayload = buildSupabasePlanPayload(spaceId);
     const recurringTemplatesPayload = buildSupabaseRecurringTemplatePayload(spaceId);
     const transactionsPayload = buildSupabaseTransactionPayload(spaceId);
     let recurringSchemaOutdated = false;
+    let categorySchemaOutdated = false;
 
     let query = supabaseClient.from("budget_transactions").delete();
     let { error } = await query.eq("space_id", spaceId);
@@ -6120,6 +6160,16 @@ async function publishLocalBudgetToSupabase() {
     ({ error } = await query.eq("space_id", spaceId));
     if (error) {
       throw error;
+    }
+
+    query = supabaseClient.from("budget_category_groups").delete();
+    ({ error } = await query.eq("space_id", spaceId));
+    if (error) {
+      if (isSupabaseCategorySchemaMissing(error)) {
+        categorySchemaOutdated = true;
+      } else {
+        throw error;
+      }
     }
 
     query = supabaseClient.from("budget_plan_rows").delete();
@@ -6138,10 +6188,30 @@ async function publishLocalBudgetToSupabase() {
       }
     }
 
+    if (!categorySchemaOutdated && categoryGroupsPayload.length) {
+      ({ error } = await supabaseClient.from("budget_category_groups").insert(categoryGroupsPayload));
+      if (error) {
+        if (isSupabaseCategorySchemaMissing(error)) {
+          categorySchemaOutdated = true;
+        } else {
+          throw error;
+        }
+      }
+    }
+
     if (categoriesPayload.length) {
       ({ error } = await supabaseClient.from("budget_categories").insert(categoriesPayload));
       if (error) {
-        throw error;
+        const fallbackPayload = stripCategoryAssignmentsFromPayload(categoriesPayload);
+        if (!isSupabaseCategorySchemaMissing(error) || !fallbackPayload.length) {
+          throw error;
+        }
+
+        categorySchemaOutdated = true;
+        ({ error } = await supabaseClient.from("budget_categories").insert(fallbackPayload));
+        if (error) {
+          throw error;
+        }
       }
     }
 
@@ -6188,14 +6258,23 @@ async function publishLocalBudgetToSupabase() {
 
     state.cloud.lastPushedAt = new Date().toISOString();
     recurringSupabaseSchemaReady = !recurringSchemaOutdated;
-    const successMessage = recurringSchemaOutdated
-      ? `Budget publie vers ${state.cloud.space.name}. ${buildRecurringSchemaWarningMessage()}`
+    categorySupabaseSchemaReady = !categorySchemaOutdated;
+    const schemaWarnings = [
+      categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
+      recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
+    ].filter(Boolean).join(" ");
+    const successMessage = schemaWarnings
+      ? `Budget publie vers ${state.cloud.space.name}. ${schemaWarnings}`
       : `Budget publie vers ${state.cloud.space.name}.`;
     setCloudStatus(successMessage);
     setLastAction(
-      recurringSchemaOutdated
-        ? `Données locales publiees vers ${state.cloud.space.name} - récurrentes partagées non synchronisées`
-        : `Données locales publiees vers ${state.cloud.space.name}`
+      categorySchemaOutdated && recurringSchemaOutdated
+        ? `Données locales publiees vers ${state.cloud.space.name} - catégories et récurrentes partagées non synchronisées`
+        : categorySchemaOutdated
+          ? `Données locales publiees vers ${state.cloud.space.name} - catégories partagées non synchronisées`
+          : recurringSchemaOutdated
+            ? `Données locales publiees vers ${state.cloud.space.name} - récurrentes partagées non synchronisées`
+            : `Données locales publiees vers ${state.cloud.space.name}`
     );
     persistDraftIfPossible();
     void maybeSendBudgetAlertEmails("publication cloud");
@@ -6221,13 +6300,19 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       renderAll();
     }
 
-    const [{ data: categories, error: categoriesError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult] = await Promise.all([
+    const [{ data: categories, error: categoriesError }, { data: categoryGroups, error: categoryGroupsError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult] = await Promise.all([
       supabaseClient
         .from("budget_categories")
-        .select("name, position")
+        .select("*")
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
         .order("name", { ascending: true }),
+      supabaseClient
+        .from("budget_category_groups")
+        .select("*")
+        .eq("space_id", spaceId)
+        .order("position", { ascending: true })
+        .order("label", { ascending: true }),
       supabaseClient
         .from("budget_plan_rows")
         .select("*")
@@ -6249,9 +6334,18 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
         .order("created_at", { ascending: true }),
     ]);
     let recurringSchemaOutdated = false;
+    let categorySchemaOutdated = false;
 
     if (categoriesError) {
       throw categoriesError;
+    }
+
+    if (categoryGroupsError) {
+      if (isSupabaseCategorySchemaMissing(categoryGroupsError)) {
+        categorySchemaOutdated = true;
+      } else {
+        throw categoryGroupsError;
+      }
     }
 
     if (planError) {
@@ -6281,6 +6375,8 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     state.editorMode = "create";
     const preservedCustomGroups = getBudgetCustomGroups();
     const preservedCategoryAssignments = getBudgetCategoryAssignments();
+    const cloudCustomGroups = parseSupabaseCategoryGroupRows(categoryGroups || []);
+    const cloudCategoryAssignments = parseSupabaseCategoryAssignmentsFromRows(categories || []);
     state.budget = {
       headers: ["Date", "Categories", "Value"],
       categories: (categories || []).map((row) => String(row.name || "").trim()).filter(Boolean),
@@ -6290,11 +6386,11 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
           Date: row.entry_date,
           Categories: row.category,
           Value: normalizeAmountValue(row.amount),
-        }))
+      }))
         .filter((row) => !isIgnoredBudgetTransactionRow(row)),
       clearEndRow: START_ROW + (transactions?.length || 0) + 8,
-      customGroups: preservedCustomGroups,
-      categoryAssignments: preservedCategoryAssignments,
+      customGroups: categorySchemaOutdated ? preservedCustomGroups : cloudCustomGroups,
+      categoryAssignments: categorySchemaOutdated ? preservedCategoryAssignments : cloudCategoryAssignments,
     };
     state.recap = {
       available: true,
@@ -6307,6 +6403,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       })).filter((row) => row.label),
     };
     recurringSupabaseSchemaReady = !recurringSchemaOutdated;
+    categorySupabaseSchemaReady = !categorySchemaOutdated;
     if (!recurringSchemaOutdated) {
       state.recurringTemplates = parseSupabaseRecurringTemplateRows(recurringResult?.data || []);
       persistRecurringTemplatesIfPossible();
@@ -6317,9 +6414,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       setLastAction(`Budget charge depuis ${state.cloud.space.name || "Supabase"}`);
     }
 
+    const cloudWarnings = [
+      categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
+      recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
+    ].filter(Boolean).join(" ");
+
     setCloudStatus(
-      recurringSchemaOutdated
-        ? `Espace partage actif: ${state.cloud.space.name || "budget partagé"}. ${buildRecurringSchemaWarningMessage()}`
+      cloudWarnings
+        ? `Espace partage actif: ${state.cloud.space.name || "budget partagé"}. ${cloudWarnings}`
         : `Espace partage actif: ${state.cloud.space.name || "budget partagé"}.`
     );
     persistDraft();
@@ -6362,8 +6464,27 @@ function buildSupabaseCategoryPayload(spaceId) {
   return ordered.map((name, index) => ({
     space_id: spaceId,
     name,
+    group_key: String(getBudgetCategoryAssignment(name)?.groupKey || "").trim() || null,
     position: index,
   }));
+}
+
+function stripCategoryAssignmentsFromPayload(categoriesPayload) {
+  return categoriesPayload.map(({ group_key: _groupKey, ...row }) => row);
+}
+
+function buildSupabaseCategoryGroupPayload(spaceId) {
+  return getBudgetCustomGroups()
+    .map((group, index) => ({
+      space_id: spaceId,
+      group_key: String(group.key || "").trim(),
+      label: String(group.label || "").trim(),
+      plan_group: normalizePlanGroup(group.planGroup, ""),
+      tone: normalizeBudgetCustomGroupTone(group.tone, getDefaultCustomGroupTone(group.planGroup)),
+      description: String(group.description || "").trim(),
+      position: Number.isInteger(group.position) ? group.position : index,
+    }))
+    .filter((row) => row.group_key && row.label);
 }
 
 function buildSupabasePlanPayload(spaceId) {
@@ -6416,6 +6537,42 @@ function parseSupabaseRecurringTemplateRows(rows = []) {
     .filter(Boolean);
 }
 
+function parseSupabaseCategoryGroupRows(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row, index) => sanitizeBudgetCustomGroup({
+      key: row.group_key,
+      label: row.label,
+      planGroup: row.plan_group,
+      tone: row.tone,
+      description: row.description,
+      position: row.position,
+    }, index))
+    .filter(Boolean);
+}
+
+function parseSupabaseCategoryAssignmentsFromRows(rows = []) {
+  const seen = new Set();
+
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => sanitizeBudgetCategoryAssignment({
+      category: row.name,
+      groupKey: row.group_key,
+    }))
+    .filter((entry) => {
+      if (!entry) {
+        return false;
+      }
+
+      const key = normalizeHeaderName(entry.category);
+      if (!key || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+}
+
 function buildSupabaseTransactionPayload(spaceId) {
   return state.budget.rows
     .map((row, index) => ({
@@ -6441,17 +6598,31 @@ async function syncSingleTransactionToSupabase(record) {
     const targetCategory = knownCategories.find((row) => row.name === categoryName) || {
       space_id: state.cloud.space.id,
       name: categoryName,
+      group_key: String(getBudgetCategoryAssignment(categoryName)?.groupKey || "").trim() || null,
       position: knownCategories.length,
     };
 
-    const { error: categoryError } = await supabaseClient
+    let { error: categoryError } = await supabaseClient
       .from("budget_categories")
       .upsert(targetCategory, {
         onConflict: "space_id,name",
       });
 
     if (categoryError) {
-      throw categoryError;
+      if (!isSupabaseCategorySchemaMissing(categoryError)) {
+        throw categoryError;
+      }
+
+      categorySupabaseSchemaReady = false;
+      ({ error: categoryError } = await supabaseClient
+        .from("budget_categories")
+        .upsert(stripCategoryAssignmentsFromPayload([targetCategory])[0], {
+          onConflict: "space_id,name",
+        }));
+
+      if (categoryError) {
+        throw categoryError;
+      }
     }
   }
 
@@ -13333,6 +13504,14 @@ function saveCategoryManagerSnapshot(nextCategory = "", previousCategory = "") {
   applyTransactionFormSnapshot(snapshot);
 }
 
+function queueCategoryManagerCloudSync() {
+  if (!canUseSupabaseCloud()) {
+    return;
+  }
+
+  void enqueueCloudSync(() => publishLocalBudgetToSupabase());
+}
+
 function syncCategoryManagerEditCategoryFields(selectedLabel = "") {
   if (!categoryManagerModal) {
     return;
@@ -13444,6 +13623,7 @@ function handleCategoryManagerCreateCategory() {
   upsertBudgetCategoryAssignment(categoryLabel, parentKey);
   ensurePlanTemplateCategoryRow(categoryLabel, getBudgetCustomGroupPlanMode(parentKey));
   persistDraftIfPossible();
+  queueCategoryManagerCloudSync();
   setLastAction(t("categories.createdCategory", {
     category: categoryLabel,
     parent: getBudgetFraCategoryMeta(parentKey).label || parentKey,
@@ -13490,6 +13670,7 @@ function handleCategoryManagerUpdateCategory() {
 
   updateBudgetCategoryLabelEverywhere(currentLabel, nextLabel, parentKey);
   persistDraftIfPossible();
+  queueCategoryManagerCloudSync();
   setLastAction(t("categories.updatedCategory", {
     category: nextLabel,
     parent: getBudgetFraCategoryMeta(parentKey).label || parentKey,
@@ -13555,6 +13736,7 @@ function handleCategoryManagerCreateGroup() {
   });
 
   persistDraftIfPossible();
+  queueCategoryManagerCloudSync();
   setLastAction(t("categories.createdGroup", {
     group: groupLabel,
     count: categories.length,
@@ -13599,6 +13781,7 @@ function handleCategoryManagerUpdateGroup() {
 
   updateBudgetMainCategoryDefinition(groupKey, groupLabel, planGroup);
   persistDraftIfPossible();
+  queueCategoryManagerCloudSync();
   setLastAction(t("categories.updatedGroup", {
     group: groupLabel,
   }));
