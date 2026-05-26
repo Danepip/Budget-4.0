@@ -3454,6 +3454,14 @@ body.native-android .category-autocomplete-panel-android {
   margin: 0;
 }
 
+.category-manager-card .field-hint {
+  margin: 0;
+}
+
+.category-manager-card .field-hint:empty {
+  display: none;
+}
+
 .category-manager-actions {
   display: flex;
   justify-content: flex-end;

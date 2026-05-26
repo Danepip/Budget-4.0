@@ -284,6 +284,12 @@ const UI_STRINGS = {
     "categories.newCategoryLabel": "Nouvelle catégorie",
     "categories.newCategoryPlaceholder": "Ex. Péage",
     "categories.addCategoryAction": "Ajouter la catégorie",
+    "categories.editCategoryTitle": "Modifier une sous-catégorie",
+    "categories.editCategorySelectLabel": "Sous-catégorie existante",
+    "categories.editCategoryParentLabel": "Nouvelle grande catégorie",
+    "categories.editCategoryRenameLabel": "Nouveau nom",
+    "categories.editCategoryRenamePlaceholder": "Ex. Péage autoroute",
+    "categories.editCategoryAction": "Enregistrer la sous-catégorie",
     "categories.createGroupTitle": "Créer une grande catégorie",
     "categories.groupNameLabel": "Nom de la grande catégorie",
     "categories.groupNamePlaceholder": "Ex. Voyages",
@@ -292,6 +298,12 @@ const UI_STRINGS = {
     "categories.groupCategoriesHint": "Une ligne par sous-catégorie.",
     "categories.groupCategoriesPlaceholder": "Ex. Hôtel\nRestaurant\nExcursions",
     "categories.groupCreateAction": "Créer la grande catégorie",
+    "categories.editGroupTitle": "Modifier une grande catégorie",
+    "categories.editGroupSelectLabel": "Grande catégorie existante",
+    "categories.editGroupRenameLabel": "Nouveau nom",
+    "categories.editGroupRenamePlaceholder": "Ex. Déplacements",
+    "categories.editGroupAction": "Enregistrer la grande catégorie",
+    "categories.builtinGroupTypeHint": "Le type budgétaire des grandes catégories de base reste fixe.",
     "categories.typeExpenses": "Dépenses",
     "categories.typeIncome": "Revenu",
     "categories.typeSavings": "Épargne",
@@ -309,6 +321,8 @@ const UI_STRINGS = {
     "categories.groupCategoryExists": "Une ou plusieurs sous-catégories existent déjà : {labels}.",
     "categories.createdCategory": "Catégorie créée : {category} dans {parent}.",
     "categories.createdGroup": "Grande catégorie créée : {group} ({count} {itemWord}).",
+    "categories.updatedCategory": "Sous-catégorie mise à jour : {category} dans {parent}.",
+    "categories.updatedGroup": "Grande catégorie mise à jour : {group}.",
     "categories.customExpenseDescription": "Dépenses personnalisées",
     "categories.customIncomeDescription": "Revenus personnalisés",
     "categories.customSavingsDescription": "Épargne personnalisée",
@@ -604,6 +618,12 @@ const UI_STRINGS = {
     "categories.newCategoryLabel": "New category",
     "categories.newCategoryPlaceholder": "Ex. Toll",
     "categories.addCategoryAction": "Add category",
+    "categories.editCategoryTitle": "Edit a subcategory",
+    "categories.editCategorySelectLabel": "Existing subcategory",
+    "categories.editCategoryParentLabel": "New main category",
+    "categories.editCategoryRenameLabel": "New name",
+    "categories.editCategoryRenamePlaceholder": "Ex. Highway toll",
+    "categories.editCategoryAction": "Save subcategory",
     "categories.createGroupTitle": "Create a main category",
     "categories.groupNameLabel": "Main category name",
     "categories.groupNamePlaceholder": "Ex. Travel",
@@ -612,6 +632,12 @@ const UI_STRINGS = {
     "categories.groupCategoriesHint": "One subcategory per line.",
     "categories.groupCategoriesPlaceholder": "Ex. Hotel\nDining\nExcursions",
     "categories.groupCreateAction": "Create main category",
+    "categories.editGroupTitle": "Edit a main category",
+    "categories.editGroupSelectLabel": "Existing main category",
+    "categories.editGroupRenameLabel": "New name",
+    "categories.editGroupRenamePlaceholder": "Ex. Commuting",
+    "categories.editGroupAction": "Save main category",
+    "categories.builtinGroupTypeHint": "Built-in main categories keep their budget type.",
     "categories.typeExpenses": "Expenses",
     "categories.typeIncome": "Income",
     "categories.typeSavings": "Savings",
@@ -629,6 +655,8 @@ const UI_STRINGS = {
     "categories.groupCategoryExists": "One or more subcategories already exist: {labels}.",
     "categories.createdCategory": "Category created: {category} in {parent}.",
     "categories.createdGroup": "Main category created: {group} ({count} {itemWord}).",
+    "categories.updatedCategory": "Subcategory updated: {category} in {parent}.",
+    "categories.updatedGroup": "Main category updated: {group}.",
     "categories.customExpenseDescription": "Custom expenses",
     "categories.customIncomeDescription": "Custom income",
     "categories.customSavingsDescription": "Custom savings",
@@ -13092,14 +13120,189 @@ function closeRecurringOccurrencesHistoryModal() {
   recurringOccurrencesHistoryModal = null;
 }
 
-function buildCategoryManagerParentOptionsMarkup() {
+function isBuiltInBudgetMainCategory(groupKey) {
+  return BUDGET_FRA_GROUP_ORDER.includes(String(groupKey || "").trim());
+}
+
+function buildCategoryManagerParentOptionsMarkup(selectedKey = "") {
+  const normalizedSelectedKey = String(selectedKey || "").trim();
   return getBudgetMainCategoryOptions()
     .map((option) => `
-      <option value="${escapeHtml(option.key)}">
+      <option value="${escapeHtml(option.key)}" ${option.key === normalizedSelectedKey ? "selected" : ""}>
         ${escapeHtml(option.label)} · ${escapeHtml(getLocalizedBudgetPlanTypeLabel(option.planGroup))}
       </option>
     `)
     .join("");
+}
+
+function getCategoryManagerCategoryOptions() {
+  return [...state.budget.categories]
+    .map((label) => {
+      const categoryLabel = String(label || "").trim();
+      if (!categoryLabel) {
+        return null;
+      }
+
+      const assignment = getBudgetCategoryAssignment(categoryLabel);
+      const parentKey = String(assignment?.groupKey || inferBudgetFraCategory(categoryLabel, "", null) || "").trim();
+      return {
+        label: categoryLabel,
+        parentKey,
+        parentLabel: getBudgetFraCategoryMeta(parentKey).label || parentKey,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => (getDisplayCategoryLabel(left.label) || left.label).localeCompare(
+      getDisplayCategoryLabel(right.label) || right.label,
+      getUiLocale(),
+      { sensitivity: "base" }
+    ));
+}
+
+function buildCategoryManagerCategoryOptionsMarkup(selectedLabel = "") {
+  const normalizedSelected = normalizeHeaderName(selectedLabel);
+  return getCategoryManagerCategoryOptions()
+    .map((option) => `
+      <option value="${escapeHtml(option.label)}" ${normalizeHeaderName(option.label) === normalizedSelected ? "selected" : ""}>
+        ${escapeHtml(getDisplayCategoryLabel(option.label) || option.label)} · ${escapeHtml(option.parentLabel)}
+      </option>
+    `)
+    .join("");
+}
+
+function updateBudgetCategoryLabelEverywhere(previousLabel, nextLabel, nextGroupKey = "") {
+  const previous = String(previousLabel || "").trim();
+  const next = String(nextLabel || "").trim();
+  const groupKey = String(nextGroupKey || "").trim();
+  const previousKey = normalizeHeaderName(previous);
+  const nextKey = normalizeHeaderName(next);
+  if (!previousKey || !nextKey || !groupKey) {
+    return false;
+  }
+
+  const nextCategories = [];
+  const seenCategories = new Set();
+  state.budget.categories.forEach((entry) => {
+    const candidate = normalizeHeaderName(entry) === previousKey ? next : String(entry || "").trim();
+    const candidateKey = normalizeHeaderName(candidate);
+    if (!candidate || !candidateKey || seenCategories.has(candidateKey)) {
+      return;
+    }
+
+    seenCategories.add(candidateKey);
+    nextCategories.push(candidate);
+  });
+  state.budget.categories = nextCategories;
+
+  state.budget.rows = state.budget.rows.map((row) => (
+    normalizeHeaderName(row?.Categories) === previousKey
+      ? { ...row, Categories: next }
+      : row
+  ));
+
+  const targetPlanGroup = getBudgetCustomGroupPlanMode(groupKey);
+  state.recap.planTemplate = resolvePlanTemplate(state.recap.planTemplate).map((row) => {
+    if (isDerivedPlanLabel(row?.label)) {
+      return row;
+    }
+
+    if (normalizeHeaderName(row?.label) !== previousKey) {
+      return row;
+    }
+
+    return {
+      ...row,
+      label: next,
+      group: normalizePlanGroup(targetPlanGroup, next),
+    };
+  });
+
+  const seenAssignments = new Set();
+  const nextAssignments = getBudgetCategoryAssignments()
+    .filter((entry) => normalizeHeaderName(entry.category) !== previousKey)
+    .filter((entry) => {
+      const entryKey = normalizeHeaderName(entry.category);
+      if (!entryKey || seenAssignments.has(entryKey)) {
+        return false;
+      }
+
+      seenAssignments.add(entryKey);
+      return true;
+    });
+
+  if (!seenAssignments.has(nextKey)) {
+    nextAssignments.push({
+      category: next,
+      groupKey,
+    });
+  }
+  state.budget.categoryAssignments = nextAssignments;
+
+  state.recurringTemplates = getRecurringTemplates()
+    .map((template) => {
+      const categoryMatches = normalizeHeaderName(template?.category) === previousKey;
+      const labelMatches = normalizeHeaderName(template?.label) === previousKey;
+      if (!categoryMatches && !labelMatches) {
+        return template;
+      }
+
+      return sanitizeRecurringTemplate({
+        ...template,
+        category: categoryMatches ? next : template.category,
+        label: labelMatches ? next : template.label,
+      });
+    })
+    .filter(Boolean);
+  persistRecurringTemplatesIfPossible();
+  state.recurringReviewDrafts = createEmptyRecurringReviewDrafts();
+  return true;
+}
+
+function updateBudgetMainCategoryDefinition(groupKey, nextLabel, nextPlanGroup = "") {
+  const normalizedGroupKey = String(groupKey || "").trim();
+  const label = String(nextLabel || "").trim();
+  if (!normalizedGroupKey || !label) {
+    return null;
+  }
+
+  const currentCustomMeta = getBudgetCustomGroupMeta(normalizedGroupKey);
+  const currentDisplayMeta = getBudgetFraCategoryMeta(normalizedGroupKey);
+  const currentPlanGroup = isBuiltInBudgetMainCategory(normalizedGroupKey)
+    ? getBudgetCustomGroupPlanMode(normalizedGroupKey)
+    : normalizePlanGroup(nextPlanGroup || currentCustomMeta?.planGroup || getBudgetCustomGroupPlanMode(normalizedGroupKey), "");
+
+  const nextGroup = upsertBudgetCustomGroup({
+    key: normalizedGroupKey,
+    label,
+    planGroup: currentPlanGroup,
+    tone: currentCustomMeta?.tone || currentDisplayMeta?.tone || getDefaultCustomGroupTone(currentPlanGroup),
+    description: currentCustomMeta?.description || currentDisplayMeta?.description || "",
+    position: currentCustomMeta?.position ?? getBudgetMainCategoryOptions().find((option) => option.key === normalizedGroupKey)?.order ?? 0,
+  });
+
+  if (!nextGroup) {
+    return null;
+  }
+
+  if (!isBuiltInBudgetMainCategory(normalizedGroupKey)) {
+    state.recap.planTemplate = resolvePlanTemplate(state.recap.planTemplate).map((row) => {
+      if (isDerivedPlanLabel(row?.label)) {
+        return row;
+      }
+
+      const assignment = getBudgetCategoryAssignment(row?.label);
+      if (String(assignment?.groupKey || "").trim() !== normalizedGroupKey) {
+        return row;
+      }
+
+      return {
+        ...row,
+        group: normalizePlanGroup(currentPlanGroup, row.label),
+      };
+    });
+  }
+
+  return nextGroup;
 }
 
 function collectCategoryManagerLines(rawValue) {
@@ -13118,14 +13321,95 @@ function collectCategoryManagerLines(rawValue) {
     });
 }
 
-function saveCategoryManagerSnapshot(nextCategory = "") {
+function saveCategoryManagerSnapshot(nextCategory = "", previousCategory = "") {
   const snapshot = captureCurrentTransactionFormSnapshot();
   if (nextCategory) {
-    snapshot.Categories = nextCategory;
+    if (!previousCategory || normalizeHeaderName(snapshot.Categories) === normalizeHeaderName(previousCategory)) {
+      snapshot.Categories = nextCategory;
+    }
   }
   closeCategoryManagerModal();
   renderAll();
   applyTransactionFormSnapshot(snapshot);
+}
+
+function syncCategoryManagerEditCategoryFields(selectedLabel = "") {
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  const options = getCategoryManagerCategoryOptions();
+  const normalizedSelected = normalizeHeaderName(selectedLabel)
+    || normalizeHeaderName(categoryManagerModal.querySelector("[data-category-manager-field='edit-category-select']")?.value || "");
+  const selected = options.find((option) => normalizeHeaderName(option.label) === normalizedSelected) || options[0] || null;
+  const select = categoryManagerModal.querySelector("[data-category-manager-field='edit-category-select']");
+  const renameInput = categoryManagerModal.querySelector("[data-category-manager-field='edit-category-name']");
+  const parentSelect = categoryManagerModal.querySelector("[data-category-manager-field='edit-category-parent']");
+
+  if (!selected) {
+    if (select) select.innerHTML = "";
+    if (renameInput) renameInput.value = "";
+    if (parentSelect) parentSelect.innerHTML = buildCategoryManagerParentOptionsMarkup();
+    return;
+  }
+
+  if (select) {
+    select.innerHTML = buildCategoryManagerCategoryOptionsMarkup(selected.label);
+    select.value = selected.label;
+  }
+  if (renameInput) {
+    renameInput.value = selected.label;
+  }
+  if (parentSelect) {
+    parentSelect.innerHTML = buildCategoryManagerParentOptionsMarkup(selected.parentKey);
+    parentSelect.value = selected.parentKey;
+  }
+}
+
+function syncCategoryManagerEditGroupFields(selectedGroupKey = "") {
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  const options = getBudgetMainCategoryOptions();
+  const normalizedSelectedKey = String(selectedGroupKey || "").trim()
+    || String(categoryManagerModal.querySelector("[data-category-manager-field='edit-group-select']")?.value || "").trim();
+  const selected = options.find((option) => option.key === normalizedSelectedKey) || options[0] || null;
+  const select = categoryManagerModal.querySelector("[data-category-manager-field='edit-group-select']");
+  const renameInput = categoryManagerModal.querySelector("[data-category-manager-field='edit-group-name']");
+  const typeSelect = categoryManagerModal.querySelector("[data-category-manager-field='edit-group-type']");
+  const hint = categoryManagerModal.querySelector("[data-category-manager-field='edit-group-type-hint']");
+
+  if (!selected) {
+    if (select) select.innerHTML = "";
+    if (renameInput) renameInput.value = "";
+    if (typeSelect) typeSelect.innerHTML = "";
+    if (hint) hint.textContent = "";
+    return;
+  }
+
+  const isBuiltIn = isBuiltInBudgetMainCategory(selected.key);
+  const currentMeta = getBudgetFraCategoryMeta(selected.key);
+  if (select) {
+    select.innerHTML = getBudgetMainCategoryOptions()
+      .map((option) => `
+        <option value="${escapeHtml(option.key)}" ${option.key === selected.key ? "selected" : ""}>
+          ${escapeHtml(option.label)} · ${escapeHtml(getLocalizedBudgetPlanTypeLabel(option.planGroup))}
+        </option>
+      `)
+      .join("");
+    select.value = selected.key;
+  }
+  if (renameInput) {
+    renameInput.value = currentMeta.label || selected.label || selected.key;
+  }
+  if (typeSelect) {
+    typeSelect.value = selected.planGroup;
+    typeSelect.disabled = isBuiltIn;
+  }
+  if (hint) {
+    hint.textContent = isBuiltIn ? t("categories.builtinGroupTypeHint") : "";
+  }
 }
 
 function handleCategoryManagerCreateCategory() {
@@ -13165,6 +13449,52 @@ function handleCategoryManagerCreateCategory() {
     parent: getBudgetFraCategoryMeta(parentKey).label || parentKey,
   }));
   saveCategoryManagerSnapshot(categoryLabel);
+}
+
+function handleCategoryManagerUpdateCategory() {
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  const select = categoryManagerModal.querySelector("[data-category-manager-field='edit-category-select']");
+  const renameInput = categoryManagerModal.querySelector("[data-category-manager-field='edit-category-name']");
+  const parentSelect = categoryManagerModal.querySelector("[data-category-manager-field='edit-category-parent']");
+  const currentLabel = String(select?.value || "").trim();
+  const nextLabel = String(renameInput?.value || "").trim();
+  const parentKey = String(parentSelect?.value || "").trim();
+
+  if (!currentLabel) {
+    select?.focus();
+    return;
+  }
+
+  if (!parentKey) {
+    window.alert(t("categories.missingParent"));
+    parentSelect?.focus();
+    return;
+  }
+
+  if (!nextLabel) {
+    window.alert(t("categories.missingCategory"));
+    renameInput?.focus();
+    return;
+  }
+
+  const currentKey = normalizeHeaderName(currentLabel);
+  const nextKey = normalizeHeaderName(nextLabel);
+  if (nextKey !== currentKey && hasBudgetCategoryLabel(nextLabel)) {
+    window.alert(t("categories.categoryExists"));
+    renameInput?.focus();
+    return;
+  }
+
+  updateBudgetCategoryLabelEverywhere(currentLabel, nextLabel, parentKey);
+  persistDraftIfPossible();
+  setLastAction(t("categories.updatedCategory", {
+    category: nextLabel,
+    parent: getBudgetFraCategoryMeta(parentKey).label || parentKey,
+  }));
+  saveCategoryManagerSnapshot(nextLabel, currentLabel);
 }
 
 function handleCategoryManagerCreateGroup() {
@@ -13235,6 +13565,46 @@ function handleCategoryManagerCreateGroup() {
   saveCategoryManagerSnapshot(categories[0] || "");
 }
 
+function handleCategoryManagerUpdateGroup() {
+  if (!categoryManagerModal) {
+    return;
+  }
+
+  const select = categoryManagerModal.querySelector("[data-category-manager-field='edit-group-select']");
+  const renameInput = categoryManagerModal.querySelector("[data-category-manager-field='edit-group-name']");
+  const typeSelect = categoryManagerModal.querySelector("[data-category-manager-field='edit-group-type']");
+  const groupKey = String(select?.value || "").trim();
+  const groupLabel = String(renameInput?.value || "").trim();
+  const planGroup = normalizePlanGroup(typeSelect?.value || "expenses", "");
+
+  if (!groupKey) {
+    select?.focus();
+    return;
+  }
+
+  if (!groupLabel) {
+    window.alert(t("categories.missingGroupName"));
+    renameInput?.focus();
+    return;
+  }
+
+  const duplicateGroup = getBudgetMainCategoryOptions().find(
+    (option) => option.key !== groupKey && normalizeHeaderName(option.label) === normalizeHeaderName(groupLabel)
+  );
+  if (duplicateGroup) {
+    window.alert(t("categories.groupExists"));
+    renameInput?.focus();
+    return;
+  }
+
+  updateBudgetMainCategoryDefinition(groupKey, groupLabel, planGroup);
+  persistDraftIfPossible();
+  setLastAction(t("categories.updatedGroup", {
+    group: groupLabel,
+  }));
+  saveCategoryManagerSnapshot();
+}
+
 function openCategoryManagerModal() {
   if (state.mode !== "budget") {
     return;
@@ -13277,6 +13647,28 @@ function openCategoryManagerModal() {
           </div>
         </section>
         <section class="category-manager-card">
+          <h4>${escapeHtml(t("categories.editCategoryTitle"))}</h4>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.editCategorySelectLabel"))}</span>
+            <select data-category-manager-field="edit-category-select">
+              ${buildCategoryManagerCategoryOptionsMarkup()}
+            </select>
+          </label>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.editCategoryRenameLabel"))}</span>
+            <input type="text" data-category-manager-field="edit-category-name" placeholder="${escapeHtml(t("categories.editCategoryRenamePlaceholder"))}" autocomplete="off">
+          </label>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.editCategoryParentLabel"))}</span>
+            <select data-category-manager-field="edit-category-parent">
+              ${buildCategoryManagerParentOptionsMarkup()}
+            </select>
+          </label>
+          <div class="category-manager-actions">
+            <button type="button" class="button secondary" data-category-manager-action="update-category">${escapeHtml(t("categories.editCategoryAction"))}</button>
+          </div>
+        </section>
+        <section class="category-manager-card">
           <h4>${escapeHtml(t("categories.createGroupTitle"))}</h4>
           <label class="field-card">
             <span>${escapeHtml(t("categories.groupNameLabel"))}</span>
@@ -13299,6 +13691,31 @@ function openCategoryManagerModal() {
             <button type="button" class="button primary" data-category-manager-action="create-group">${escapeHtml(t("categories.groupCreateAction"))}</button>
           </div>
         </section>
+        <section class="category-manager-card">
+          <h4>${escapeHtml(t("categories.editGroupTitle"))}</h4>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.editGroupSelectLabel"))}</span>
+            <select data-category-manager-field="edit-group-select">
+              ${buildCategoryManagerParentOptionsMarkup()}
+            </select>
+          </label>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.editGroupRenameLabel"))}</span>
+            <input type="text" data-category-manager-field="edit-group-name" placeholder="${escapeHtml(t("categories.editGroupRenamePlaceholder"))}" autocomplete="off">
+          </label>
+          <label class="field-card">
+            <span>${escapeHtml(t("categories.groupTypeLabel"))}</span>
+            <select data-category-manager-field="edit-group-type">
+              <option value="expenses">${escapeHtml(t("categories.typeExpenses"))}</option>
+              <option value="income">${escapeHtml(t("categories.typeIncome"))}</option>
+              <option value="savings">${escapeHtml(t("categories.typeSavings"))}</option>
+            </select>
+            <p class="field-hint" data-category-manager-field="edit-group-type-hint"></p>
+          </label>
+          <div class="category-manager-actions">
+            <button type="button" class="button primary" data-category-manager-action="update-group">${escapeHtml(t("categories.editGroupAction"))}</button>
+          </div>
+        </section>
       </div>
     </div>
   `;
@@ -13319,8 +13736,18 @@ function openCategoryManagerModal() {
       return;
     }
 
+    if (action.dataset.categoryManagerAction === "update-category") {
+      handleCategoryManagerUpdateCategory();
+      return;
+    }
+
     if (action.dataset.categoryManagerAction === "create-group") {
       handleCategoryManagerCreateGroup();
+      return;
+    }
+
+    if (action.dataset.categoryManagerAction === "update-group") {
+      handleCategoryManagerUpdateGroup();
     }
   });
 
@@ -13330,9 +13757,27 @@ function openCategoryManagerModal() {
     }
   });
 
+  overlay.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) {
+      return;
+    }
+
+    if (target.matches("[data-category-manager-field='edit-category-select']")) {
+      syncCategoryManagerEditCategoryFields(target.value);
+      return;
+    }
+
+    if (target.matches("[data-category-manager-field='edit-group-select']")) {
+      syncCategoryManagerEditGroupFields(target.value);
+    }
+  });
+
   document.body.appendChild(overlay);
   categoryManagerModal = overlay;
   queueMicrotask(() => {
+    syncCategoryManagerEditCategoryFields();
+    syncCategoryManagerEditGroupFields();
     categoryManagerModal?.querySelector("[data-category-manager-field='category']")?.focus();
   });
 }
