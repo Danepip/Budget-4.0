@@ -2907,8 +2907,8 @@ textarea {
 
 .budget-summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
   margin-bottom: 8px;
 }
 
@@ -3108,9 +3108,9 @@ textarea {
 
 .budget-summary-card {
   display: grid;
-  gap: 8px;
-  min-height: 108px;
-  padding: 16px 18px;
+  gap: 6px;
+  min-height: 88px;
+  padding: 14px 16px;
   border-radius: calc(var(--radius-lg) + 2px);
   border: 1px solid rgba(24, 51, 59, 0.1);
   box-shadow: 0 10px 24px rgba(24, 51, 59, 0.06);
@@ -3136,13 +3136,13 @@ textarea {
 .budget-summary-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
 
 .budget-summary-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
 }
 
 .budget-sections {
@@ -3407,15 +3407,15 @@ textarea {
 }
 
 .budget-summary-title {
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(24, 51, 59, 0.66);
 }
 
 .budget-summary-amount {
-  font-size: clamp(1.28rem, 1.55vw, 1.82rem);
+  font-size: clamp(1.02rem, 1.2vw, 1.42rem);
   line-height: 1.05;
   color: var(--ink);
 }
