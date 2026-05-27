@@ -111,7 +111,7 @@ const UI_STRINGS = {
     "toolbar.restart": "Recommencer",
     "toolbar.addRecord": "Nouvelle fiche",
     "toolbar.newTransaction": "Nouvelle transaction",
-    "toolbar.editBudget": "Éditer le budget",
+    "toolbar.editBudget": "Modifier les montants",
     "toolbar.exportExcel": "Exporter Excel",
     "toolbar.exportJournal": "Exporter Journalier",
     "toolbar.exportComplete": "Exporter classeur complet",
@@ -278,6 +278,54 @@ const UI_STRINGS = {
     "form.editingCloud": "Mode cloud partagé : chaque enregistrement met à jour vos vues locales et synchronise Supabase.",
     "form.editingLocal": "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.",
     "form.manageCategories": "Gérer les catégories",
+    "plans.managerKicker": "Plans budgétaires",
+    "plans.managerTitle": "Plusieurs budgets planifiés",
+    "plans.managerDescription": "Chaque plan garde sa propre plage de dates. Le plan actif pilote cette vue locale pour vos tests.",
+    "plans.activeLabel": "Plan actif",
+    "plans.periodLabel": "Période",
+    "plans.countLabel": "{count} plan{plural} disponible{plural}",
+    "plans.localHint": "V1 locale : le plan actif alimente Budget et Analyse sur cet appareil.",
+    "plans.newAction": "Nouveau plan",
+    "plans.duplicateAction": "Dupliquer",
+    "plans.editAction": "Modifier le nom et les dates",
+    "plans.deleteAction": "Supprimer le plan",
+    "plans.modalCreateTitle": "Créer un plan budgétaire",
+    "plans.modalDuplicateTitle": "Dupliquer ce plan",
+    "plans.modalEditTitle": "Modifier ce plan",
+    "plans.modalDescriptionCreate": "Les catégories du plan actif sont reprises avec des montants à zéro.",
+    "plans.modalDescriptionDuplicate": "Les lignes et les montants du plan actif seront copiés dans le nouveau plan.",
+    "plans.modalDescriptionEdit": "Ajustez le nom ou la plage de dates sans toucher aux montants du plan.",
+    "plans.nameLabel": "Nom du plan",
+    "plans.namePlaceholder": "Ex. Été 2026",
+    "plans.startLabel": "Date de début",
+    "plans.endLabel": "Date de fin",
+    "plans.saveCreate": "Créer le plan",
+    "plans.saveDuplicate": "Dupliquer le plan",
+    "plans.saveEdit": "Enregistrer le plan",
+    "plans.cancel": "Annuler",
+    "plans.defaultName": "Plan principal",
+    "plans.copyName": "{name} copie",
+    "plans.missingName": "Donnez un nom au plan.",
+    "plans.missingStart": "Choisissez une date de début.",
+    "plans.missingEnd": "Choisissez une date de fin.",
+    "plans.invalidRange": "La date de fin doit être après la date de début.",
+    "plans.overlap": "Cette plage chevauche déjà le plan {name}.",
+    "plans.switchBlocked": "Enregistrez ou rechargez le budget avant de changer de plan.",
+    "plans.created": "Plan créé : {name}.",
+    "plans.duplicated": "Plan dupliqué : {name}.",
+    "plans.updated": "Plan mis à jour : {name}.",
+    "plans.deleted": "Plan supprimé : {name}.",
+    "plans.groupEditorHint": "Cliquez sur une grande catégorie pour ajuster ses montants dans une vue dédiée.",
+    "plans.groupEditAction": "Ouvrir l'édition",
+    "plans.groupEditLead": "Touchez cette grande catégorie pour ajuster ses montants et ses périodes dans une modale.",
+    "plans.groupEditorTitle": "Modifier la grande catégorie",
+    "plans.groupEditorDescription": "Ajustez ici les montants et les périodes, puis sauvegardez sans quitter l'onglet Budget.",
+    "plans.groupEditorSave": "Sauvegarder cette catégorie",
+    "plans.groupEditorEmpty": "Aucune ligne modifiable n'est disponible dans cette grande catégorie.",
+    "plans.groupUpdated": "Grande catégorie mise à jour : {name}.",
+    "plans.deleteConfirm": "Supprimer le plan {name} ?",
+    "plans.deleteBlocked": "Gardez au moins un plan budgétaire.",
+    "plans.range": "Du {start} au {end}",
     "categories.modalTitle": "Gérer les catégories",
     "categories.modalDescription": "Créez ici une sous-catégorie dans une grande catégorie existante, ou ajoutez une nouvelle grande catégorie avec ses sous-catégories.",
     "categories.addCategoryTitle": "Ajouter une sous-catégorie",
@@ -446,7 +494,7 @@ const UI_STRINGS = {
     "toolbar.restart": "Restart",
     "toolbar.addRecord": "New record",
     "toolbar.newTransaction": "New transaction",
-    "toolbar.editBudget": "Edit budget",
+    "toolbar.editBudget": "Edit amounts",
     "toolbar.exportExcel": "Export Excel",
     "toolbar.exportJournal": "Export Journal",
     "toolbar.exportComplete": "Export full workbook",
@@ -613,6 +661,54 @@ const UI_STRINGS = {
     "form.editingCloud": "Shared cloud mode: each save updates your local views and syncs with Supabase.",
     "form.editingLocal": "Local standalone mode: your categories, recaps, and charts update every time you save.",
     "form.manageCategories": "Manage categories",
+    "plans.managerKicker": "Budget plans",
+    "plans.managerTitle": "Multiple planned budgets",
+    "plans.managerDescription": "Each plan keeps its own date range. The active plan drives this local test view.",
+    "plans.activeLabel": "Active plan",
+    "plans.periodLabel": "Period",
+    "plans.countLabel": "{count} plan{plural} available",
+    "plans.localHint": "Local V1: the active plan feeds Budget and Analysis on this device.",
+    "plans.newAction": "New plan",
+    "plans.duplicateAction": "Duplicate",
+    "plans.editAction": "Edit name and dates",
+    "plans.deleteAction": "Delete plan",
+    "plans.modalCreateTitle": "Create a budget plan",
+    "plans.modalDuplicateTitle": "Duplicate this plan",
+    "plans.modalEditTitle": "Edit this plan",
+    "plans.modalDescriptionCreate": "The active plan categories are reused with zero amounts.",
+    "plans.modalDescriptionDuplicate": "The active plan lines and amounts will be copied to the new plan.",
+    "plans.modalDescriptionEdit": "Adjust the name or the date range without changing the plan amounts.",
+    "plans.nameLabel": "Plan name",
+    "plans.namePlaceholder": "Ex. Summer 2026",
+    "plans.startLabel": "Start date",
+    "plans.endLabel": "End date",
+    "plans.saveCreate": "Create plan",
+    "plans.saveDuplicate": "Duplicate plan",
+    "plans.saveEdit": "Save plan",
+    "plans.cancel": "Cancel",
+    "plans.defaultName": "Main plan",
+    "plans.copyName": "{name} copy",
+    "plans.missingName": "Give the plan a name.",
+    "plans.missingStart": "Choose a start date.",
+    "plans.missingEnd": "Choose an end date.",
+    "plans.invalidRange": "The end date must be after the start date.",
+    "plans.overlap": "This range already overlaps plan {name}.",
+    "plans.switchBlocked": "Save or reload the budget before switching plans.",
+    "plans.created": "Plan created: {name}.",
+    "plans.duplicated": "Plan duplicated: {name}.",
+    "plans.updated": "Plan updated: {name}.",
+    "plans.deleted": "Plan deleted: {name}.",
+    "plans.groupEditorHint": "Click a main category to adjust its amounts in a dedicated view.",
+    "plans.groupEditAction": "Open editor",
+    "plans.groupEditLead": "Tap this main category to adjust its amounts and periods in a modal.",
+    "plans.groupEditorTitle": "Edit main category",
+    "plans.groupEditorDescription": "Adjust amounts and periods here, then save without leaving the Budget tab.",
+    "plans.groupEditorSave": "Save this category",
+    "plans.groupEditorEmpty": "No editable row is available in this main category.",
+    "plans.groupUpdated": "Main category updated: {name}.",
+    "plans.deleteConfirm": "Delete plan {name}?",
+    "plans.deleteBlocked": "Keep at least one budget plan.",
+    "plans.range": "From {start} to {end}",
     "categories.modalTitle": "Manage categories",
     "categories.modalDescription": "Create a subcategory inside an existing main category, or add a new main category with its subcategories.",
     "categories.addCategoryTitle": "Add a subcategory",
@@ -1195,6 +1291,8 @@ let colorSchemeMedia = null;
 let colorSchemeListenerBound = false;
 let categoryManagerModal = null;
 let categoryPickerModal = null;
+let budgetPlanModal = null;
+let budgetPlanGroupEditorModal = null;
 let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
 let analysisTransactionsModal = null;
@@ -1363,6 +1461,8 @@ function createEmptyRecapModel() {
     available: false,
     snapshotDate: "",
     planTemplate: [],
+    budgetPlans: [],
+    activeBudgetPlanId: "",
   };
 }
 
@@ -1756,6 +1856,7 @@ function sanitizeHistoryEntry(rawEntry) {
         group: normalizePlanGroup(row?.group, row?.label),
       })).filter((row) => row.label)
       : [],
+    planId: String(rawEntry?.planId || "").trim(),
   };
 }
 
@@ -1887,6 +1988,10 @@ function buildLocalTransactionsEmptyStateMarkup() {
 function startLocalBudgetExperience(options = {}) {
   const targetTab = normalizeAppTab(options.targetTab || APP_TAB_DASHBOARD);
   const planTemplate = buildLocalStarterPlanTemplate();
+  const initialPlan = sanitizeBudgetPlanDefinition({
+    name: buildBudgetPlanDefaultName(0),
+    rows: planTemplate,
+  }, 0);
   const categories = buildLocalStarterCategories(planTemplate);
   const recurringTemplates = state.recurringTemplates.length
     ? state.recurringTemplates.slice()
@@ -1915,7 +2020,9 @@ function startLocalBudgetExperience(options = {}) {
   state.recap = {
     available: true,
     snapshotDate: formatDateForDisplay(new Date().toISOString().slice(0, 10)),
-    planTemplate,
+    planTemplate: resolvePlanTemplate(initialPlan.rows),
+    budgetPlans: [initialPlan],
+    activeBudgetPlanId: initialPlan.id,
   };
   state.recapFilters = createEmptyRecapFilters();
   if (recurringTemplates.length) {
@@ -2206,23 +2313,34 @@ function ensurePlanTemplateCategoryRow(category, planGroup = "expenses") {
     return false;
   }
 
-  const currentRows = ensurePlanTemplateSeeded();
-  const editableRows = clonePlanTemplateRows(currentRows).filter((row) => !isDerivedPlanLabel(row.label));
-  const alreadyExists = editableRows.some(
-    (row) => normalizeHeaderName(row.label) === normalizeHeaderName(label)
-  );
+  const normalizedLabel = normalizeHeaderName(label);
+  let changed = false;
+  const nextPlans = ensureBudgetPlansSeeded().map((plan) => {
+    const alreadyExists = plan.rows.some((row) => normalizeHeaderName(row.label) === normalizedLabel);
+    if (alreadyExists) {
+      return plan;
+    }
 
-  if (alreadyExists) {
+    changed = true;
+    return {
+      ...plan,
+      rows: [
+        ...plan.rows,
+        {
+          label,
+          plan: "0",
+          period: DEFAULT_PLAN_PERIOD,
+          group: normalizePlanGroup(planGroup, label),
+        },
+      ],
+    };
+  });
+
+  if (!changed) {
     return false;
   }
 
-  editableRows.push({
-    label,
-    plan: "0",
-    period: DEFAULT_PLAN_PERIOD,
-    group: normalizePlanGroup(planGroup, label),
-  });
-  state.recap.planTemplate = resolvePlanTemplate(editableRows);
+  setBudgetPlansState(nextPlans, state.recap.activeBudgetPlanId);
   return true;
 }
 
@@ -3420,17 +3538,22 @@ function computePlanGroupMonthlyTotal(rows) {
 
 function renderPlanGroupSection(categoryKey, rows, startIndex, readOnly = false, groupIndex = 0) {
   const english = getCurrentLanguage() === "en";
-  const section = document.createElement("details");
+  const nextIndex = startIndex + rows.length;
+  const section = document.createElement("section");
   section.className = "plan-group-section budget-panel";
   section.setAttribute("data-budget-group", categoryKey);
 
   const meta = getBudgetFraCategoryMeta(categoryKey);
-  const heading = document.createElement("summary");
-  heading.className = "plan-group-header";
-  heading.innerHTML = `
-    <div>
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "plan-group-header plan-group-trigger";
+  trigger.setAttribute("data-plan-group-open", categoryKey);
+  trigger.innerHTML = `
+    <div class="plan-group-copy">
       <div class="budget-kind">${english ? "Main category" : "Grande catégorie"}</div>
       <h3 class="plan-group-title">${escapeHtml(meta.label)}</h3>
+      <p>${escapeHtml(meta.description || (english ? "Budget section grouped by parent category." : "Section budgétaire regroupée par parent."))}</p>
+      <span class="analysis-card-link">${escapeHtml(t("plans.groupEditAction"))}</span>
     </div>
     <div class="budget-summary-side">
       <strong data-plan-group-total="${escapeHtml(categoryKey)}">${escapeHtml(
@@ -3440,30 +3563,10 @@ function renderPlanGroupSection(categoryKey, rows, startIndex, readOnly = false,
     </div>
   `;
 
-  const body = document.createElement("div");
-  body.className = "plan-group-body";
-  body.innerHTML = `
-    <p class="budget-panel-note">${escapeHtml(meta.description || (english ? "Budget section grouped by parent category." : "Section budgétaire regroupée par parent."))}</p>
-    <div class="budget-head">
-      <div>${english ? "Item" : "Poste"}</div>
-      <div>${english ? "Amount" : "Montant"}</div>
-      <div>${english ? "Period" : "Période"}</div>
-      <div>Parent</div>
-      <div>${english ? "Monthly" : "Mensuel"}</div>
-    </div>
-  `;
-
-  const table = document.createElement("div");
-  table.className = "budget-table";
-
-  let nextIndex = startIndex;
-  rows.forEach((row) => {
-    table.appendChild(renderPlanAmountField(row, nextIndex, readOnly));
-    nextIndex += 1;
-  });
-
-  body.appendChild(table);
-  section.append(heading, body);
+  const note = document.createElement("p");
+  note.className = "budget-panel-note";
+  note.textContent = t("plans.groupEditLead");
+  section.append(trigger, note);
   return { section, nextIndex };
 }
 
@@ -3907,14 +4010,17 @@ function ensurePlanTemplateSeeded() {
     return [];
   }
 
-  if (Array.isArray(state.recap.planTemplate) && state.recap.planTemplate.length) {
-    state.recap.planTemplate = resolvePlanTemplate(state.recap.planTemplate);
+  if (Array.isArray(state.recap.budgetPlans) && state.recap.budgetPlans.length) {
+    ensureBudgetPlansSeeded();
     return state.recap.planTemplate;
   }
 
-  state.recap.available = true;
-  state.recap.planTemplate = resolvePlanTemplate(createFallbackPlanTemplate());
-  persistDraftIfPossible();
+  if (Array.isArray(state.recap.planTemplate) && state.recap.planTemplate.length) {
+    ensureBudgetPlansSeeded();
+    return state.recap.planTemplate;
+  }
+
+  ensureBudgetPlansSeeded();
   return state.recap.planTemplate;
 }
 
@@ -4240,8 +4346,11 @@ function bindEvents() {
   refs.welcomeScreen.addEventListener("click", onEmptyStateAction);
   refs.cardsEmpty.addEventListener("click", onEmptyStateAction);
   refs.formFields.addEventListener("click", onEmptyStateAction);
+  refs.formFields.addEventListener("click", onBudgetPlanManagerAction);
+  refs.formFields.addEventListener("click", onPlanGroupAction);
   refs.formFields.addEventListener("click", onRecurringTemplateAction);
   refs.formFields.addEventListener("click", onRecurringReviewAction);
+  refs.formFields.addEventListener("change", onBudgetPlanManagerChanged);
   refs.formFields.addEventListener("input", onRecurringTemplateConfigChanged);
   refs.formFields.addEventListener("change", onRecurringTemplateConfigChanged);
   refs.formFields.addEventListener("input", onRecurringReviewDraftChanged);
@@ -4925,6 +5034,245 @@ function clonePlanTemplateRows(rows) {
     .filter((row) => row.label);
 }
 
+function sanitizeBudgetPlanRows(rows) {
+  const sanitized = stripAutoCalculatedPlanRows(clonePlanTemplateRows(rows));
+  return sanitized.length
+    ? sanitized
+    : stripAutoCalculatedPlanRows(clonePlanTemplateRows(createFallbackPlanTemplate()));
+}
+
+function getBudgetPlanFallbackYear() {
+  const preferredYear = String(state.recapFilters?.year || "").trim();
+  if (/^\d{4}$/.test(preferredYear)) {
+    return preferredYear;
+  }
+
+  const datedRows = state.budget.rows
+    .map((row) => normalizeDateValue(row?.Date))
+    .filter(Boolean)
+    .sort();
+  if (datedRows.length) {
+    return datedRows.at(-1).slice(0, 4);
+  }
+
+  const snapshotIso = normalizeDateValue(state.recap?.snapshotDate || "");
+  if (snapshotIso) {
+    return snapshotIso.slice(0, 4);
+  }
+
+  return String(new Date().getFullYear());
+}
+
+function buildBudgetPlanFallbackDateRange(anchorDate = "") {
+  const anchorIso = normalizeDateValue(anchorDate);
+  const year = anchorIso ? anchorIso.slice(0, 4) : getBudgetPlanFallbackYear();
+  return {
+    startDate: `${year}-01-01`,
+    endDate: `${year}-12-31`,
+  };
+}
+
+function buildBudgetPlanDefaultName(index = 0) {
+  const baseLabel = t("plans.defaultName");
+  return index <= 0 ? baseLabel : `${baseLabel} ${index + 1}`;
+}
+
+function sanitizeBudgetPlanDefinition(rawPlan, index = 0) {
+  const fallbackRange = buildBudgetPlanFallbackDateRange(rawPlan?.startDate || rawPlan?.endDate || "");
+  const normalizedStart = normalizeDateValue(rawPlan?.startDate) || fallbackRange.startDate;
+  const normalizedEnd = normalizeDateValue(rawPlan?.endDate) || fallbackRange.endDate;
+  const startDate = normalizedStart <= normalizedEnd ? normalizedStart : normalizedEnd;
+  const endDate = normalizedEnd >= normalizedStart ? normalizedEnd : normalizedStart;
+  const label = String(rawPlan?.name || buildBudgetPlanDefaultName(index)).trim() || buildBudgetPlanDefaultName(index);
+
+  return {
+    id: String(rawPlan?.id || createId()),
+    name: label,
+    startDate,
+    endDate,
+    rows: sanitizeBudgetPlanRows(rawPlan?.rows || rawPlan?.planTemplate || []),
+  };
+}
+
+function cloneBudgetPlanDefinitions(plans) {
+  return (Array.isArray(plans) ? plans : [])
+    .map((plan, index) => sanitizeBudgetPlanDefinition(plan, index))
+    .filter(Boolean);
+}
+
+function getBudgetPlans() {
+  return Array.isArray(state.recap?.budgetPlans) ? state.recap.budgetPlans : [];
+}
+
+function getBudgetPlanById(planId) {
+  const targetId = String(planId || "").trim();
+  if (!targetId) {
+    return null;
+  }
+
+  return getBudgetPlans().find((plan) => String(plan.id || "").trim() === targetId) || null;
+}
+
+function getActiveBudgetPlan() {
+  const plans = getBudgetPlans();
+  if (!plans.length) {
+    return null;
+  }
+
+  return getBudgetPlanById(state.recap.activeBudgetPlanId) || plans[0];
+}
+
+function syncRecapPlanTemplateFromActivePlan() {
+  const activePlan = getActiveBudgetPlan();
+  if (!activePlan) {
+    state.recap.planTemplate = [];
+    return null;
+  }
+
+  state.recap.activeBudgetPlanId = activePlan.id;
+  state.recap.available = true;
+  state.recap.planTemplate = resolvePlanTemplate(activePlan.rows);
+  return activePlan;
+}
+
+function setBudgetPlansState(nextPlans, activePlanId = "") {
+  const normalizedPlans = cloneBudgetPlanDefinitions(nextPlans);
+  state.recap.budgetPlans = normalizedPlans;
+
+  const preferredActive = normalizedPlans.find((plan) => plan.id === String(activePlanId || "").trim());
+  state.recap.activeBudgetPlanId = preferredActive?.id || normalizedPlans[0]?.id || "";
+  syncRecapPlanTemplateFromActivePlan();
+  return getActiveBudgetPlan();
+}
+
+function ensureBudgetPlansSeeded() {
+  if (state.mode !== "budget") {
+    return [];
+  }
+
+  const currentPlans = cloneBudgetPlanDefinitions(state.recap.budgetPlans);
+  if (currentPlans.length) {
+    setBudgetPlansState(currentPlans, state.recap.activeBudgetPlanId);
+    return state.recap.budgetPlans;
+  }
+
+  const seedRows = Array.isArray(state.recap.planTemplate) && state.recap.planTemplate.length
+    ? state.recap.planTemplate
+    : createFallbackPlanTemplate();
+  const initialPlan = sanitizeBudgetPlanDefinition({
+    name: buildBudgetPlanDefaultName(0),
+    rows: seedRows,
+  }, 0);
+
+  setBudgetPlansState([initialPlan], initialPlan.id);
+  persistDraftIfPossible();
+  return state.recap.budgetPlans;
+}
+
+function replaceBudgetPlanRows(planId, rows) {
+  const targetId = String(planId || "").trim() || String(getActiveBudgetPlan()?.id || "").trim();
+  if (!targetId) {
+    return false;
+  }
+
+  const nextRows = sanitizeBudgetPlanRows(rows);
+  let updated = false;
+  const nextPlans = ensureBudgetPlansSeeded().map((plan) => {
+    if (plan.id !== targetId) {
+      return plan;
+    }
+
+    updated = true;
+    return {
+      ...plan,
+      rows: nextRows,
+    };
+  });
+
+  if (!updated) {
+    return false;
+  }
+
+  setBudgetPlansState(nextPlans, targetId);
+  return true;
+}
+
+function replaceActiveBudgetPlanRows(rows) {
+  return replaceBudgetPlanRows(state.recap.activeBudgetPlanId, rows);
+}
+
+function selectActiveBudgetPlan(planId) {
+  const targetPlan = getBudgetPlanById(planId);
+  if (!targetPlan) {
+    return false;
+  }
+
+  state.recap.activeBudgetPlanId = targetPlan.id;
+  syncRecapPlanTemplateFromActivePlan();
+  persistDraftIfPossible();
+  return true;
+}
+
+function buildZeroedBudgetPlanRows(rows) {
+  return sanitizeBudgetPlanRows(rows).map((row) => ({
+    ...row,
+    plan: "0",
+  }));
+}
+
+function getShiftedBudgetPlanDateRange(plan) {
+  const sourcePlan = plan || getActiveBudgetPlan();
+  const startDate = normalizeDateValue(sourcePlan?.startDate);
+  const endDate = normalizeDateValue(sourcePlan?.endDate);
+  if (!startDate || !endDate) {
+    return buildBudgetPlanFallbackDateRange();
+  }
+
+  const durationDays = Math.max(
+    0,
+    Math.round((new Date(`${endDate}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) / 86400000)
+  );
+  const nextStartDate = addDaysToIsoDate(endDate, 1);
+  return {
+    startDate: nextStartDate,
+    endDate: addDaysToIsoDate(nextStartDate, durationDays),
+  };
+}
+
+function findOverlappingBudgetPlan(startDate, endDate, excludePlanId = "") {
+  const normalizedStart = normalizeDateValue(startDate);
+  const normalizedEnd = normalizeDateValue(endDate);
+  const excludedId = String(excludePlanId || "").trim();
+  if (!normalizedStart || !normalizedEnd) {
+    return null;
+  }
+
+  return getBudgetPlans().find((plan) => {
+    if (String(plan.id || "").trim() === excludedId) {
+      return false;
+    }
+
+    return !(normalizedEnd < plan.startDate || normalizedStart > plan.endDate);
+  }) || null;
+}
+
+function getBudgetPlanRangeLabel(plan) {
+  const startLabel = formatDateForDisplay(plan?.startDate) || String(plan?.startDate || "").trim();
+  const endLabel = formatDateForDisplay(plan?.endDate) || String(plan?.endDate || "").trim();
+  return t("plans.range", {
+    start: startLabel,
+    end: endLabel,
+  });
+}
+
+function getBudgetPlanCountLabel(count) {
+  const total = Math.max(0, Number(count) || 0);
+  return t("plans.countLabel", {
+    count: total,
+    plural: total > 1 ? "s" : "",
+  });
+}
+
 function recordHistoryEvent(label) {
   const normalizedLabel = String(label || "").trim();
   if (!normalizedLabel) {
@@ -5022,7 +5370,7 @@ async function onUndoLastActionRequested() {
     actionLabel = `Suppression annulee: ${entry.record.Categories || entry.record.Date || "transaction"}`;
   } else if (entry.kind === "update-plan" && entry.previousTemplate?.length) {
     state.recap.available = true;
-    state.recap.planTemplate = resolvePlanTemplate(clonePlanTemplateRows(entry.previousTemplate));
+    replaceBudgetPlanRows(entry.planId || state.recap.activeBudgetPlanId, clonePlanTemplateRows(entry.previousTemplate));
     state.planEditing = false;
     actionLabel = "Budget planifié restaure";
   }
@@ -6392,15 +6740,23 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       customGroups: categorySchemaOutdated ? preservedCustomGroups : cloudCustomGroups,
       categoryAssignments: categorySchemaOutdated ? preservedCategoryAssignments : cloudCategoryAssignments,
     };
+    const cloudPlanRows = (planRows || []).map((row) => ({
+      label: String(row.label || "").trim(),
+      plan: normalizeAmountValue(row.plan_amount),
+      period: normalizePlanPeriod(row.plan_period),
+      group: normalizePlanGroup(row.plan_group, row.label),
+    })).filter((row) => row.label);
+    const cloudPlan = sanitizeBudgetPlanDefinition({
+      name: state.cloud.space.name || buildBudgetPlanDefaultName(0),
+      rows: cloudPlanRows,
+    }, 0);
+
     state.recap = {
       available: true,
       snapshotDate: `Supabase - ${formatDraftSavedAt(new Date().toISOString())}`,
-      planTemplate: (planRows || []).map((row) => ({
-        label: String(row.label || "").trim(),
-        plan: normalizeAmountValue(row.plan_amount),
-        period: normalizePlanPeriod(row.plan_period),
-        group: normalizePlanGroup(row.plan_group, row.label),
-      })).filter((row) => row.label),
+      planTemplate: resolvePlanTemplate(cloudPlan.rows),
+      budgetPlans: [cloudPlan],
+      activeBudgetPlanId: cloudPlan.id,
     };
     recurringSupabaseSchemaReady = !recurringSchemaOutdated;
     categorySupabaseSchemaReady = !categorySchemaOutdated;
@@ -6832,6 +7188,8 @@ function persistDraft() {
       available: state.recap.available,
       snapshotDate: state.recap.snapshotDate,
       planTemplate: state.recap.planTemplate,
+      budgetPlans: state.recap.budgetPlans,
+      activeBudgetPlanId: state.recap.activeBudgetPlanId,
     },
     cloud: {
       email: state.cloud.email,
@@ -6876,25 +7234,30 @@ function applyStoredDraft(draft) {
   state.recap = {
     available: Boolean(draft.recap?.available),
     snapshotDate: String(draft.recap?.snapshotDate || ""),
-      planTemplate: Array.isArray(draft.recap?.planTemplate)
-        ? draft.recap.planTemplate.map((row) => ({
-            label: String(row?.label || ""),
-            plan: normalizeAmountValue(row?.plan),
-            period: normalizePlanPeriod(row?.period),
-            group: normalizePlanGroup(row?.group, row?.label),
-        }))
+    planTemplate: Array.isArray(draft.recap?.planTemplate)
+      ? draft.recap.planTemplate.map((row) => ({
+        label: String(row?.label || ""),
+        plan: normalizeAmountValue(row?.plan),
+        period: normalizePlanPeriod(row?.period),
+        group: normalizePlanGroup(row?.group, row?.label),
+      }))
       : [],
+    budgetPlans: Array.isArray(draft.recap?.budgetPlans)
+      ? draft.recap.budgetPlans.map((plan, index) => sanitizeBudgetPlanDefinition(plan, index)).filter(Boolean)
+      : [],
+    activeBudgetPlanId: String(draft.recap?.activeBudgetPlanId || ""),
   };
-    state.recapFilters = {
-      year: String(draft.recapFilters?.year || "all"),
-      month: String(draft.recapFilters?.month || "all"),
-      months: Array.isArray(draft.recapFilters?.months)
-        ? draft.recapFilters.months.map((value) => String(value || "").padStart(2, "0")).filter(Boolean)
-        : draft.recapFilters?.month && draft.recapFilters.month !== "all"
-          ? [String(draft.recapFilters.month).padStart(2, "0")]
-          : [],
-      rangeMonths: "all",
-    };
+  state.recapFilters = {
+    year: String(draft.recapFilters?.year || "all"),
+    month: String(draft.recapFilters?.month || "all"),
+    months: Array.isArray(draft.recapFilters?.months)
+      ? draft.recapFilters.months.map((value) => String(value || "").padStart(2, "0")).filter(Boolean)
+      : draft.recapFilters?.month && draft.recapFilters.month !== "all"
+        ? [String(draft.recapFilters.month).padStart(2, "0")]
+        : [],
+    rangeMonths: "all",
+  };
+  ensureBudgetPlansSeeded();
   state.cloud.email = String(draft.cloud?.email || state.cloud.email || "");
   state.cloud.space = {
     id: String(draft.cloud?.space?.id || state.cloud.space.id || ""),
@@ -7320,10 +7683,20 @@ function parseRecapWorkbook(workbook) {
     return createEmptyRecapModel();
   }
 
+  const planTemplate = parseRecapPlanTemplate(tcdSheet);
+  const initialPlan = sanitizeBudgetPlanDefinition({
+    name: buildBudgetPlanDefaultName(0),
+    rows: planTemplate,
+    startDate: buildBudgetPlanFallbackDateRange(readCellRawValue(recapSheet?.BJ2)).startDate,
+    endDate: buildBudgetPlanFallbackDateRange(readCellRawValue(recapSheet?.BJ2)).endDate,
+  }, 0);
+
   return {
     available: true,
     snapshotDate: formatDateForDisplay(readCellRawValue(recapSheet?.BJ2)),
-    planTemplate: parseRecapPlanTemplate(tcdSheet),
+    planTemplate: resolvePlanTemplate(initialPlan.rows),
+    budgetPlans: [initialPlan],
+    activeBudgetPlanId: initialPlan.id,
   };
 }
 
@@ -8180,11 +8553,17 @@ function startPlanEditMode() {
     return;
   }
 
-  state.planEditing = true;
-  setLastAction("Edition du budget active.");
+  state.planEditing = false;
+  const message = t("plans.groupEditorHint");
+  setLastAction(message);
+  showAppToast(message, 3600);
   renderAll();
+  refs.formFields.querySelector("[data-plan-group-open]")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
   void updateCloudPresenceTrack();
-  void sendCloudActivityBroadcast("editing", "modifie le budget");
+  void sendCloudActivityBroadcast("editing", "prépare une catégorie de budget");
 }
 
 function onToolbarActionRequested() {
@@ -8384,15 +8763,17 @@ async function onSaveRecord(event) {
   });
 }
 
-function collectPlanEditorTemplateRows() {
-  const currentPlanRows = ensurePlanTemplateSeeded();
+function collectPlanEditorTemplateRows(root = refs.form, sourceRows = null) {
+  const currentPlanRows = Array.isArray(sourceRows) && sourceRows.length
+    ? clonePlanTemplateRows(sourceRows)
+    : ensurePlanTemplateSeeded();
   const editableRows = currentPlanRows.filter((row) => !isDerivedPlanLabel(row.label));
 
   return editableRows
     .map((sourceRow) => {
       const rowKey = normalizeHeaderName(sourceRow.label);
-      const amountInput = refs.form.querySelector(`[data-plan-input="true"][data-plan-key="${rowKey}"]`);
-      const periodSelect = refs.form.querySelector(`[data-plan-period="true"][data-plan-key="${rowKey}"]`);
+      const amountInput = root?.querySelector?.(`[data-plan-input="true"][data-plan-key="${rowKey}"]`);
+      const periodSelect = root?.querySelector?.(`[data-plan-period="true"][data-plan-key="${rowKey}"]`);
       return {
         label: String(sourceRow.label || "").trim(),
         plan: normalizeAmountValue(amountInput?.value ?? sourceRow.plan),
@@ -8403,15 +8784,15 @@ function collectPlanEditorTemplateRows() {
     .filter((row) => row.label);
 }
 
-function refreshPlanEditorPreview() {
-  if (state.appTab !== APP_TAB_PLAN || state.mode !== "budget") {
+function refreshPlanEditorPreview(root = refs.form, sourceRows = null) {
+  if (state.mode !== "budget" || !root) {
     return;
   }
 
-  const previewRows = resolvePlanTemplate(collectPlanEditorTemplateRows());
+  const previewRows = resolvePlanTemplate(collectPlanEditorTemplateRows(root, sourceRows));
   const previewMap = new Map(previewRows.map((row) => [normalizeHeaderName(row.label), row]));
 
-  Array.from(refs.form.querySelectorAll("[data-plan-row]")).forEach((rowElement) => {
+  Array.from(root.querySelectorAll("[data-plan-row]")).forEach((rowElement) => {
     const label = String(rowElement.getAttribute("data-plan-row") || "");
     const previewRow = previewMap.get(normalizeHeaderName(label));
     if (!previewRow) {
@@ -8448,7 +8829,7 @@ function refreshPlanEditorPreview() {
     previewRows.filter((row) => !isDerivedPlanLabel(row.label))
   );
   groupedPreviewRows.forEach((group) => {
-    const target = refs.form.querySelector(`[data-plan-group-total="${group.key}"]`);
+    const target = root.querySelector(`[data-plan-group-total="${group.key}"]`);
     if (target) {
       target.textContent = formatCurrency(computePlanGroupMonthlyTotal(group.rows));
     }
@@ -8468,6 +8849,594 @@ function onPlanEditorFieldChanged(event) {
   refreshPlanEditorPreview();
 }
 
+function onPlanGroupAction(event) {
+  if (state.appTab !== APP_TAB_PLAN) {
+    return;
+  }
+
+  const trigger = event.target.closest("[data-plan-group-open]");
+  if (!trigger) {
+    return;
+  }
+
+  event.preventDefault();
+  openBudgetPlanGroupEditorModal(trigger.getAttribute("data-plan-group-open"));
+}
+
+function renderBudgetPlanManager() {
+  const plans = ensureBudgetPlansSeeded();
+  const activePlan = getActiveBudgetPlan();
+  if (!plans.length || !activePlan) {
+    return null;
+  }
+
+  const english = isEnglishUi();
+  const section = document.createElement("section");
+  section.className = "budget-plan-manager";
+  section.innerHTML = `
+    <div class="budget-plan-manager-head">
+      <div class="budget-plan-manager-copy">
+        <span class="section-kicker">${escapeHtml(t("plans.managerKicker"))}</span>
+        <h3>${escapeHtml(t("plans.managerTitle"))}</h3>
+        <p>${escapeHtml(t("plans.managerDescription"))}</p>
+      </div>
+      <span class="budget-plan-manager-count">${escapeHtml(getBudgetPlanCountLabel(plans.length))}</span>
+    </div>
+    <div class="budget-plan-manager-grid">
+      <label class="budget-plan-manager-field">
+        <span>${escapeHtml(t("plans.activeLabel"))}</span>
+        <select data-budget-plan-select="active">
+          ${plans.map((plan) => `
+            <option value="${escapeHtml(plan.id)}" ${plan.id === activePlan.id ? "selected" : ""}>
+              ${escapeHtml(plan.name)}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+      <div class="budget-plan-manager-meta">
+        <span>${escapeHtml(t("plans.periodLabel"))}</span>
+        <strong>${escapeHtml(getBudgetPlanRangeLabel(activePlan))}</strong>
+      </div>
+    </div>
+    <p class="budget-plan-manager-note">${escapeHtml(t("plans.localHint"))}</p>
+    <div class="budget-plan-manager-actions">
+      <button type="button" class="button secondary" data-budget-plan-action="edit-budget" ${state.planEditing ? "disabled" : ""}>${escapeHtml(t("toolbar.editBudget"))}</button>
+      <button type="button" class="button secondary" data-budget-plan-action="create">${escapeHtml(t("plans.newAction"))}</button>
+      <button type="button" class="button ghost" data-budget-plan-action="duplicate" ${state.planEditing ? "disabled" : ""}>${escapeHtml(t("plans.duplicateAction"))}</button>
+      <button type="button" class="button ghost" data-budget-plan-action="edit" ${state.planEditing ? "disabled" : ""}>${escapeHtml(t("plans.editAction"))}</button>
+      <button type="button" class="button ghost danger" data-budget-plan-action="delete" ${plans.length <= 1 || state.planEditing ? "disabled" : ""}>${escapeHtml(t("plans.deleteAction"))}</button>
+    </div>
+  `;
+
+  if (!english && activePlan.name === t("plans.defaultName")) {
+    section.dataset.defaultPlan = "true";
+  }
+
+  return section;
+}
+
+function onBudgetPlanManagerAction(event) {
+  if (state.appTab !== APP_TAB_PLAN) {
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-budget-plan-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  event.preventDefault();
+  if (state.planEditing) {
+    setLastAction(t("plans.switchBlocked"));
+    renderAll();
+    return;
+  }
+
+  const action = String(actionButton.dataset.budgetPlanAction || "").trim();
+  if (action === "create") {
+    openBudgetPlanModal("create");
+    return;
+  }
+
+  if (action === "edit-budget") {
+    startPlanEditMode();
+    return;
+  }
+
+  if (action === "duplicate") {
+    openBudgetPlanModal("duplicate");
+    return;
+  }
+
+  if (action === "edit") {
+    openBudgetPlanModal("edit");
+    return;
+  }
+
+  if (action === "delete") {
+    void handleActiveBudgetPlanDeletion();
+  }
+}
+
+function onBudgetPlanManagerChanged(event) {
+  if (state.appTab !== APP_TAB_PLAN) {
+    return;
+  }
+
+  const select = event.target.closest("[data-budget-plan-select='active']");
+  if (!select) {
+    return;
+  }
+
+  if (state.planEditing) {
+    select.value = state.recap.activeBudgetPlanId || "";
+    setLastAction(t("plans.switchBlocked"));
+    renderAll();
+    return;
+  }
+
+  if (!selectActiveBudgetPlan(select.value)) {
+    return;
+  }
+
+  setLastAction(`${t("plans.activeLabel")} : ${getActiveBudgetPlan()?.name || ""}`.trim());
+  renderAll();
+}
+
+function closeBudgetPlanModal() {
+  if (budgetPlanModal?.remove) {
+    budgetPlanModal.remove();
+  }
+  budgetPlanModal = null;
+}
+
+function closeBudgetPlanGroupEditorModal() {
+  if (budgetPlanGroupEditorModal?.remove) {
+    budgetPlanGroupEditorModal.remove();
+  }
+  budgetPlanGroupEditorModal = null;
+}
+
+function buildBudgetPlanGroupRows(groupKey) {
+  return ensurePlanTemplateSeeded()
+    .filter((row) => !isDerivedPlanLabel(row.label))
+    .filter((row) => getPlanDisplayGroupKey(row) === groupKey);
+}
+
+function openBudgetPlanGroupEditorModal(groupKey) {
+  if (state.mode !== "budget") {
+    return;
+  }
+
+  const targetGroupKey = String(groupKey || "").trim();
+  if (!targetGroupKey) {
+    return;
+  }
+
+  const groupRows = buildBudgetPlanGroupRows(targetGroupKey);
+  if (!groupRows.length) {
+    window.alert(t("plans.groupEditorEmpty"));
+    return;
+  }
+
+  if (budgetPlanGroupEditorModal) {
+    closeBudgetPlanGroupEditorModal();
+  }
+
+  const english = isEnglishUi();
+  const meta = getBudgetFraCategoryMeta(targetGroupKey);
+  const overlay = document.createElement("div");
+  overlay.className = "budget-plan-modal budget-plan-group-modal";
+  overlay.dataset.groupKey = targetGroupKey;
+
+  const table = document.createElement("div");
+  table.className = "budget-table";
+  groupRows.forEach((row, index) => {
+    table.appendChild(renderPlanAmountField(row, 9000 + index, false));
+  });
+
+  const dialog = document.createElement("div");
+  dialog.className = "budget-plan-dialog budget-plan-group-dialog";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "budget-plan-group-modal-title");
+  dialog.innerHTML = `
+    <div class="budget-plan-modal-head budget-plan-group-head">
+      <div>
+        <p class="section-kicker">${escapeHtml(t("plans.managerKicker"))}</p>
+        <h3 id="budget-plan-group-modal-title">${escapeHtml(`${t("plans.groupEditorTitle")} · ${meta.label}`)}</h3>
+        <p>${escapeHtml(t("plans.groupEditorDescription"))}</p>
+      </div>
+      <button type="button" class="button ghost" data-budget-plan-group-action="close">${escapeHtml(t("plans.cancel"))}</button>
+    </div>
+    <div class="budget-plan-group-summary">
+      <div>
+        <span>${escapeHtml(english ? "Main category" : "Grande catégorie")}</span>
+        <strong>${escapeHtml(meta.label)}</strong>
+      </div>
+      <div>
+        <span>${escapeHtml(english ? "Monthly equivalent" : "Équivalent mensuel")}</span>
+        <strong data-plan-group-total="${escapeHtml(targetGroupKey)}">${escapeHtml(formatCurrency(computePlanGroupMonthlyTotal(groupRows)))}</strong>
+      </div>
+    </div>
+    <p class="budget-panel-note">${escapeHtml(meta.description || "")}</p>
+    <div class="budget-head">
+      <div>${escapeHtml(english ? "Item" : "Poste")}</div>
+      <div>${escapeHtml(english ? "Amount" : "Montant")}</div>
+      <div>${escapeHtml(english ? "Period" : "Période")}</div>
+      <div>Parent</div>
+      <div>${escapeHtml(english ? "Monthly" : "Mensuel")}</div>
+    </div>
+  `;
+  dialog.appendChild(table);
+
+  const actions = document.createElement("div");
+  actions.className = "budget-plan-modal-actions";
+  actions.innerHTML = `
+    <button type="button" class="button ghost" data-budget-plan-group-action="close">${escapeHtml(t("plans.cancel"))}</button>
+    <button type="button" class="button primary" data-budget-plan-group-action="save">${escapeHtml(t("plans.groupEditorSave"))}</button>
+  `;
+  dialog.appendChild(actions);
+  overlay.appendChild(dialog);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      closeBudgetPlanGroupEditorModal();
+      return;
+    }
+
+    const actionButton = event.target.closest("[data-budget-plan-group-action]");
+    if (!actionButton) {
+      return;
+    }
+
+    const action = String(actionButton.dataset.budgetPlanGroupAction || "").trim();
+    if (action === "close") {
+      closeBudgetPlanGroupEditorModal();
+      return;
+    }
+
+    if (action === "save") {
+      void handleBudgetPlanGroupEditorSave();
+    }
+  });
+
+  overlay.addEventListener("input", (event) => {
+    if (!event.target?.matches?.("[data-plan-input='true'], [data-plan-period='true']")) {
+      return;
+    }
+
+    refreshPlanEditorPreview(overlay, groupRows);
+  });
+
+  overlay.addEventListener("change", (event) => {
+    if (!event.target?.matches?.("[data-plan-input='true'], [data-plan-period='true']")) {
+      return;
+    }
+
+    refreshPlanEditorPreview(overlay, groupRows);
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeBudgetPlanGroupEditorModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  budgetPlanGroupEditorModal = overlay;
+  refreshPlanEditorPreview(overlay, groupRows);
+  window.requestAnimationFrame(() => {
+    budgetPlanGroupEditorModal?.querySelector("[data-plan-input='true']")?.focus();
+  });
+}
+
+async function handleBudgetPlanGroupEditorSave() {
+  if (!budgetPlanGroupEditorModal) {
+    return;
+  }
+
+  const groupKey = String(budgetPlanGroupEditorModal.dataset.groupKey || "").trim();
+  const activePlan = getActiveBudgetPlan();
+  const currentRows = clonePlanTemplateRows(activePlan?.rows || state.recap.planTemplate)
+    .filter((row) => !isDerivedPlanLabel(row.label));
+  const targetRows = currentRows.filter((row) => getPlanDisplayGroupKey(row) === groupKey);
+
+  if (!targetRows.length) {
+    window.alert(t("plans.groupEditorEmpty"));
+    return;
+  }
+
+  const previousTemplate = clonePlanTemplateRows(activePlan?.rows || state.recap.planTemplate);
+  const updates = new Map(
+    collectPlanEditorTemplateRows(budgetPlanGroupEditorModal, targetRows)
+      .map((row) => [normalizeHeaderName(row.label), row])
+  );
+
+  const nextEditableTemplate = currentRows.map((row) => {
+    const updatedRow = updates.get(normalizeHeaderName(row.label));
+    return updatedRow ? {
+      ...row,
+      plan: updatedRow.plan,
+      period: updatedRow.period,
+      group: normalizePlanGroup(updatedRow.group, updatedRow.label),
+    } : row;
+  });
+
+  state.recap.available = true;
+  replaceActiveBudgetPlanRows(nextEditableTemplate);
+  state.planEditing = false;
+  persistDraft();
+
+  const meta = getBudgetFraCategoryMeta(groupKey);
+  const actionLabel = t("plans.groupUpdated", { name: meta.label });
+  pushUndoEntry({
+    kind: "update-plan",
+    previousTemplate,
+    planId: activePlan?.id || state.recap.activeBudgetPlanId,
+  }, actionLabel);
+  setLastAction(actionLabel);
+  showAppToast(actionLabel, 4200);
+  closeBudgetPlanGroupEditorModal();
+  renderAll();
+  void updateCloudPresenceTrack();
+
+  if (canUseSupabaseCloud()) {
+    try {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      await sendCloudActivityBroadcast("saved", "le budget");
+    } catch (error) {
+      console.error(error);
+      setLastAction(`${actionLabel} - synchronisation cloud en échec`);
+      renderAll();
+    }
+  }
+}
+
+function buildBudgetPlanModalPreset(mode, sourcePlan) {
+  const source = sourcePlan || getActiveBudgetPlan();
+  const shiftedRange = getShiftedBudgetPlanDateRange(source);
+
+  if (mode === "edit" && source) {
+    return {
+      title: t("plans.modalEditTitle"),
+      description: t("plans.modalDescriptionEdit"),
+      actionLabel: t("plans.saveEdit"),
+      name: source.name,
+      startDate: source.startDate,
+      endDate: source.endDate,
+    };
+  }
+
+  if (mode === "duplicate" && source) {
+    return {
+      title: t("plans.modalDuplicateTitle"),
+      description: t("plans.modalDescriptionDuplicate"),
+      actionLabel: t("plans.saveDuplicate"),
+      name: t("plans.copyName", { name: source.name }),
+      startDate: shiftedRange.startDate,
+      endDate: shiftedRange.endDate,
+    };
+  }
+
+  return {
+    title: t("plans.modalCreateTitle"),
+    description: t("plans.modalDescriptionCreate"),
+    actionLabel: t("plans.saveCreate"),
+    name: buildBudgetPlanDefaultName(getBudgetPlans().length),
+    startDate: shiftedRange.startDate,
+    endDate: shiftedRange.endDate,
+  };
+}
+
+function openBudgetPlanModal(mode = "create") {
+  if (state.mode !== "budget") {
+    return;
+  }
+
+  ensureBudgetPlansSeeded();
+  const sourcePlan = getActiveBudgetPlan();
+  if (!sourcePlan) {
+    return;
+  }
+
+  if (budgetPlanModal) {
+    budgetPlanModal.querySelector("[data-budget-plan-field='name']")?.focus();
+    return;
+  }
+
+  const preset = buildBudgetPlanModalPreset(mode, sourcePlan);
+  const overlay = document.createElement("div");
+  overlay.className = "budget-plan-modal";
+  overlay.dataset.mode = mode;
+  overlay.dataset.planId = sourcePlan.id;
+  overlay.innerHTML = `
+    <div class="budget-plan-dialog" role="dialog" aria-modal="true" aria-labelledby="budget-plan-modal-title">
+      <div class="budget-plan-modal-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(t("plans.managerKicker"))}</p>
+          <h3 id="budget-plan-modal-title">${escapeHtml(preset.title)}</h3>
+          <p>${escapeHtml(preset.description)}</p>
+        </div>
+        <button type="button" class="button ghost" data-budget-plan-modal-action="close">${escapeHtml(t("plans.cancel"))}</button>
+      </div>
+      <div class="budget-plan-modal-grid">
+        <label class="budget-plan-manager-field">
+          <span>${escapeHtml(t("plans.nameLabel"))}</span>
+          <input type="text" value="${escapeHtml(preset.name)}" placeholder="${escapeHtml(t("plans.namePlaceholder"))}" data-budget-plan-field="name" />
+        </label>
+        <label class="budget-plan-manager-field">
+          <span>${escapeHtml(t("plans.startLabel"))}</span>
+          <input type="date" value="${escapeHtml(preset.startDate)}" data-budget-plan-field="start" />
+        </label>
+        <label class="budget-plan-manager-field">
+          <span>${escapeHtml(t("plans.endLabel"))}</span>
+          <input type="date" value="${escapeHtml(preset.endDate)}" data-budget-plan-field="end" />
+        </label>
+      </div>
+      <div class="budget-plan-modal-actions">
+        <button type="button" class="button ghost" data-budget-plan-modal-action="close">${escapeHtml(t("plans.cancel"))}</button>
+        <button type="button" class="button primary" data-budget-plan-modal-action="save">${escapeHtml(preset.actionLabel)}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      closeBudgetPlanModal();
+      return;
+    }
+
+    const actionButton = event.target.closest("[data-budget-plan-modal-action]");
+    if (!actionButton) {
+      return;
+    }
+
+    const action = String(actionButton.dataset.budgetPlanModalAction || "").trim();
+    if (action === "close") {
+      closeBudgetPlanModal();
+      return;
+    }
+
+    if (action === "save") {
+      void handleBudgetPlanModalSave();
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeBudgetPlanModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  budgetPlanModal = overlay;
+  window.requestAnimationFrame(() => {
+    budgetPlanModal?.querySelector("[data-budget-plan-field='name']")?.focus();
+  });
+}
+
+async function handleBudgetPlanModalSave() {
+  if (!budgetPlanModal) {
+    return;
+  }
+
+  const mode = String(budgetPlanModal.dataset.mode || "create").trim();
+  const sourcePlanId = String(budgetPlanModal.dataset.planId || "").trim();
+  const sourcePlan = getBudgetPlanById(sourcePlanId) || getActiveBudgetPlan();
+  const nameInput = budgetPlanModal.querySelector("[data-budget-plan-field='name']");
+  const startInput = budgetPlanModal.querySelector("[data-budget-plan-field='start']");
+  const endInput = budgetPlanModal.querySelector("[data-budget-plan-field='end']");
+  const name = String(nameInput?.value || "").trim();
+  const startDate = normalizeDateValue(startInput?.value);
+  const endDate = normalizeDateValue(endInput?.value);
+
+  if (!name) {
+    window.alert(t("plans.missingName"));
+    nameInput?.focus();
+    return;
+  }
+
+  if (!startDate) {
+    window.alert(t("plans.missingStart"));
+    startInput?.focus();
+    return;
+  }
+
+  if (!endDate) {
+    window.alert(t("plans.missingEnd"));
+    endInput?.focus();
+    return;
+  }
+
+  if (endDate < startDate) {
+    window.alert(t("plans.invalidRange"));
+    endInput?.focus();
+    return;
+  }
+
+  const overlap = findOverlappingBudgetPlan(
+    startDate,
+    endDate,
+    mode === "edit" ? sourcePlan?.id || "" : ""
+  );
+  if (overlap) {
+    window.alert(t("plans.overlap", { name: overlap.name }));
+    startInput?.focus();
+    return;
+  }
+
+  if (mode === "edit" && sourcePlan) {
+    const nextPlans = ensureBudgetPlansSeeded().map((plan) => (
+      plan.id === sourcePlan.id
+        ? {
+          ...plan,
+          name,
+          startDate,
+          endDate,
+        }
+        : plan
+    ));
+    setBudgetPlansState(nextPlans, sourcePlan.id);
+    state.planEditing = false;
+    persistDraftIfPossible();
+    const message = t("plans.updated", { name });
+    setLastAction(message);
+    showAppToast(message, 4200);
+    closeBudgetPlanModal();
+    renderAll();
+    return;
+  }
+
+  const baseRows = sourcePlan?.rows || ensurePlanTemplateSeeded();
+  const nextPlanRows = mode === "duplicate"
+    ? clonePlanTemplateRows(baseRows)
+    : buildZeroedBudgetPlanRows(baseRows);
+  const nextPlan = sanitizeBudgetPlanDefinition({
+    name,
+    startDate,
+    endDate,
+    rows: nextPlanRows,
+  }, getBudgetPlans().length);
+  const nextPlans = [...ensureBudgetPlansSeeded(), nextPlan];
+  setBudgetPlansState(nextPlans, nextPlan.id);
+  state.planEditing = false;
+  persistDraftIfPossible();
+  const message = t(mode === "duplicate" ? "plans.duplicated" : "plans.created", { name });
+  setLastAction(message);
+  showAppToast(message, 4200);
+  closeBudgetPlanModal();
+  renderAll();
+}
+
+async function handleActiveBudgetPlanDeletion() {
+  const plans = ensureBudgetPlansSeeded();
+  const activePlan = getActiveBudgetPlan();
+  if (!activePlan) {
+    return;
+  }
+
+  if (plans.length <= 1) {
+    window.alert(t("plans.deleteBlocked"));
+    return;
+  }
+
+  if (!window.confirm(t("plans.deleteConfirm", { name: activePlan.name }))) {
+    return;
+  }
+
+  const nextPlans = plans.filter((plan) => plan.id !== activePlan.id);
+  const fallbackActivePlan = nextPlans[0] || null;
+  setBudgetPlansState(nextPlans, fallbackActivePlan?.id || "");
+  state.planEditing = false;
+  persistDraftIfPossible();
+  const message = t("plans.deleted", { name: activePlan.name });
+  setLastAction(message);
+  showAppToast(message, 4200);
+  closeBudgetPlanModal();
+  renderAll();
+}
+
 async function onSavePlanTemplateRequested() {
   if (state.mode !== "budget") {
     setLastAction("Chargez ou restaurez un budget avant de modifier le plan.");
@@ -8476,13 +9445,14 @@ async function onSavePlanTemplateRequested() {
   }
 
   if (!state.planEditing) {
-    setLastAction("Cliquez sur Éditer le budget pour modifier le plan.");
+    setLastAction("Cliquez sur Modifier les montants pour ajuster le budget actif.");
     renderAll();
     return;
   }
 
   const nextEditableTemplate = collectPlanEditorTemplateRows();
-  const previousTemplate = clonePlanTemplateRows(state.recap.planTemplate);
+  const activePlan = getActiveBudgetPlan();
+  const previousTemplate = clonePlanTemplateRows(activePlan?.rows || state.recap.planTemplate);
 
   if (!nextEditableTemplate.length) {
     setLastAction("Aucune ligne de budget à enregistrer.");
@@ -8491,7 +9461,7 @@ async function onSavePlanTemplateRequested() {
   }
 
   state.recap.available = true;
-  state.recap.planTemplate = resolvePlanTemplate(nextEditableTemplate);
+  replaceActiveBudgetPlanRows(nextEditableTemplate);
   state.planEditing = false;
   persistDraft();
 
@@ -8499,6 +9469,7 @@ async function onSavePlanTemplateRequested() {
   pushUndoEntry({
     kind: "update-plan",
     previousTemplate,
+    planId: activePlan?.id || state.recap.activeBudgetPlanId,
   }, actionLabel);
   setLastAction(actionLabel);
   renderAll();
@@ -9861,9 +10832,9 @@ function renderControls() {
   refs.restoreDraftButton.classList.toggle("hidden", !shareTab);
   refs.restartButton.classList.toggle("hidden", !shareTab);
   refs.exportMenu?.classList.toggle("hidden", !shareTab);
-  refs.addButton.classList.toggle("hidden", !(transactionTab || planTab));
-  refs.addButton.textContent = planTab ? t("toolbar.editBudget") : t("toolbar.newTransaction");
-  refs.addButton.disabled = planTab ? !hasBudget || planEditing : !journalActive || !transactionTab;
+  refs.addButton.classList.toggle("hidden", !transactionTab);
+  refs.addButton.textContent = t("toolbar.newTransaction");
+  refs.addButton.disabled = !journalActive || !transactionTab;
   refs.mobileFab?.classList.toggle("hidden", !journalActive || !transactionTab);
   if (refs.mobileFab) {
     refs.mobileFab.disabled = !journalActive || !transactionTab;
@@ -12860,13 +13831,18 @@ function renderPlanEditor() {
       ? "Editing is active. Choose the amount and period for each line, then the app calculates the monthly equivalent."
       : "Édition active. Choisissez le montant et la période de chaque ligne, puis l'application calcule l'équivalent mensuel.")
     : (english
-      ? "Budget is read-only. Click Edit budget to change the amount or period of each line."
-      : "Budget en lecture seule. Cliquez sur Éditer le budget pour modifier le montant ou la période de chaque ligne.");
+      ? "Budget is read-only. Click a main category to adjust its amounts in a dedicated modal."
+      : "Budget en lecture seule. Cliquez sur une grande catégorie pour ajuster ses montants dans une modale dédiée.");
   refs.formFields.innerHTML = "";
 
   if (!planTemplate.length) {
     refs.formFields.innerHTML = `<div class="empty-form">${english ? "No budget line is available right now." : "Aucune ligne de budget n'est disponible pour le moment."}</div>`;
     return;
+  }
+
+  const planManager = renderBudgetPlanManager();
+  if (planManager) {
+    refs.formFields.appendChild(planManager);
   }
 
   const editableRows = planTemplate.filter((row) => !isDerivedPlanLabel(row.label));
@@ -13372,21 +14348,21 @@ function updateBudgetCategoryLabelEverywhere(previousLabel, nextLabel, nextGroup
   ));
 
   const targetPlanGroup = getBudgetCustomGroupPlanMode(groupKey);
-  state.recap.planTemplate = resolvePlanTemplate(state.recap.planTemplate).map((row) => {
-    if (isDerivedPlanLabel(row?.label)) {
-      return row;
-    }
+  state.recap.budgetPlans = ensureBudgetPlansSeeded().map((plan) => ({
+    ...plan,
+    rows: plan.rows.map((row) => {
+      if (normalizeHeaderName(row?.label) !== previousKey) {
+        return row;
+      }
 
-    if (normalizeHeaderName(row?.label) !== previousKey) {
-      return row;
-    }
-
-    return {
-      ...row,
-      label: next,
-      group: normalizePlanGroup(targetPlanGroup, next),
-    };
-  });
+      return {
+        ...row,
+        label: next,
+        group: normalizePlanGroup(targetPlanGroup, next),
+      };
+    }),
+  }));
+  syncRecapPlanTemplateFromActivePlan();
 
   const seenAssignments = new Set();
   const nextAssignments = getBudgetCategoryAssignments()
@@ -13456,21 +14432,21 @@ function updateBudgetMainCategoryDefinition(groupKey, nextLabel, nextPlanGroup =
   }
 
   if (!isBuiltInBudgetMainCategory(normalizedGroupKey)) {
-    state.recap.planTemplate = resolvePlanTemplate(state.recap.planTemplate).map((row) => {
-      if (isDerivedPlanLabel(row?.label)) {
-        return row;
-      }
+    state.recap.budgetPlans = ensureBudgetPlansSeeded().map((plan) => ({
+      ...plan,
+      rows: plan.rows.map((row) => {
+        const assignment = getBudgetCategoryAssignment(row?.label);
+        if (String(assignment?.groupKey || "").trim() !== normalizedGroupKey) {
+          return row;
+        }
 
-      const assignment = getBudgetCategoryAssignment(row?.label);
-      if (String(assignment?.groupKey || "").trim() !== normalizedGroupKey) {
-        return row;
-      }
-
-      return {
-        ...row,
-        group: normalizePlanGroup(currentPlanGroup, row.label),
-      };
-    });
+        return {
+          ...row,
+          group: normalizePlanGroup(currentPlanGroup, row.label),
+        };
+      }),
+    }));
+    syncRecapPlanTemplateFromActivePlan();
   }
 
   return nextGroup;
@@ -14557,7 +15533,7 @@ function renderPlanAmountField(row, index, readOnly = false) {
         derived
           ? (english ? "Calculated automatically" : "Valeur calculée automatiquement")
           : readOnly
-            ? (english ? "Read-only. Click Edit budget to modify it." : "Lecture seule. Cliquez sur Éditer le budget pour modifier.")
+            ? (english ? "Read-only. Open the main category to modify it." : "Lecture seule. Ouvrez la grande catégorie pour modifier.")
             : (english ? "The budget will be converted to a monthly equivalent." : "Le budget sera converti en équivalent mensuel.")
       )}</span>
     </div>
