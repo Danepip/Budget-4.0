@@ -191,6 +191,7 @@ const UI_STRINGS = {
     "cloud.liveEmpty": "Aucune activité en direct pour le moment.",
     "cloud.recurringSchemaOutdated": "Les récurrentes partagées nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
     "cloud.categorySchemaOutdated": "Les catégories partagées nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
+    "cloud.budgetPlanSchemaOutdated": "Les plans budgétaires partagés nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
     "alerts.statusNotConfigured": "La fonction d'alerte email n'est pas configurée côté Supabase.",
     "alerts.statusNotReady": "Supabase doit être configuré pour activer les alertes email.",
     "alerts.statusDisabled": "Alertes email désactivées.",
@@ -574,6 +575,7 @@ const UI_STRINGS = {
     "cloud.liveEmpty": "No live activity at the moment.",
     "cloud.recurringSchemaOutdated": "Shared recurring templates require the latest Supabase schema. Run the updated supabase/schema.sql script.",
     "cloud.categorySchemaOutdated": "Shared categories require the latest Supabase schema. Run the updated supabase/schema.sql script.",
+    "cloud.budgetPlanSchemaOutdated": "Shared budget plans require the latest Supabase schema. Run the updated supabase/schema.sql script.",
     "alerts.statusNotConfigured": "The email alert function is not configured on the Supabase side.",
     "alerts.statusNotReady": "Supabase must be configured to enable email alerts.",
     "alerts.statusDisabled": "Email alerts are disabled.",
@@ -1284,6 +1286,7 @@ let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
 let recurringSupabaseSchemaReady = true;
 let categorySupabaseSchemaReady = true;
+let budgetPlanSupabaseSchemaReady = true;
 let formFeedbackTimer = null;
 let appToastTimer = null;
 let nativeSupabaseRedirectListenerBound = false;
@@ -5774,6 +5777,10 @@ function describeSupabaseError(error, fallbackMessage) {
     return `${fallbackMessage} ${t("cloud.categorySchemaOutdated")}`;
   }
 
+  if (isSupabaseBudgetPlanSchemaMissing(error)) {
+    return `${fallbackMessage} ${t("cloud.budgetPlanSchemaOutdated")}`;
+  }
+
   if (rawMessage) {
     return `${fallbackMessage} ${rawMessage}`;
   }
@@ -5825,6 +5832,31 @@ function isSupabaseCategorySchemaMissing(error) {
 
 function buildCategorySchemaWarningMessage() {
   return t("cloud.categorySchemaOutdated");
+}
+
+function isSupabaseBudgetPlanSchemaMissing(error) {
+  const haystack = String(
+    `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""} ${error?.code || ""}`
+  ).toLowerCase();
+
+  if (!haystack) {
+    return false;
+  }
+
+  return [
+    "budget_plan_rows",
+    "plan_id",
+    "plan_name",
+    "plan_start_date",
+    "plan_end_date",
+    "plan_sort_order",
+    "budget_plan_rows_space_id_label_key",
+    "space_id, label",
+  ].some((needle) => haystack.includes(needle));
+}
+
+function buildBudgetPlanSchemaWarningMessage() {
+  return t("cloud.budgetPlanSchemaOutdated");
 }
 
 async function consumeSupabaseAuthCallback(urlValue = window.location.href) {
@@ -6493,10 +6525,12 @@ async function publishLocalBudgetToSupabase() {
     const categoriesPayload = buildSupabaseCategoryPayload(spaceId);
     const categoryGroupsPayload = buildSupabaseCategoryGroupPayload(spaceId);
     const planPayload = buildSupabasePlanPayload(spaceId);
+    const legacyPlanPayload = buildLegacySupabasePlanPayload(spaceId);
     const recurringTemplatesPayload = buildSupabaseRecurringTemplatePayload(spaceId);
     const transactionsPayload = buildSupabaseTransactionPayload(spaceId);
     let recurringSchemaOutdated = false;
     let categorySchemaOutdated = false;
+    let budgetPlanSchemaOutdated = false;
 
     let query = supabaseClient.from("budget_transactions").delete();
     let { error } = await query.eq("space_id", spaceId);
@@ -6563,23 +6597,50 @@ async function publishLocalBudgetToSupabase() {
       }
     }
 
-    if (planPayload.length) {
+    if (planPayload.length || legacyPlanPayload.length) {
       ({ error } = await supabaseClient.from("budget_plan_rows").insert(planPayload));
       if (error) {
-        const fallbackPayload = stripPlanPeriodsFromPayload(planPayload);
-        const missingPeriodColumn =
-          fallbackPayload.length &&
-          /plan_period|column .*plan_period|schema cache/i.test(
-            `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`
-          );
+        if (isSupabaseBudgetPlanSchemaMissing(error)) {
+          budgetPlanSchemaOutdated = true;
+          let legacyError = null;
+          let fallbackPayload = stripBudgetPlanMetadataFromPayload(legacyPlanPayload);
 
-        if (!missingPeriodColumn) {
-          throw error;
-        }
+          if (fallbackPayload.length) {
+            ({ error: legacyError } = await supabaseClient.from("budget_plan_rows").insert(fallbackPayload));
+            if (legacyError) {
+              const periodFallbackPayload = stripPlanPeriodsFromPayload(fallbackPayload);
+              const missingPeriodColumn =
+                periodFallbackPayload.length &&
+                /plan_period|column .*plan_period|schema cache/i.test(
+                  `${legacyError?.message || ""} ${legacyError?.details || ""} ${legacyError?.hint || ""}`
+                );
 
-        ({ error } = await supabaseClient.from("budget_plan_rows").insert(fallbackPayload));
-        if (error) {
-          throw error;
+              if (!missingPeriodColumn) {
+                throw legacyError;
+              }
+
+              ({ error: legacyError } = await supabaseClient.from("budget_plan_rows").insert(periodFallbackPayload));
+              if (legacyError) {
+                throw legacyError;
+              }
+            }
+          }
+        } else {
+          const fallbackPayload = stripPlanPeriodsFromPayload(planPayload);
+          const missingPeriodColumn =
+            fallbackPayload.length &&
+            /plan_period|column .*plan_period|schema cache/i.test(
+              `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`
+            );
+
+          if (!missingPeriodColumn) {
+            throw error;
+          }
+
+          ({ error } = await supabaseClient.from("budget_plan_rows").insert(fallbackPayload));
+          if (error) {
+            throw error;
+          }
         }
       }
     }
@@ -6607,22 +6668,20 @@ async function publishLocalBudgetToSupabase() {
     state.cloud.lastPushedAt = new Date().toISOString();
     recurringSupabaseSchemaReady = !recurringSchemaOutdated;
     categorySupabaseSchemaReady = !categorySchemaOutdated;
+    budgetPlanSupabaseSchemaReady = !budgetPlanSchemaOutdated;
     const schemaWarnings = [
       categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
       recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
+      budgetPlanSchemaOutdated ? buildBudgetPlanSchemaWarningMessage() : "",
     ].filter(Boolean).join(" ");
     const successMessage = schemaWarnings
       ? `Budget publie vers ${state.cloud.space.name}. ${schemaWarnings}`
       : `Budget publie vers ${state.cloud.space.name}.`;
     setCloudStatus(successMessage);
     setLastAction(
-      categorySchemaOutdated && recurringSchemaOutdated
-        ? `Données locales publiees vers ${state.cloud.space.name} - catégories et récurrentes partagées non synchronisées`
-        : categorySchemaOutdated
-          ? `Données locales publiees vers ${state.cloud.space.name} - catégories partagées non synchronisées`
-          : recurringSchemaOutdated
-            ? `Données locales publiees vers ${state.cloud.space.name} - récurrentes partagées non synchronisées`
-            : `Données locales publiees vers ${state.cloud.space.name}`
+      [categorySchemaOutdated, recurringSchemaOutdated, budgetPlanSchemaOutdated].filter(Boolean).length
+        ? `Données locales publiees vers ${state.cloud.space.name} - certaines données partagées restent sur l'ancien schéma`
+        : `Données locales publiees vers ${state.cloud.space.name}`
     );
     persistDraftIfPossible();
     void maybeSendBudgetAlertEmails("publication cloud");
@@ -6683,6 +6742,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     ]);
     let recurringSchemaOutdated = false;
     let categorySchemaOutdated = false;
+    let budgetPlanSchemaOutdated = false;
 
     if (categoriesError) {
       throw categoriesError;
@@ -6697,7 +6757,11 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     }
 
     if (planError) {
-      throw planError;
+      if (isSupabaseBudgetPlanSchemaMissing(planError)) {
+        budgetPlanSchemaOutdated = true;
+      } else {
+        throw planError;
+      }
     }
 
     if (transactionsError) {
@@ -6721,8 +6785,10 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     state.search = "";
     state.editingIndex = null;
     state.editorMode = "create";
+    const previousActivePlanId = String(state.recap?.activeBudgetPlanId || "").trim();
     const preservedCustomGroups = getBudgetCustomGroups();
     const preservedCategoryAssignments = getBudgetCategoryAssignments();
+    const preservedPlans = cloneBudgetPlanDefinitions(state.recap?.budgetPlans || []);
     const cloudCustomGroups = parseSupabaseCategoryGroupRows(categoryGroups || []);
     const cloudCategoryAssignments = parseSupabaseCategoryAssignmentsFromRows(categories || []);
     state.budget = {
@@ -6740,26 +6806,23 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       customGroups: categorySchemaOutdated ? preservedCustomGroups : cloudCustomGroups,
       categoryAssignments: categorySchemaOutdated ? preservedCategoryAssignments : cloudCategoryAssignments,
     };
-    const cloudPlanRows = (planRows || []).map((row) => ({
-      label: String(row.label || "").trim(),
-      plan: normalizeAmountValue(row.plan_amount),
-      period: normalizePlanPeriod(row.plan_period),
-      group: normalizePlanGroup(row.plan_group, row.label),
-    })).filter((row) => row.label);
-    const cloudPlan = sanitizeBudgetPlanDefinition({
-      name: state.cloud.space.name || buildBudgetPlanDefaultName(0),
-      rows: cloudPlanRows,
-    }, 0);
+    const cloudPlans = budgetPlanSchemaOutdated
+      ? (preservedPlans.length
+        ? preservedPlans
+        : parseSupabaseBudgetPlans(planRows || [], state.cloud.space.name || buildBudgetPlanDefaultName(0)))
+      : parseSupabaseBudgetPlans(planRows || [], state.cloud.space.name || buildBudgetPlanDefaultName(0));
+    const preferredPlan = cloudPlans.find((plan) => plan.id === previousActivePlanId) || cloudPlans[0] || null;
 
     state.recap = {
       available: true,
       snapshotDate: `Supabase - ${formatDraftSavedAt(new Date().toISOString())}`,
-      planTemplate: resolvePlanTemplate(cloudPlan.rows),
-      budgetPlans: [cloudPlan],
-      activeBudgetPlanId: cloudPlan.id,
+      planTemplate: resolvePlanTemplate(preferredPlan?.rows || []),
+      budgetPlans: cloudPlans,
+      activeBudgetPlanId: preferredPlan?.id || "",
     };
     recurringSupabaseSchemaReady = !recurringSchemaOutdated;
     categorySupabaseSchemaReady = !categorySchemaOutdated;
+    budgetPlanSupabaseSchemaReady = !budgetPlanSchemaOutdated;
     if (!recurringSchemaOutdated) {
       state.recurringTemplates = parseSupabaseRecurringTemplateRows(recurringResult?.data || []);
       persistRecurringTemplatesIfPossible();
@@ -6773,6 +6836,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     const cloudWarnings = [
       categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
       recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
+      budgetPlanSchemaOutdated ? buildBudgetPlanSchemaWarningMessage() : "",
     ].filter(Boolean).join(" ");
 
     setCloudStatus(
@@ -6844,7 +6908,24 @@ function buildSupabaseCategoryGroupPayload(spaceId) {
 }
 
 function buildSupabasePlanPayload(spaceId) {
-  return resolvePlanTemplate(state.recap.planTemplate)
+  return ensureBudgetPlansSeeded()
+    .flatMap((plan, planIndex) => sanitizeBudgetPlanRows(plan.rows).map((row, index) => ({
+      space_id: spaceId,
+      plan_id: String(plan.id || "").trim() || createId(),
+      plan_name: String(plan.name || "").trim() || buildBudgetPlanDefaultName(planIndex),
+      plan_start_date: normalizeDateValue(plan.startDate) || null,
+      plan_end_date: normalizeDateValue(plan.endDate) || null,
+      plan_sort_order: Number.isInteger(planIndex) ? planIndex : 0,
+      label: String(row.label || "").trim(),
+      plan_amount: Number.isFinite(parseAmount(row.plan)) ? parseAmount(row.plan) : null,
+      plan_period: normalizePlanPeriod(row.period),
+      position: index,
+    })))
+    .filter((row) => row.plan_id && row.plan_name && row.label);
+}
+
+function buildLegacySupabasePlanPayload(spaceId) {
+  return sanitizeBudgetPlanRows(state.recap.planTemplate)
     .map((row, index) => ({
       space_id: spaceId,
       label: String(row.label || "").trim(),
@@ -6857,6 +6938,17 @@ function buildSupabasePlanPayload(spaceId) {
 
 function stripPlanPeriodsFromPayload(planPayload) {
   return planPayload.map(({ plan_period: _planPeriod, ...row }) => row);
+}
+
+function stripBudgetPlanMetadataFromPayload(planPayload) {
+  return planPayload.map(({
+    plan_id: _planId,
+    plan_name: _planName,
+    plan_start_date: _planStartDate,
+    plan_end_date: _planEndDate,
+    plan_sort_order: _planSortOrder,
+    ...row
+  }) => row);
 }
 
 function buildSupabaseRecurringTemplatePayload(spaceId) {
@@ -6927,6 +7019,78 @@ function parseSupabaseCategoryAssignmentsFromRows(rows = []) {
       seen.add(key);
       return true;
     });
+}
+
+function parseSupabaseBudgetPlans(rows = [], fallbackName = "") {
+  const groupedPlans = new Map();
+  const fallbackRange = buildBudgetPlanFallbackDateRange();
+
+  (Array.isArray(rows) ? rows : []).forEach((row, index) => {
+    const label = String(row?.label || "").trim();
+    if (!label) {
+      return;
+    }
+
+    const normalizedPlanId = String(row?.plan_id || "").trim();
+    const planKey = normalizedPlanId || "legacy-main-plan";
+    if (!groupedPlans.has(planKey)) {
+      groupedPlans.set(planKey, {
+        id: planKey,
+        name: String(row?.plan_name || "").trim() || fallbackName || buildBudgetPlanDefaultName(groupedPlans.size),
+        startDate: normalizeDateValue(row?.plan_start_date) || fallbackRange.startDate,
+        endDate: normalizeDateValue(row?.plan_end_date) || fallbackRange.endDate,
+        sortOrder: Number.isInteger(row?.plan_sort_order) ? row.plan_sort_order : groupedPlans.size,
+        rows: [],
+        index,
+      });
+    }
+
+    const planEntry = groupedPlans.get(planKey);
+    planEntry.rows.push({
+      label,
+      plan: normalizeAmountValue(row?.plan_amount),
+      period: normalizePlanPeriod(row?.plan_period),
+      group: normalizePlanGroup(row?.plan_group, label),
+      position: Number.isInteger(row?.position) ? row.position : planEntry.rows.length,
+    });
+  });
+
+  const parsedPlans = Array.from(groupedPlans.values())
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+      return left.index - right.index;
+    })
+    .map((plan, index) => sanitizeBudgetPlanDefinition({
+      id: plan.id,
+      name: plan.name,
+      startDate: plan.startDate,
+      endDate: plan.endDate,
+      rows: plan.rows
+        .sort((left, right) => {
+          const leftPosition = Number.isInteger(left.position) ? left.position : 0;
+          const rightPosition = Number.isInteger(right.position) ? right.position : 0;
+          if (leftPosition !== rightPosition) {
+            return leftPosition - rightPosition;
+          }
+          return String(left.label || "").localeCompare(String(right.label || ""));
+        })
+        .map(({ position: _position, ...row }) => row),
+    }, index))
+    .filter(Boolean);
+
+  if (parsedPlans.length) {
+    return parsedPlans;
+  }
+
+  const fallbackPlan = sanitizeBudgetPlanDefinition({
+    name: fallbackName || buildBudgetPlanDefaultName(0),
+    startDate: fallbackRange.startDate,
+    endDate: fallbackRange.endDate,
+    rows: [],
+  }, 0);
+  return fallbackPlan ? [fallbackPlan] : [];
 }
 
 function buildSupabaseTransactionPayload(spaceId) {
@@ -9385,6 +9549,16 @@ async function handleBudgetPlanModalSave() {
     showAppToast(message, 4200);
     closeBudgetPlanModal();
     renderAll();
+    if (canUseSupabaseCloud()) {
+      try {
+        await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+        await sendCloudActivityBroadcast("saved", "le plan budgétaire");
+      } catch (error) {
+        console.error(error);
+        setLastAction(`${message} - synchronisation cloud en échec`);
+        renderAll();
+      }
+    }
     return;
   }
 
@@ -9407,6 +9581,16 @@ async function handleBudgetPlanModalSave() {
   showAppToast(message, 4200);
   closeBudgetPlanModal();
   renderAll();
+  if (canUseSupabaseCloud()) {
+    try {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      await sendCloudActivityBroadcast("saved", "le plan budgétaire");
+    } catch (error) {
+      console.error(error);
+      setLastAction(`${message} - synchronisation cloud en échec`);
+      renderAll();
+    }
+  }
 }
 
 async function handleActiveBudgetPlanDeletion() {
@@ -9435,6 +9619,16 @@ async function handleActiveBudgetPlanDeletion() {
   showAppToast(message, 4200);
   closeBudgetPlanModal();
   renderAll();
+  if (canUseSupabaseCloud()) {
+    try {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      await sendCloudActivityBroadcast("saved", "le plan budgétaire");
+    } catch (error) {
+      console.error(error);
+      setLastAction(`${message} - synchronisation cloud en échec`);
+      renderAll();
+    }
+  }
 }
 
 async function onSavePlanTemplateRequested() {
