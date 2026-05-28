@@ -324,7 +324,9 @@ const UI_STRINGS = {
     "plans.groupEditorPreviewDescription": "Consultez d'abord cette grande catégorie, puis touchez Éditer si vous voulez modifier ses montants et ses périodes.",
     "plans.groupEditorSave": "Sauvegarder cette catégorie",
     "plans.groupEditorEnable": "Éditer",
+    "plans.groupEditorExit": "Sortir",
     "plans.groupEditorEmpty": "Aucune ligne modifiable n'est disponible dans cette grande catégorie.",
+    "plans.groupSwitchConfirm": "Vous avez des changements non sauvegardés. Voulez-vous les sauvegarder avant de changer de grande catégorie ?",
     "plans.groupUpdated": "Grande catégorie mise à jour : {name}.",
     "plans.deleteConfirm": "Supprimer le plan {name} ?",
     "plans.deleteBlocked": "Gardez au moins un plan budgétaire.",
@@ -710,7 +712,9 @@ const UI_STRINGS = {
     "plans.groupEditorPreviewDescription": "Review this main category first, then tap Edit if you want to change its amounts and periods.",
     "plans.groupEditorSave": "Save this category",
     "plans.groupEditorEnable": "Edit",
+    "plans.groupEditorExit": "Close",
     "plans.groupEditorEmpty": "No editable row is available in this main category.",
+    "plans.groupSwitchConfirm": "You have unsaved changes. Do you want to save them before switching to another main category?",
     "plans.groupUpdated": "Main category updated: {name}.",
     "plans.deleteConfirm": "Delete plan {name}?",
     "plans.deleteBlocked": "Keep at least one budget plan.",
@@ -9184,6 +9188,11 @@ function setBudgetPlanGroupEditorMode(editing) {
     editButton.classList.toggle("hidden", isEditing);
   }
 
+  const editActions = budgetPlanGroupEditorModal.querySelector("[data-budget-plan-group-edit-actions]");
+  if (editActions) {
+    editActions.classList.toggle("hidden", !isEditing);
+  }
+
   const saveButton = budgetPlanGroupEditorModal.querySelector("[data-budget-plan-group-action='save']");
   if (saveButton) {
     saveButton.classList.toggle("hidden", !isEditing);
@@ -9219,7 +9228,91 @@ function buildBudgetPlanGroupRows(groupKey) {
     .filter((row) => getPlanDisplayGroupKey(row) === groupKey);
 }
 
-function openBudgetPlanGroupEditorModal(groupKey) {
+function getBudgetPlanEditableGroups() {
+  return buildBudgetFraPlanEditorGroups(
+    ensurePlanTemplateSeeded().filter((row) => !isDerivedPlanLabel(row.label))
+  );
+}
+
+function showBudgetPlanGroupEditorFeedback(message = "") {
+  if (!budgetPlanGroupEditorModal) {
+    return;
+  }
+
+  const feedback = budgetPlanGroupEditorModal.querySelector("[data-budget-plan-group-feedback]");
+  if (!feedback) {
+    return;
+  }
+
+  feedback.textContent = String(message || "").trim();
+  feedback.classList.toggle("hidden", !feedback.textContent);
+}
+
+function clonePlanRowsForModal(rows) {
+  return clonePlanTemplateRows(Array.isArray(rows) ? rows : [])
+    .filter((row) => !isDerivedPlanLabel(row.label));
+}
+
+function setBudgetPlanGroupPickerOpen(root, open) {
+  const picker = root?.querySelector?.("[data-budget-plan-group-picker]");
+  const trigger = root?.querySelector?.("[data-budget-plan-group-picker-action='toggle']");
+  const panel = root?.querySelector?.("[data-budget-plan-group-picker-options]");
+  if (!picker || !trigger || !panel) {
+    return;
+  }
+
+  const isOpen = Boolean(open);
+  picker.classList.toggle("is-open", isOpen);
+  panel.classList.toggle("hidden", !isOpen);
+  trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+}
+
+function renderBudgetPlanGroupPickerOptions(root, groups, activeKey) {
+  const trigger = root?.querySelector?.("[data-budget-plan-group-picker-action='toggle']");
+  const panel = root?.querySelector?.("[data-budget-plan-group-picker-options]");
+  if (!trigger || !panel) {
+    return;
+  }
+
+  const availableGroups = Array.isArray(groups) ? groups : [];
+  const activeGroup = availableGroups.find((group) => group.key === activeKey) || availableGroups[0] || null;
+  trigger.textContent = activeGroup?.meta?.label || "";
+  panel.innerHTML = availableGroups.map((group) => {
+    const active = group.key === activeKey;
+    return `
+      <button
+        type="button"
+        class="month-picker-option${active ? " is-active" : ""}"
+        data-budget-plan-group-option="${escapeHtml(group.key)}"
+      >
+        <span>${escapeHtml(group.meta.label)}</span>
+        <span class="month-picker-option-check">${active ? "✓" : ""}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function isBudgetPlanGroupEditorDirty(root = budgetPlanGroupEditorModal) {
+  if (!root || !Array.isArray(root.__originalGroupRows)) {
+    return false;
+  }
+
+  const originalRows = clonePlanRowsForModal(root.__originalGroupRows);
+  const currentRows = collectPlanEditorTemplateRows(root, originalRows);
+  if (currentRows.length !== originalRows.length) {
+    return true;
+  }
+
+  return currentRows.some((row, index) => {
+    const original = originalRows[index];
+    return normalizeHeaderName(row.label) !== normalizeHeaderName(original.label) ||
+      normalizeAmountValue(row.plan) !== normalizeAmountValue(original.plan) ||
+      normalizePlanPeriod(row.period) !== normalizePlanPeriod(original.period) ||
+      normalizePlanGroup(row.group, row.label) !== normalizePlanGroup(original.group, original.label);
+  });
+}
+
+function openBudgetPlanGroupEditorModal(groupKey, options = {}) {
   if (state.mode !== "budget") {
     return;
   }
@@ -9241,6 +9334,9 @@ function openBudgetPlanGroupEditorModal(groupKey) {
 
   const english = isEnglishUi();
   const meta = getBudgetFraCategoryMeta(targetGroupKey);
+  const availableGroups = getBudgetPlanEditableGroups();
+  const keepEditing = options.keepEditing === true;
+  const initialFeedback = String(options.feedbackMessage || "").trim();
   const overlay = document.createElement("div");
   overlay.className = "budget-plan-modal budget-plan-group-modal";
   overlay.dataset.groupKey = targetGroupKey;
@@ -9268,14 +9364,23 @@ function openBudgetPlanGroupEditorModal(groupKey) {
           <span aria-hidden="true">✎</span>
           <span>${escapeHtml(t("plans.groupEditorEnable"))}</span>
         </button>
-        <button type="button" class="button ghost" data-budget-plan-group-action="close">${escapeHtml(t("plans.cancel"))}</button>
+        <button type="button" class="button ghost" data-budget-plan-group-action="close">${escapeHtml(t("plans.groupEditorExit"))}</button>
       </div>
     </div>
     <div class="budget-plan-group-summary">
-      <div>
+      <label class="budget-plan-group-picker">
         <span>${escapeHtml(english ? "Main category" : "Grande catégorie")}</span>
-        <strong>${escapeHtml(meta.label)}</strong>
-      </div>
+        <div class="month-picker budget-plan-group-picker-shell" data-budget-plan-group-picker>
+          <button
+            type="button"
+            class="month-picker-trigger budget-plan-group-picker-trigger"
+            data-budget-plan-group-picker-action="toggle"
+            aria-haspopup="true"
+            aria-expanded="false"
+          ></button>
+          <div class="month-picker-panel hidden" data-budget-plan-group-picker-options></div>
+        </div>
+      </label>
       <div>
         <span>${escapeHtml(english ? "Monthly equivalent" : "Équivalent mensuel")}</span>
         <strong data-plan-group-total="${escapeHtml(targetGroupKey)}">${escapeHtml(formatCurrency(computePlanGroupMonthlyTotal(groupRows)))}</strong>
@@ -9294,10 +9399,17 @@ function openBudgetPlanGroupEditorModal(groupKey) {
 
   const actions = document.createElement("div");
   actions.className = "budget-plan-modal-actions";
+  actions.setAttribute("data-budget-plan-group-edit-actions", "true");
   actions.innerHTML = `
-    <button type="button" class="button ghost" data-budget-plan-group-action="close">${escapeHtml(t("plans.cancel"))}</button>
+    <button type="button" class="button ghost" data-budget-plan-group-action="cancel-edit">${escapeHtml(t("plans.cancel"))}</button>
     <button type="button" class="button primary" data-budget-plan-group-action="save">${escapeHtml(t("plans.groupEditorSave"))}</button>
   `;
+  const feedback = document.createElement("p");
+  feedback.className = "budget-plan-group-feedback hidden";
+  feedback.setAttribute("data-budget-plan-group-feedback", "true");
+  feedback.setAttribute("role", "status");
+  feedback.setAttribute("aria-live", "polite");
+  dialog.appendChild(feedback);
   dialog.appendChild(actions);
   overlay.appendChild(dialog);
 
@@ -9305,6 +9417,42 @@ function openBudgetPlanGroupEditorModal(groupKey) {
     if (event.target === overlay) {
       closeBudgetPlanGroupEditorModal();
       return;
+    }
+
+    const pickerToggle = event.target.closest("[data-budget-plan-group-picker-action='toggle']");
+    if (pickerToggle) {
+      event.preventDefault();
+      const picker = overlay.querySelector("[data-budget-plan-group-picker]");
+      setBudgetPlanGroupPickerOpen(overlay, !picker?.classList.contains("is-open"));
+      return;
+    }
+
+    const pickerOption = event.target.closest("[data-budget-plan-group-option]");
+    if (pickerOption) {
+      event.preventDefault();
+      const nextGroupKey = String(pickerOption.getAttribute("data-budget-plan-group-option") || "").trim();
+      const currentGroupKey = String(overlay.dataset.groupKey || "").trim();
+      setBudgetPlanGroupPickerOpen(overlay, false);
+
+      if (!nextGroupKey || nextGroupKey === currentGroupKey) {
+        return;
+      }
+
+      if (overlay.dataset.editing === "true" && isBudgetPlanGroupEditorDirty(overlay)) {
+        if (!window.confirm(t("plans.groupSwitchConfirm"))) {
+          return;
+        }
+
+        void handleBudgetPlanGroupEditorSave({ nextGroupKey, keepEditing: true });
+        return;
+      }
+
+      openBudgetPlanGroupEditorModal(nextGroupKey, { keepEditing: overlay.dataset.editing === "true" });
+      return;
+    }
+
+    if (!event.target.closest("[data-budget-plan-group-picker]")) {
+      setBudgetPlanGroupPickerOpen(overlay, false);
     }
 
     const actionButton = event.target.closest("[data-budget-plan-group-action]");
@@ -9320,6 +9468,11 @@ function openBudgetPlanGroupEditorModal(groupKey) {
 
     if (action === "edit") {
       setBudgetPlanGroupEditorMode(true);
+      return;
+    }
+
+    if (action === "cancel-edit") {
+      openBudgetPlanGroupEditorModal(String(overlay.dataset.groupKey || "").trim());
       return;
     }
 
@@ -9352,11 +9505,14 @@ function openBudgetPlanGroupEditorModal(groupKey) {
 
   document.body.appendChild(overlay);
   budgetPlanGroupEditorModal = overlay;
-  setBudgetPlanGroupEditorMode(false);
+  budgetPlanGroupEditorModal.__originalGroupRows = clonePlanRowsForModal(groupRows);
+  setBudgetPlanGroupEditorMode(keepEditing);
+  showBudgetPlanGroupEditorFeedback(initialFeedback);
+  renderBudgetPlanGroupPickerOptions(overlay, availableGroups, targetGroupKey);
   refreshPlanEditorPreview(overlay, groupRows);
 }
 
-async function handleBudgetPlanGroupEditorSave() {
+async function handleBudgetPlanGroupEditorSave(options = {}) {
   if (!budgetPlanGroupEditorModal) {
     return;
   }
@@ -9373,6 +9529,15 @@ async function handleBudgetPlanGroupEditorSave() {
 
   if (!targetRows.length) {
     window.alert(t("plans.groupEditorEmpty"));
+    return;
+  }
+
+  if (!isBudgetPlanGroupEditorDirty(budgetPlanGroupEditorModal)) {
+    if (options.nextGroupKey) {
+      openBudgetPlanGroupEditorModal(options.nextGroupKey, {
+        keepEditing: options.keepEditing === true || budgetPlanGroupEditorModal.dataset.editing === "true",
+      });
+    }
     return;
   }
 
@@ -9406,8 +9571,17 @@ async function handleBudgetPlanGroupEditorSave() {
   }, actionLabel);
   setLastAction(actionLabel);
   showAppToast(actionLabel, 4200);
-  closeBudgetPlanGroupEditorModal();
+  budgetPlanGroupEditorModal.__originalGroupRows = clonePlanRowsForModal(
+    nextEditableTemplate.filter((row) => getPlanDisplayGroupKey(row) === groupKey)
+  );
+  const keepEditing = options.keepEditing === true || budgetPlanGroupEditorModal.dataset.editing === "true";
+  setBudgetPlanGroupEditorMode(keepEditing);
+  showBudgetPlanGroupEditorFeedback(actionLabel);
   renderAll();
+  openBudgetPlanGroupEditorModal(options.nextGroupKey || groupKey, {
+    keepEditing,
+    feedbackMessage: actionLabel,
+  });
   void updateCloudPresenceTrack();
 
   if (canUseSupabaseCloud()) {

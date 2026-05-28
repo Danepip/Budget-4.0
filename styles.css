@@ -3098,7 +3098,8 @@ textarea {
   margin-bottom: 16px;
 }
 
-.budget-plan-group-summary > div {
+.budget-plan-group-summary > div,
+.budget-plan-group-picker {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
@@ -3107,7 +3108,8 @@ textarea {
   background: rgba(244, 249, 247, 0.82);
 }
 
-.budget-plan-group-summary span {
+.budget-plan-group-summary span,
+.budget-plan-group-picker span {
   color: var(--muted);
   font-size: 0.82rem;
   letter-spacing: 0.08em;
@@ -3118,6 +3120,66 @@ textarea {
 .budget-plan-group-summary strong {
   color: var(--ink);
   font-size: 1.08rem;
+}
+
+.budget-plan-group-feedback {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(55, 146, 108, 0.22);
+  background: rgba(220, 246, 232, 0.82);
+  color: #1f5d46;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.budget-plan-group-picker select {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 42px 0 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 248, 0.94)),
+    linear-gradient(45deg, transparent 50%, rgba(24, 51, 59, 0.45) 50%),
+    linear-gradient(135deg, rgba(24, 51, 59, 0.45) 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position:
+    0 0,
+    calc(100% - 22px) calc(50% - 2px),
+    calc(100% - 16px) calc(50% - 2px);
+  background-size:
+    100% 100%,
+    6px 6px,
+    6px 6px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  appearance: none;
+  cursor: pointer;
+}
+
+.budget-plan-group-picker select:focus {
+  outline: none;
+  border-color: rgba(47, 125, 116, 0.34);
+  box-shadow:
+    0 0 0 4px rgba(47, 125, 116, 0.1),
+    0 10px 22px rgba(24, 51, 59, 0.06);
+}
+
+.budget-plan-group-picker-shell {
+  width: 100%;
+  z-index: 2;
+}
+
+.budget-plan-group-picker-trigger {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.budget-plan-group-picker .month-picker-panel {
+  max-height: min(320px, 42vh);
 }
 
 .budget-summary-card {
@@ -4481,9 +4543,37 @@ body[data-theme="dark"] .analysis-plan-group[open] .analysis-plan-group-summary 
   border-bottom-color: var(--line);
 }
 
-body[data-theme="dark"] .budget-plan-group-summary > div {
+body[data-theme="dark"] .budget-plan-group-summary > div,
+body[data-theme="dark"] .budget-plan-group-picker {
   border-color: rgba(171, 205, 214, 0.14);
   background: rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .budget-plan-group-summary span,
+body[data-theme="dark"] .budget-plan-group-picker span {
+  color: rgba(214, 229, 233, 0.68);
+}
+
+body[data-theme="dark"] .budget-plan-group-picker select {
+  border-color: var(--line);
+  background:
+    linear-gradient(180deg, rgba(12, 21, 26, 0.92), rgba(16, 27, 33, 0.9)),
+    linear-gradient(45deg, transparent 50%, rgba(214, 229, 233, 0.52) 50%),
+    linear-gradient(135deg, rgba(214, 229, 233, 0.52) 50%, transparent 50%);
+  color: var(--ink);
+}
+
+body[data-theme="dark"] .budget-plan-group-picker select:focus {
+  border-color: rgba(87, 188, 177, 0.3);
+  box-shadow:
+    0 0 0 4px rgba(87, 188, 177, 0.12),
+    0 10px 22px rgba(0, 0, 0, 0.2);
+}
+
+body[data-theme="dark"] .budget-plan-group-feedback {
+  border-color: rgba(92, 215, 162, 0.26);
+  background: rgba(20, 70, 54, 0.9);
+  color: #d9fff0;
 }
 
 body[data-theme="dark"] .form-actions {
