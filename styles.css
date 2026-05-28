@@ -3077,6 +3077,20 @@ textarea {
   max-height: min(88vh, 980px);
 }
 
+.budget-plan-group-head-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.budget-plan-inline-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .budget-plan-group-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3181,6 +3195,10 @@ textarea {
 .plan-group-trigger:hover,
 .plan-group-trigger:focus-visible {
   background: linear-gradient(180deg, rgba(236, 246, 243, 1), rgba(226, 239, 236, 0.98));
+}
+
+.budget-plan-group-modal .budget-plan-modal-actions .button.primary.hidden {
+  display: none;
 }
 
 .plan-group-copy {

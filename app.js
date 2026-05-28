@@ -321,7 +321,9 @@ const UI_STRINGS = {
     "plans.groupEditLead": "Touchez cette grande catégorie pour ajuster ses montants et ses périodes dans une modale.",
     "plans.groupEditorTitle": "Modifier la grande catégorie",
     "plans.groupEditorDescription": "Ajustez ici les montants et les périodes, puis sauvegardez sans quitter l'onglet Budget.",
+    "plans.groupEditorPreviewDescription": "Consultez d'abord cette grande catégorie, puis touchez Éditer si vous voulez modifier ses montants et ses périodes.",
     "plans.groupEditorSave": "Sauvegarder cette catégorie",
+    "plans.groupEditorEnable": "Éditer",
     "plans.groupEditorEmpty": "Aucune ligne modifiable n'est disponible dans cette grande catégorie.",
     "plans.groupUpdated": "Grande catégorie mise à jour : {name}.",
     "plans.deleteConfirm": "Supprimer le plan {name} ?",
@@ -705,7 +707,9 @@ const UI_STRINGS = {
     "plans.groupEditLead": "Tap this main category to adjust its amounts and periods in a modal.",
     "plans.groupEditorTitle": "Edit main category",
     "plans.groupEditorDescription": "Adjust amounts and periods here, then save without leaving the Budget tab.",
+    "plans.groupEditorPreviewDescription": "Review this main category first, then tap Edit if you want to change its amounts and periods.",
     "plans.groupEditorSave": "Save this category",
+    "plans.groupEditorEnable": "Edit",
     "plans.groupEditorEmpty": "No editable row is available in this main category.",
     "plans.groupUpdated": "Main category updated: {name}.",
     "plans.deleteConfirm": "Delete plan {name}?",
@@ -9161,6 +9165,54 @@ function closeBudgetPlanGroupEditorModal() {
   budgetPlanGroupEditorModal = null;
 }
 
+function setBudgetPlanGroupEditorMode(editing) {
+  if (!budgetPlanGroupEditorModal) {
+    return;
+  }
+
+  const isEditing = Boolean(editing);
+  budgetPlanGroupEditorModal.dataset.editing = isEditing ? "true" : "false";
+  budgetPlanGroupEditorModal.classList.toggle("is-editing", isEditing);
+
+  const description = budgetPlanGroupEditorModal.querySelector("[data-budget-plan-group-description]");
+  if (description) {
+    description.textContent = t(isEditing ? "plans.groupEditorDescription" : "plans.groupEditorPreviewDescription");
+  }
+
+  const editButton = budgetPlanGroupEditorModal.querySelector("[data-budget-plan-group-action='edit']");
+  if (editButton) {
+    editButton.classList.toggle("hidden", isEditing);
+  }
+
+  const saveButton = budgetPlanGroupEditorModal.querySelector("[data-budget-plan-group-action='save']");
+  if (saveButton) {
+    saveButton.classList.toggle("hidden", !isEditing);
+    saveButton.disabled = !isEditing;
+  }
+
+  budgetPlanGroupEditorModal
+    .querySelectorAll("[data-plan-input='true'], [data-plan-period='true']")
+    .forEach((field) => {
+      if (field.matches("[data-plan-input='true']")) {
+        field.readOnly = !isEditing;
+      } else {
+        field.disabled = !isEditing;
+      }
+
+      field.closest(".budget-row")?.classList.toggle("is-locked", !isEditing);
+    });
+
+  if (isEditing) {
+    window.requestAnimationFrame(() => {
+      budgetPlanGroupEditorModal?.querySelector("[data-plan-input='true']")?.focus();
+    });
+  } else {
+    window.requestAnimationFrame(() => {
+      budgetPlanGroupEditorModal?.querySelector("[data-budget-plan-group-action='edit']")?.focus();
+    });
+  }
+}
+
 function buildBudgetPlanGroupRows(groupKey) {
   return ensurePlanTemplateSeeded()
     .filter((row) => !isDerivedPlanLabel(row.label))
@@ -9196,7 +9248,7 @@ function openBudgetPlanGroupEditorModal(groupKey) {
   const table = document.createElement("div");
   table.className = "budget-table";
   groupRows.forEach((row, index) => {
-    table.appendChild(renderPlanAmountField(row, 9000 + index, false));
+    table.appendChild(renderPlanAmountField(row, 9000 + index, true));
   });
 
   const dialog = document.createElement("div");
@@ -9209,9 +9261,15 @@ function openBudgetPlanGroupEditorModal(groupKey) {
       <div>
         <p class="section-kicker">${escapeHtml(t("plans.managerKicker"))}</p>
         <h3 id="budget-plan-group-modal-title">${escapeHtml(`${t("plans.groupEditorTitle")} · ${meta.label}`)}</h3>
-        <p>${escapeHtml(t("plans.groupEditorDescription"))}</p>
+        <p data-budget-plan-group-description>${escapeHtml(t("plans.groupEditorPreviewDescription"))}</p>
       </div>
-      <button type="button" class="button ghost" data-budget-plan-group-action="close">${escapeHtml(t("plans.cancel"))}</button>
+      <div class="budget-plan-group-head-actions">
+        <button type="button" class="button secondary budget-plan-inline-edit" data-budget-plan-group-action="edit">
+          <span aria-hidden="true">✎</span>
+          <span>${escapeHtml(t("plans.groupEditorEnable"))}</span>
+        </button>
+        <button type="button" class="button ghost" data-budget-plan-group-action="close">${escapeHtml(t("plans.cancel"))}</button>
+      </div>
     </div>
     <div class="budget-plan-group-summary">
       <div>
@@ -9260,6 +9318,11 @@ function openBudgetPlanGroupEditorModal(groupKey) {
       return;
     }
 
+    if (action === "edit") {
+      setBudgetPlanGroupEditorMode(true);
+      return;
+    }
+
     if (action === "save") {
       void handleBudgetPlanGroupEditorSave();
     }
@@ -9289,14 +9352,16 @@ function openBudgetPlanGroupEditorModal(groupKey) {
 
   document.body.appendChild(overlay);
   budgetPlanGroupEditorModal = overlay;
+  setBudgetPlanGroupEditorMode(false);
   refreshPlanEditorPreview(overlay, groupRows);
-  window.requestAnimationFrame(() => {
-    budgetPlanGroupEditorModal?.querySelector("[data-plan-input='true']")?.focus();
-  });
 }
 
 async function handleBudgetPlanGroupEditorSave() {
   if (!budgetPlanGroupEditorModal) {
+    return;
+  }
+
+  if (budgetPlanGroupEditorModal.dataset.editing !== "true") {
     return;
   }
 
