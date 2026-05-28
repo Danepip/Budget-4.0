@@ -13569,7 +13569,7 @@ function buildAnalysisOverviewCards(analysisView) {
       kicker: english ? "Largest budget gap" : "Écart principal",
       title: gapGroup?.label || (english ? "No gap detected" : "Aucun écart détecté"),
       body: gapGroup
-        ? `${formatSignedCurrency(gapGroup.delta)} · ${gapGroup.statusLabel}`
+        ? `${formatAbsoluteCurrency(gapGroup.delta)} · ${gapGroup.statusLabel}`
         : (english
           ? "Plan and actual remain aligned on this period."
           : "Le plan et le réel restent alignés sur cette période."),
@@ -13827,7 +13827,7 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
           </div>
           <div class="analysis-plan-stat">
             <span>${english ? "Gap" : "Écart"}</span>
-            <strong class="${group.delta > 0 ? "analysis-delta-negative" : group.delta < 0 ? "analysis-delta-positive" : ""}">${escapeHtml(formatSignedCurrency(group.delta))}</strong>
+            <strong class="${group.delta > 0 ? "analysis-delta-negative" : group.delta < 0 ? "analysis-delta-positive" : ""}">${escapeHtml(formatAbsoluteCurrency(group.delta))}</strong>
           </div>
           <div class="analysis-plan-status-wrap">
             ${createRecapStatusChipMarkup(group.statusLabel, group.statusTone)}
@@ -13852,7 +13852,7 @@ function createAnalysisPlanGroupSectionMarkup(group, budgetPeriodCount, index) {
                   <td>${escapeHtml(getDisplayCategoryLabel(row.label) || row.label)}</td>
                   <td class="numeric">${escapeHtml(formatCurrency(row.plan))}</td>
                   <td class="numeric">${escapeHtml(formatCurrency(row.actual))}</td>
-                  <td class="numeric ${row.delta > 0 ? "analysis-delta-negative" : row.delta < 0 ? "analysis-delta-positive" : ""}">${escapeHtml(formatSignedCurrency(row.delta))}</td>
+                  <td class="numeric ${row.delta > 0 ? "analysis-delta-negative" : row.delta < 0 ? "analysis-delta-positive" : ""}">${escapeHtml(formatAbsoluteCurrency(row.delta))}</td>
                   <td>${createRecapStatusChipMarkup(row.statusLabel, row.statusTone)}</td>
                 </tr>
               `).join("")}
@@ -16363,6 +16363,15 @@ function formatSignedCurrency(value) {
     maximumFractionDigits: 2,
     signDisplay: "auto",
   }).format(amount);
+}
+
+function formatAbsoluteCurrency(value) {
+  const amount = parseAmount(value);
+  if (!Number.isFinite(amount)) {
+    return String(value ?? "").trim();
+  }
+
+  return formatCurrency(Math.abs(amount));
 }
 
 function toDateInputValue(value) {
