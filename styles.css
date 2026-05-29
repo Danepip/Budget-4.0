@@ -111,6 +111,31 @@ body[data-theme="dark"] .compact-entry.active {
   box-shadow: 0 18px 30px rgba(0, 0, 0, 0.32);
 }
 
+body[data-theme="dark"] .journal-day-divider {
+  border-bottom-color: rgba(171, 205, 214, 0.14);
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .journal-day-divider strong {
+  color: var(--ink);
+}
+
+body[data-theme="dark"] .journal-entry {
+  border-color: rgba(171, 205, 214, 0.12);
+  background: linear-gradient(180deg, rgba(17, 29, 35, 0.96), rgba(13, 24, 30, 0.98));
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+}
+
+body[data-theme="dark"] .journal-entry:hover {
+  border-color: rgba(239, 137, 97, 0.22);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
+}
+
+body[data-theme="dark"] .journal-entry.active {
+  border-color: rgba(103, 191, 176, 0.34);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.3);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1054,6 +1079,11 @@ textarea {
 .cards-grid.compact-mode {
   grid-template-columns: 1fr;
   gap: 12px;
+}
+
+.cards-grid.journal-mode {
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .cards-grid.recurring-mode {
@@ -2240,6 +2270,102 @@ textarea {
 
 .compact-entry-actions .card-action {
   width: auto;
+  min-width: 42px;
+  padding: 0 14px;
+}
+
+.journal-day-divider {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 0;
+  border-bottom: 1px solid rgba(24, 51, 59, 0.08);
+  color: var(--muted);
+}
+
+.journal-day-divider strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.journal-day-divider span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.journal-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) auto auto;
+  gap: 10px 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 250, 0.95));
+  box-shadow: 0 8px 20px rgba(24, 51, 59, 0.06);
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.journal-entry:hover {
+  transform: translateY(-1px);
+  border-color: rgba(213, 106, 63, 0.22);
+  box-shadow: 0 14px 24px rgba(24, 51, 59, 0.1);
+}
+
+.journal-entry.active {
+  border-color: rgba(47, 125, 116, 0.4);
+  box-shadow: 0 14px 24px rgba(47, 125, 116, 0.14);
+}
+
+.journal-entry-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.journal-entry-title {
+  font-size: 1rem;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.journal-entry-meta,
+.journal-entry-sheet {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.journal-entry-side {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+}
+
+.journal-entry-amount {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.journal-entry-sheet {
+  font-size: 0.78rem;
+}
+
+.journal-entry-actions {
+  display: inline-flex;
+  gap: 8px;
+  justify-self: end;
+}
+
+.journal-entry-actions .card-action {
   min-width: 42px;
   padding: 0 14px;
 }
@@ -4856,6 +4982,15 @@ body[data-theme="dark"] .app-toast {
     gap: 10px;
   }
 
+  .journal-entry {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .journal-entry-actions {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
   .data-card {
     min-height: auto;
     padding: 18px 16px 16px;
@@ -4951,6 +5086,22 @@ body[data-theme="dark"] .app-toast {
     justify-self: start;
   }
 
+  .journal-day-divider {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .journal-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-entry-side,
+  .journal-entry-actions {
+    justify-items: start;
+    justify-self: start;
+    text-align: left;
+  }
+
   .view-toggle {
     width: 100%;
     justify-content: flex-start;
@@ -5017,4 +5168,199 @@ body.native-android .page-shell {
 
 body.native-android .shell-status {
   background: rgba(232, 245, 241, 0.84);
+}
+
+body.native-android.android-large-phone .page-shell {
+  width: min(100%, calc(100% - 14px));
+  margin: 8px auto 20px;
+  padding-bottom: calc(108px + env(safe-area-inset-bottom));
+}
+
+body.native-android.android-large-phone .hero-copy,
+body.native-android.android-large-phone .app-nav,
+body.native-android.android-large-phone .toolbar,
+body.native-android.android-large-phone .cards-area,
+body.native-android.android-large-phone .editor-area,
+body.native-android.android-large-phone .status-card,
+body.native-android.android-large-phone .cloud-panel,
+body.native-android.android-large-phone .analysis-transactions-dialog,
+body.native-android.android-large-phone .budget-plan-dialog,
+body.native-android.android-large-phone .budget-plan-group-dialog,
+body.native-android.android-large-phone .category-manager-dialog,
+body.native-android.android-large-phone .category-picker-dialog,
+body.native-android.android-large-phone .recurring-occurrence-dialog,
+body.native-android.android-large-phone .recurring-history-dialog {
+  border-radius: 24px;
+}
+
+body.native-android.android-large-phone .hero-copy,
+body.native-android.android-large-phone .app-nav,
+body.native-android.android-large-phone .toolbar,
+body.native-android.android-large-phone .cards-area,
+body.native-android.android-large-phone .editor-area,
+body.native-android.android-large-phone .status-card,
+body.native-android.android-large-phone .cloud-panel {
+  padding: 16px;
+}
+
+body.native-android.android-large-phone .app-nav {
+  top: max(6px, env(safe-area-inset-top));
+}
+
+body.native-android.android-large-phone .app-tab {
+  flex: 0 0 104px;
+  min-height: 72px;
+  padding: 10px 12px;
+}
+
+body.native-android.android-large-phone .app-tab-label {
+  font-size: 0.92rem;
+}
+
+body.native-android.android-large-phone .toolbar-primary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.native-android.android-large-phone .toolbar-actions {
+  gap: 10px;
+}
+
+body.native-android.android-large-phone .toolbar-actions .button,
+body.native-android.android-large-phone .cloud-actions .button {
+  min-height: 46px;
+}
+
+body.native-android.android-large-phone .budget-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.native-android.android-large-phone .budget-summary-card {
+  min-height: 80px;
+  padding: 14px 16px;
+}
+
+body.native-android.android-large-phone .budget-summary-head {
+  gap: 12px;
+}
+
+body.native-android.android-large-phone .budget-summary-icon {
+  width: 42px;
+  height: 42px;
+}
+
+body.native-android.android-large-phone .budget-summary-title {
+  font-size: 0.86rem;
+}
+
+body.native-android.android-large-phone .budget-summary-amount {
+  font-size: clamp(1.02rem, 3.8vw, 1.54rem);
+}
+
+body.native-android.android-large-phone .cards-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+body.native-android.android-large-phone .cards-grid.compact-mode {
+  grid-template-columns: 1fr;
+}
+
+body.native-android.android-large-phone .data-card {
+  padding: 16px 15px;
+}
+
+body.native-android.android-large-phone .analysis-overview-grid,
+body.native-android.android-large-phone .analysis-visual-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+body.native-android.android-large-phone .analysis-transactions-modal,
+body.native-android.android-large-phone .budget-plan-modal,
+body.native-android.android-large-phone .category-manager-modal,
+body.native-android.android-large-phone .category-picker-modal,
+body.native-android.android-large-phone .recurring-occurrence-modal,
+body.native-android.android-large-phone .analysis-transactions-modal {
+  padding: 12px;
+}
+
+body.native-android.android-large-phone .analysis-transactions-dialog {
+  width: min(940px, calc(100vw - 18px));
+  max-height: min(90dvh, 980px);
+  padding: 18px;
+}
+
+body.native-android.android-large-phone .analysis-transactions-results {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body.native-android.android-large-phone .budget-plan-dialog {
+  width: min(760px, calc(100vw - 18px));
+  max-height: min(90dvh, 1040px);
+  padding: 18px;
+}
+
+body.native-android.android-large-phone .budget-plan-group-dialog {
+  width: min(1080px, calc(100vw - 14px));
+  max-height: min(92dvh, 1120px);
+  padding: 18px;
+}
+
+body.native-android.android-large-phone .budget-plan-group-summary {
+  grid-template-columns: minmax(0, 1.05fr) minmax(210px, 0.95fr);
+  gap: 12px;
+}
+
+body.native-android.android-large-phone .budget-plan-group-summary > div,
+body.native-android.android-large-phone .budget-plan-group-picker {
+  padding: 12px 14px;
+}
+
+body.native-android.android-large-phone .budget-plan-group-picker .month-picker-panel {
+  max-height: min(280px, 34dvh);
+}
+
+body.native-android.android-large-phone .budget-plan-modal-actions,
+body.native-android.android-large-phone .form-actions {
+  position: sticky;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 4;
+  padding-top: 12px;
+  background: var(--sticky-fade);
+}
+
+body.native-android.android-large-phone .category-manager-dialog {
+  width: min(980px, calc(100vw - 18px));
+  max-height: min(90dvh, 1040px);
+  padding: 18px;
+}
+
+body.native-android.android-large-phone .category-manager-grid {
+  gap: 14px;
+}
+
+body.native-android.android-large-phone .category-picker-dialog {
+  width: min(700px, calc(100vw - 18px));
+  max-height: min(86dvh, 900px);
+}
+
+body.native-android.android-large-phone .recurring-occurrence-dialog,
+body.native-android.android-large-phone .recurring-history-dialog {
+  width: min(760px, calc(100vw - 18px));
+  max-height: min(90dvh, 980px);
+}
+
+body.native-android.android-large-phone .app-toast {
+  right: 12px;
+  left: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  max-width: none;
+}
+
+body.native-android.android-wide-layout .analysis-transactions-dialog,
+body.native-android.android-wide-layout .budget-plan-group-dialog,
+body.native-android.android-wide-layout .category-manager-dialog {
+  max-width: 1180px;
 }

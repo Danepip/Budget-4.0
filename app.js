@@ -36,7 +36,7 @@ const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
 const SUPPORTED_UI_LANGUAGES = ["fr", "en"];
 const SUPPORTED_UI_THEMES = ["auto", "light", "dark"];
-const SUPPORTED_TRANSACTION_VIEWS = ["cards", "compact"];
+const SUPPORTED_TRANSACTION_VIEWS = ["cards", "compact", "journal"];
 const UI_STRINGS = {
   fr: {
     "hero.badge": "Budget",
@@ -68,6 +68,7 @@ const UI_STRINGS = {
     "tab.transactions.viewLabel": "Mode d'affichage",
     "tab.transactions.viewCards": "Cartes",
     "tab.transactions.viewCompact": "Compacte",
+    "tab.transactions.viewJournal": "Journal",
     "tab.form.title": "Formulaire",
     "tab.form.description": "Un espace dédié à la création et à la modification d'une transaction, sans distraction autour.",
     "tab.recurring.title": "Transactions récurrentes",
@@ -456,6 +457,7 @@ const UI_STRINGS = {
     "tab.transactions.viewLabel": "View mode",
     "tab.transactions.viewCards": "Cards",
     "tab.transactions.viewCompact": "Compact",
+    "tab.transactions.viewJournal": "Journal",
     "tab.form.title": "Form",
     "tab.form.description": "A dedicated space to create and edit a transaction without distractions.",
     "tab.recurring.title": "Recurring transactions",
@@ -1307,6 +1309,7 @@ let budgetPlanGroupEditorModal = null;
 let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
 let analysisTransactionsModal = null;
+let androidViewportProfileBound = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -4400,6 +4403,7 @@ function syncLibraryState() {
 
 function setupAppShell() {
   renderAppShellState();
+  syncAndroidViewportProfile();
 
   window.addEventListener("online", renderAppShellState);
   window.addEventListener("offline", renderAppShellState);
@@ -4413,6 +4417,14 @@ function setupAppShell() {
     } else if (typeof standaloneMedia.addListener === "function") {
       standaloneMedia.addListener(renderAppShellState);
     }
+  }
+
+  if (!androidViewportProfileBound) {
+    window.addEventListener("resize", syncAndroidViewportProfile, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncAndroidViewportProfile, { passive: true });
+    }
+    androidViewportProfileBound = true;
   }
 
   registerAppShell();
@@ -4474,6 +4486,7 @@ function renderAppShellState() {
   document.body.classList.toggle("native-app", isNativeAppRuntime());
   document.body.classList.toggle("native-android", isAndroidNativeRuntime());
   document.body.classList.toggle("standalone-shell", standalone);
+  syncAndroidViewportProfile();
 
   refs.installButton.disabled = standalone || !deferredInstallPrompt;
   refs.installButton.textContent = standalone ? t("share.installed") : t("share.install");
@@ -4482,6 +4495,33 @@ function renderAppShellState() {
     : deferredInstallPrompt
       ? (getCurrentLanguage() === "en" ? "Install the web version on this device." : "Installer la version web sur cet appareil.")
       : (getCurrentLanguage() === "en" ? "Installation will be offered when the browser makes it available." : "L'installation sera proposée quand le navigateur la rendra disponible.");
+}
+
+function getViewportProfileSize() {
+  const viewportWidth = Number(window.visualViewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0);
+  const viewportHeight = Number(window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0);
+  return {
+    width: viewportWidth,
+    height: viewportHeight,
+    shortestSide: Math.min(viewportWidth, viewportHeight),
+    longestSide: Math.max(viewportWidth, viewportHeight),
+  };
+}
+
+function syncAndroidViewportProfile() {
+  if (!document.body) {
+    return;
+  }
+
+  const isAndroid = isAndroidNativeRuntime();
+  const { width, shortestSide, longestSide } = getViewportProfileSize();
+  const largePhone = isAndroid && shortestSide >= 400;
+  const ultraPhone = isAndroid && shortestSide >= 400 && longestSide >= 860;
+  const wideLayout = isAndroid && width >= 760;
+
+  document.body.classList.toggle("android-large-phone", largePhone);
+  document.body.classList.toggle("android-ultra-phone", ultraPhone);
+  document.body.classList.toggle("android-wide-layout", wideLayout);
 }
 
 function getSupabaseRuntime() {
@@ -11196,6 +11236,7 @@ function renderControls() {
   const journalActive = hasBudget && state.activeView === JOURNAL_SHEET_NAME;
   const recapActive = hasBudget && state.activeView === RECAP_SHEET_NAME;
   const analysisActive = hasBudget && state.activeView === ANALYSIS_VIEW_NAME;
+  const dashboardTab = state.appTab === APP_TAB_DASHBOARD;
   const shareTab = state.appTab === APP_TAB_SHARE;
   const planTab = state.appTab === APP_TAB_PLAN;
   const planEditing = planTab && state.planEditing;
@@ -11207,7 +11248,13 @@ function renderControls() {
   const availableYears = getAvailableRecapYears();
   const availableMonths = getAvailableRecapMonths(state.recapFilters.year);
 
-  refs.searchInput.disabled = !hasBudget || shareTab || formTab || planTab || recurringTab;
+  if (dashboardTab && state.search) {
+    state.search = "";
+    refs.searchInput.value = "";
+  }
+
+  refs.searchField?.classList.toggle("hidden", dashboardTab);
+  refs.searchInput.disabled = !hasBudget || dashboardTab || shareTab || formTab || planTab || recurringTab;
   refs.searchInput.placeholder = recapActive
     ? t("toolbar.searchPlaceholderRecap")
     : analysisActive
@@ -11248,7 +11295,7 @@ function renderControls() {
   refs.restartButton.disabled = busy;
   refs.restartButton.title = t("toolbar.restartTitle");
   refs.filePickerField.classList.toggle("hidden", !shareTab);
-  refs.searchField.classList.toggle("hidden", shareTab || formTab || planTab || recurringTab);
+  refs.searchField.classList.toggle("hidden", dashboardTab || shareTab || formTab || planTab || recurringTab);
   refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab);
   refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab);
   refs.recapRangeField.classList.add("hidden");
@@ -11311,7 +11358,7 @@ function renderTransactionsViewToggle(isVisible) {
         data-transaction-view="${escapeHtml(view)}"
         aria-pressed="${currentView === view ? "true" : "false"}"
       >
-        ${escapeHtml(t(`tab.transactions.view${view === "cards" ? "Cards" : "Compact"}`))}
+        ${escapeHtml(t(`tab.transactions.view${view === "cards" ? "Cards" : view === "compact" ? "Compact" : "Journal"}`))}
       </button>
     `).join("")}
   `;
@@ -11634,6 +11681,7 @@ function renderCards() {
   refs.cardsGrid.innerHTML = "";
   refs.recapView.innerHTML = "";
   refs.cardsGrid.classList.remove("recurring-mode");
+  refs.cardsGrid.classList.remove("journal-mode");
 
   if (state.mode !== "budget") {
     refs.cardsGrid.classList.remove("hidden");
@@ -11664,7 +11712,9 @@ function renderCards() {
 function renderJournalCards() {
   refs.cardsGrid.classList.remove("hidden");
   refs.recapView.classList.add("hidden");
-  refs.cardsGrid.classList.toggle("compact-mode", getCurrentTransactionView() === "compact");
+  const currentView = getCurrentTransactionView();
+  refs.cardsGrid.classList.toggle("compact-mode", currentView === "compact");
+  refs.cardsGrid.classList.toggle("journal-mode", currentView === "journal");
   const english = isEnglishUi();
   const recurringReviewPanel = renderRecurringReviewPanel({ compact: true });
 
@@ -11696,15 +11746,20 @@ function renderJournalCards() {
     return;
   }
 
-  if (getCurrentTransactionView() === "compact") {
+  if (currentView === "compact") {
     renderJournalCompactRows(filteredRows, english);
     return;
   }
 
-  filteredRows.forEach(({ row, index }) => {
+  if (currentView === "journal") {
+    renderJournalLedgerRows(filteredRows, english);
+    return;
+  }
+
+  filteredRows.forEach(({ row, index: sourceIndex }) => {
     const card = document.createElement("article");
-    card.className = `data-card${index === state.editingIndex ? " active" : ""}`;
-    card.dataset.entryIndex = String(index);
+    card.className = `data-card${sourceIndex === state.editingIndex ? " active" : ""}`;
+    card.dataset.entryIndex = String(sourceIndex);
 
     const amountLabel = formatCurrency(row.Value) || row.Value || "-";
     const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
@@ -11762,7 +11817,7 @@ function renderRecurringWorkspace() {
 }
 
 function renderJournalCompactRows(filteredRows, english) {
-  filteredRows.forEach(({ row, index }) => {
+  filteredRows.forEach(({ row, index: sourceIndex }) => {
     const entry = document.createElement("article");
     const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
     const amountLabel = formatCurrency(row.Value) || row.Value || "-";
@@ -11775,8 +11830,8 @@ function renderJournalCompactRows(filteredRows, english) {
     }
     subtitleParts.push(`${english ? "Sheet" : "Feuille"} ${JOURNAL_SHEET_NAME}`);
 
-    entry.className = `compact-entry${index === state.editingIndex ? " active" : ""}`;
-    entry.dataset.entryIndex = String(index);
+    entry.className = `compact-entry${sourceIndex === state.editingIndex ? " active" : ""}`;
+    entry.dataset.entryIndex = String(sourceIndex);
     entry.innerHTML = `
       <div class="compact-entry-main">
         <div class="compact-entry-top">
@@ -11788,6 +11843,47 @@ function renderJournalCompactRows(filteredRows, english) {
       </div>
       <div class="compact-entry-amount">${escapeHtml(amountLabel)}</div>
       <div class="compact-entry-actions">
+        <button class="card-action" type="button" data-action="edit" aria-label="${english ? "Edit" : "Modifier"}">${english ? "Edit" : "Modifier"}</button>
+        <button class="card-action delete" type="button" data-action="delete" aria-label="${english ? "Delete" : "Supprimer"}">X</button>
+      </div>
+    `;
+    refs.cardsGrid.appendChild(entry);
+  });
+}
+
+function renderJournalLedgerRows(filteredRows, english) {
+  let previousDateLabel = "";
+
+  filteredRows.forEach(({ row, index: sourceIndex }) => {
+    const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
+    const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
+    const categoryLabel = getDisplayCategoryLabel(row.Categories || "") || (english ? "Undefined category" : "Catégorie non définie");
+    const amountLabel = formatCurrency(row.Value) || row.Value || "-";
+
+    if (dateLabel !== previousDateLabel) {
+      const section = document.createElement("div");
+      section.className = "journal-day-divider";
+      section.innerHTML = `
+        <strong>${escapeHtml(dateLabel)}</strong>
+        <span>${escapeHtml(parentLabel || (english ? "Grouped entries" : "Écritures regroupées"))}</span>
+      `;
+      refs.cardsGrid.appendChild(section);
+      previousDateLabel = dateLabel;
+    }
+
+    const entry = document.createElement("article");
+    entry.className = `journal-entry${sourceIndex === state.editingIndex ? " active" : ""}`;
+    entry.dataset.entryIndex = String(sourceIndex);
+    entry.innerHTML = `
+      <div class="journal-entry-main">
+        <strong class="journal-entry-title">${escapeHtml(categoryLabel)}</strong>
+        <p class="journal-entry-meta">${escapeHtml(parentLabel || (english ? "No main category" : "Sans grande catégorie"))}</p>
+      </div>
+      <div class="journal-entry-side">
+        <span class="journal-entry-amount">${escapeHtml(amountLabel)}</span>
+        <span class="journal-entry-sheet">${escapeHtml(english ? "Sheet Journalier" : "Feuille Journalier")}</span>
+      </div>
+      <div class="journal-entry-actions">
         <button class="card-action" type="button" data-action="edit" aria-label="${english ? "Edit" : "Modifier"}">${english ? "Edit" : "Modifier"}</button>
         <button class="card-action delete" type="button" data-action="delete" aria-label="${english ? "Delete" : "Supprimer"}">X</button>
       </div>
