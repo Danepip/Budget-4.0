@@ -1310,6 +1310,7 @@ let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
 let analysisTransactionsModal = null;
 let androidViewportProfileBound = false;
+let heroClockTimer = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -1327,6 +1328,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   syncLibraryState();
   setupAppShell();
+  setupHeroClock();
   void initSupabaseIntegration();
   renderAll();
 });
@@ -4198,6 +4200,8 @@ function setAppTab(nextTab) {
 function cacheDom() {
   refs.fileInput = document.getElementById("excel-file");
   refs.welcomeScreen = document.getElementById("welcome-screen");
+  refs.heroClock = document.getElementById("hero-clock");
+  refs.heroDate = document.getElementById("hero-date");
   refs.appNav = document.querySelector(".app-nav");
   refs.toolbar = document.getElementById("workspace-toolbar");
   refs.toolbarPrimary = document.getElementById("toolbar-primary");
@@ -4299,6 +4303,70 @@ function cacheDom() {
   refs.cardsTitle = document.getElementById("cards-title");
   refs.cardsCaption = document.getElementById("cards-caption");
   refs.defaultEmptyMarkup = refs.cardsEmpty.innerHTML;
+}
+
+function setupHeroClock() {
+  if (!refs.heroClock) {
+    return;
+  }
+
+  updateHeroClock();
+
+  if (heroClockTimer) {
+    window.clearInterval(heroClockTimer);
+  }
+
+  heroClockTimer = window.setInterval(updateHeroClock, 1000);
+}
+
+function updateHeroClock() {
+  if (!refs.heroClock) {
+    return;
+  }
+
+  const now = new Date();
+  const seconds = now.getSeconds();
+  const minutes = now.getMinutes() + seconds / 60;
+  const hours = (now.getHours() % 12) + minutes / 60;
+
+  const hourHand = refs.heroClock.querySelector("[data-clock-hand='hour']");
+  const minuteHand = refs.heroClock.querySelector("[data-clock-hand='minute']");
+  const secondHand = refs.heroClock.querySelector("[data-clock-hand='second']");
+
+  if (hourHand) {
+    hourHand.style.transform = `rotate(${hours * 30}deg)`;
+  }
+
+  if (minuteHand) {
+    minuteHand.style.transform = `rotate(${minutes * 6}deg)`;
+  }
+
+  if (secondHand) {
+    secondHand.style.transform = `rotate(${seconds * 6}deg)`;
+  }
+
+  const timeLabel = now.toLocaleTimeString(getUiLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const dateLabel = new Intl.DateTimeFormat(getUiLocale(), {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(now);
+
+  if (refs.heroDate) {
+    refs.heroDate.textContent = dateLabel;
+  }
+
+  refs.heroClock.setAttribute(
+    "aria-label",
+    getCurrentLanguage() === "en"
+      ? `Analog clock showing ${timeLabel}, ${dateLabel}`
+      : `Horloge analogique indiquant ${timeLabel}, ${dateLabel}`
+  );
 }
 
 function bindEvents() {

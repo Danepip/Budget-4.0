@@ -111,6 +111,40 @@ body[data-theme="dark"] .compact-entry.active {
   box-shadow: 0 18px 30px rgba(0, 0, 0, 0.32);
 }
 
+body[data-theme="dark"] .hero-clock {
+  border-color: rgba(171, 205, 214, 0.16);
+  background: rgba(17, 29, 35, 0.88);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+}
+
+body[data-theme="dark"] .hero-clock-face {
+  background:
+    radial-gradient(circle at center, rgba(18, 31, 37, 0.98) 0 62%, rgba(12, 22, 28, 0.96) 63% 100%),
+    repeating-conic-gradient(from -90deg, rgba(171, 205, 214, 0.62) 0deg 1.5deg, transparent 1.5deg 30deg);
+  box-shadow:
+    inset 0 0 0 2px rgba(171, 205, 214, 0.14),
+    inset 0 0 0 10px rgba(12, 22, 28, 0.84);
+}
+
+body[data-theme="dark"] .hero-clock-hand-hour {
+  background: #f1f6f7;
+}
+
+body[data-theme="dark"] .hero-clock-hand-minute {
+  background: #c9d7db;
+}
+
+body[data-theme="dark"] .hero-clock-center {
+  box-shadow: 0 0 0 3px rgba(171, 205, 214, 0.14);
+}
+
+body[data-theme="dark"] .hero-date {
+  border-color: rgba(171, 205, 214, 0.14);
+  background: rgba(17, 29, 35, 0.88);
+  color: #c9d7db;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+}
+
 body[data-theme="dark"] .journal-day-divider {
   border-bottom-color: rgba(171, 205, 214, 0.14);
   color: var(--muted);
@@ -318,6 +352,141 @@ textarea {
 .hero-intro {
   display: grid;
   gap: 12px;
+}
+
+.hero-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 100%;
+}
+
+.hero-brand h1 {
+  flex: 0 1 auto;
+  max-width: none;
+  white-space: nowrap;
+}
+
+.hero-clock-stack {
+  display: grid;
+  justify-items: end;
+  margin-left: auto;
+  gap: 8px;
+}
+
+.hero-clock {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: 0;
+  width: 96px;
+  aspect-ratio: 1;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(24, 51, 59, 0.12);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 12px 28px rgba(24, 51, 59, 0.12);
+}
+
+.hero-clock-face {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.98) 0 62%, rgba(244, 249, 247, 0.96) 63% 100%),
+    repeating-conic-gradient(from -90deg, rgba(24, 51, 59, 0.64) 0deg 1.5deg, transparent 1.5deg 30deg);
+  box-shadow:
+    inset 0 0 0 2px rgba(24, 51, 59, 0.1),
+    inset 0 0 0 10px rgba(255, 255, 255, 0.82);
+}
+
+.hero-clock-number {
+  position: absolute;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.hero-clock-number-12 {
+  top: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hero-clock-number-3 {
+  top: 50%;
+  right: 11px;
+  transform: translateY(-50%);
+}
+
+.hero-clock-number-6 {
+  bottom: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hero-clock-number-9 {
+  top: 50%;
+  left: 11px;
+  transform: translateY(-50%);
+}
+
+.hero-clock-hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  transform-origin: 50% calc(100% - 6px);
+  border-radius: 999px;
+  margin-left: -2px;
+}
+
+.hero-clock-hand-hour {
+  width: 5px;
+  height: 24px;
+  background: #1f252b;
+}
+
+.hero-clock-hand-minute {
+  width: 4px;
+  height: 32px;
+  background: #29333b;
+}
+
+.hero-clock-hand-second {
+  width: 2px;
+  height: 36px;
+  background: #d6413a;
+  margin-left: -1px;
+}
+
+.hero-clock-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #d6413a;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(24, 51, 59, 0.12);
+}
+
+.hero-date {
+  min-width: max-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 22px rgba(24, 51, 59, 0.08);
 }
 
 .hero-kicker {
@@ -4822,6 +4991,15 @@ body[data-theme="dark"] .app-toast {
   .hero-main {
     grid-template-columns: 1fr;
   }
+
+  .hero-brand {
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .hero-date {
+    font-size: 0.68rem;
+  }
 }
 
 @media (max-width: 840px) {
@@ -4890,6 +5068,10 @@ body[data-theme="dark"] .app-toast {
     flex: 0 0 116px;
     min-height: 78px;
     padding: 12px 14px;
+  }
+
+  .hero-clock {
+    width: 82px;
   }
 
   .toolbar {
@@ -5084,6 +5266,20 @@ body[data-theme="dark"] .app-toast {
 
   .compact-entry-amount {
     justify-self: start;
+  }
+
+  .hero-brand {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .hero-clock {
+    width: 72px;
+  }
+
+  .hero-date {
+    padding: 5px 8px;
+    font-size: 0.64rem;
   }
 
   .journal-day-divider {
