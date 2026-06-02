@@ -1309,6 +1309,8 @@ let budgetPlanGroupEditorModal = null;
 let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
 let analysisTransactionsModal = null;
+let analysisHoverTooltip = null;
+let activeAnalysisHoverTarget = null;
 let androidViewportProfileBound = false;
 let heroClockTimer = null;
 
@@ -4458,6 +4460,11 @@ function bindEvents() {
   });
   document.addEventListener("click", onDocumentClick);
   document.addEventListener("keydown", onDocumentKeyDown);
+  document.addEventListener("mouseover", onDocumentAnalysisHoverOver);
+  document.addEventListener("mousemove", onDocumentAnalysisHoverMove);
+  document.addEventListener("mouseout", onDocumentAnalysisHoverOut);
+  document.addEventListener("focusin", onDocumentAnalysisHoverFocusIn);
+  document.addEventListener("focusout", onDocumentAnalysisHoverFocusOut);
 }
 
 function syncLibraryState() {
@@ -4713,6 +4720,11 @@ function onAnalysisInteraction(event) {
     return;
   }
 
+  if (action === "open-expense-breakdown") {
+    openAnalysisExpenseBreakdownModal();
+    return;
+  }
+
   if (action === "open-metric-transactions") {
     openAnalysisMetricTransactionsModal(actionButton.dataset.analysisMetric || "");
     return;
@@ -4736,6 +4748,137 @@ function onAnalysisInteraction(event) {
   }
 }
 
+function ensureAnalysisHoverTooltip() {
+  if (analysisHoverTooltip?.isConnected) {
+    return analysisHoverTooltip;
+  }
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "analysis-hover-tooltip hidden";
+  document.body.appendChild(tooltip);
+  analysisHoverTooltip = tooltip;
+  return tooltip;
+}
+
+function resolveAnalysisHoverTarget(target) {
+  if (!(target instanceof Element)) {
+    return null;
+  }
+
+  return target.closest("[data-analysis-hover]");
+}
+
+function positionAnalysisHoverTooltip(source, target = activeAnalysisHoverTarget) {
+  if (!analysisHoverTooltip || !target) {
+    return;
+  }
+
+  const tooltip = analysisHoverTooltip;
+  const margin = 14;
+  const sourceRect = target.getBoundingClientRect();
+  let anchorX = sourceRect.left + (sourceRect.width / 2);
+  let anchorY = sourceRect.top;
+
+  if (source && Number.isFinite(source.clientX) && Number.isFinite(source.clientY)) {
+    anchorX = source.clientX;
+    anchorY = source.clientY;
+  }
+
+  tooltip.style.left = "0px";
+  tooltip.style.top = "0px";
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const maxLeft = Math.max(margin, window.innerWidth - tooltipRect.width - margin);
+  let left = anchorX - (tooltipRect.width / 2);
+  left = Math.min(Math.max(margin, left), maxLeft);
+
+  let top = anchorY - tooltipRect.height - 16;
+  if (top < margin) {
+    top = Math.min(window.innerHeight - tooltipRect.height - margin, anchorY + 18);
+  }
+
+  tooltip.style.left = `${Math.round(left)}px`;
+  tooltip.style.top = `${Math.round(top)}px`;
+}
+
+function showAnalysisHoverTooltip(target, sourceEvent = null) {
+  const text = String(target?.dataset?.analysisHover || "").trim();
+  if (!text) {
+    hideAnalysisHoverTooltip();
+    return;
+  }
+
+  activeAnalysisHoverTarget = target;
+  const tooltip = ensureAnalysisHoverTooltip();
+  tooltip.textContent = text;
+  tooltip.classList.remove("hidden");
+  positionAnalysisHoverTooltip(sourceEvent, target);
+}
+
+function hideAnalysisHoverTooltip() {
+  if (analysisHoverTooltip) {
+    analysisHoverTooltip.classList.add("hidden");
+  }
+  activeAnalysisHoverTarget = null;
+}
+
+function onDocumentAnalysisHoverOver(event) {
+  const hoverTarget = resolveAnalysisHoverTarget(event.target);
+  if (!hoverTarget) {
+    return;
+  }
+
+  showAnalysisHoverTooltip(hoverTarget, event);
+}
+
+function onDocumentAnalysisHoverMove(event) {
+  if (!activeAnalysisHoverTarget) {
+    return;
+  }
+
+  positionAnalysisHoverTooltip(event, activeAnalysisHoverTarget);
+}
+
+function onDocumentAnalysisHoverOut(event) {
+  const currentTarget = resolveAnalysisHoverTarget(event.target);
+  if (!currentTarget) {
+    return;
+  }
+
+  const nextTarget = resolveAnalysisHoverTarget(event.relatedTarget);
+  if (nextTarget && (nextTarget === currentTarget || currentTarget.contains(nextTarget))) {
+    return;
+  }
+
+  if (activeAnalysisHoverTarget === currentTarget) {
+    hideAnalysisHoverTooltip();
+  }
+}
+
+function onDocumentAnalysisHoverFocusIn(event) {
+  const hoverTarget = resolveAnalysisHoverTarget(event.target);
+  if (!hoverTarget) {
+    return;
+  }
+
+  showAnalysisHoverTooltip(hoverTarget);
+}
+
+function onDocumentAnalysisHoverFocusOut(event) {
+  const currentTarget = resolveAnalysisHoverTarget(event.target);
+  if (!currentTarget) {
+    return;
+  }
+
+  const nextTarget = resolveAnalysisHoverTarget(event.relatedTarget);
+  if (nextTarget && (nextTarget === currentTarget || currentTarget.contains(nextTarget))) {
+    return;
+  }
+
+  if (activeAnalysisHoverTarget === currentTarget) {
+    hideAnalysisHoverTooltip();
+  }
+}
+
 function openTransactionsWithSearch(query) {
   closeAnalysisTransactionsModal();
   setAppTab(APP_TAB_TRANSACTIONS);
@@ -4746,6 +4889,148 @@ function openTransactionsWithSearch(query) {
   }
   persistDraftIfPossible();
   renderAll();
+}
+
+function openAnalysisExpenseBreakdownModal() {
+  if (state.mode !== "budget") {
+    return;
+  }
+
+  closeAnalysisTransactionsModal();
+
+  const english = isEnglishUi();
+  const analysisView = buildLiveAnalysisView();
+  const expenseBreakdown = analysisView?.expenseBreakdown;
+  if (!expenseBreakdown?.available || !Array.isArray(expenseBreakdown.rows) || !expenseBreakdown.rows.length) {
+    showToast(english
+      ? "No expense breakdown is available for the current period."
+      : "Aucune répartition des dépenses n'est disponible pour la période actuelle.");
+    return;
+  }
+
+  const periodLabel = analysisView?.periodLabel || buildRecapPeriodLabel();
+  const dominantRow = expenseBreakdown.rows.slice().sort((left, right) => right.value - left.value)[0] || null;
+
+  const overlay = document.createElement("div");
+  overlay.className = "analysis-transactions-modal";
+  overlay.innerHTML = `
+    <div class="analysis-expense-dialog" role="dialog" aria-modal="true" aria-labelledby="analysis-expense-title">
+      <div class="analysis-expense-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Focused expense view" : "Vue ciblée des dépenses")}</p>
+          <h3 id="analysis-expense-title">${escapeHtml(english ? "Where your money goes" : "Où va votre argent")}</h3>
+          <p>${escapeHtml(english
+            ? `A visual breakdown of expenses for ${periodLabel}. Tap a category to open its transactions.`
+            : `Une lecture visuelle des dépenses pour ${periodLabel}. Touchez une catégorie pour ouvrir ses transactions.`)}</p>
+        </div>
+        <button type="button" class="button ghost" data-analysis-expense-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+
+      <div class="analysis-expense-hero">
+        <div class="analysis-expense-header-row">
+          <span class="analysis-expense-mode">${escapeHtml(english ? "Expenses" : "Dépenses")}</span>
+          <span class="analysis-expense-period">${escapeHtml(periodLabel)}</span>
+        </div>
+
+        <div class="analysis-expense-visual">
+          <div class="analysis-expense-donut-panel">
+            <div class="analysis-expense-donut-shell">
+          <div class="analysis-expense-donut">
+                ${createAnalysisDonutSvgMarkup(expenseBreakdown.rows, {
+                  radius: 36,
+                  strokeWidth: 28,
+                  emptyLabel: english ? "No expense data" : "Aucune donnée de dépense",
+                })}
+                <div class="analysis-expense-donut-center">
+                  <span>${escapeHtml(english ? "This period" : "Cette période")}</span>
+                  <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="analysis-expense-insights">
+            <article class="analysis-expense-insight">
+              <span>${escapeHtml(english ? "Main category" : "Catégorie principale")}</span>
+              <strong>${escapeHtml(dominantRow?.label || (english ? "No category" : "Aucune catégorie"))}</strong>
+              <p>${dominantRow ? `${escapeHtml(dominantRow.displayValue)} · ${escapeHtml(dominantRow.shareLabel)}` : escapeHtml(english ? "No expense distribution yet." : "Aucune répartition disponible pour le moment.")}</p>
+            </article>
+            <article class="analysis-expense-insight">
+              <span>${escapeHtml(english ? "Tracked categories" : "Catégories suivies")}</span>
+              <strong>${escapeHtml(String(expenseBreakdown.rows.length))}</strong>
+              <p>${escapeHtml(english ? "Shown in the chart and list below." : "Affichées dans le graphique et la liste ci-dessous.")}</p>
+            </article>
+            <article class="analysis-expense-insight">
+              <span>${escapeHtml(english ? "Period total" : "Total de la période")}</span>
+              <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
+              <p>${escapeHtml(english ? "Only dated expense lines are counted." : "Seules les lignes de dépense datées sont comptées.")}</p>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="analysis-expense-table-wrap">
+        <div class="analysis-expense-table-head">
+          <h4>${escapeHtml(english ? "Expenses by category" : "Dépenses par catégorie")}</h4>
+          <button type="button" class="button secondary" data-analysis-expense-action="open-full">${escapeHtml(english ? "Open in Transactions" : "Ouvrir dans Transactions")}</button>
+        </div>
+        <div class="analysis-expense-table">
+          ${expenseBreakdown.rows.map((row) => `
+            <button
+              type="button"
+              class="analysis-expense-row"
+              data-analysis-expense-action="open-category"
+              data-analysis-query="${escapeHtml(row.label)}"
+            >
+              <span class="analysis-expense-row-color" style="background:${row.color};"></span>
+              <strong>${escapeHtml(row.label)}</strong>
+              <span>${escapeHtml(row.shareLabel)}</span>
+              <span>${escapeHtml(row.displayValue)}</span>
+            </button>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-analysis-expense-action]");
+    if (event.target === overlay || actionButton?.dataset.analysisExpenseAction === "close") {
+      closeAnalysisTransactionsModal();
+      return;
+    }
+
+    if (!actionButton) {
+      return;
+    }
+
+    const action = String(actionButton.dataset.analysisExpenseAction || "").trim();
+    if (action === "open-full") {
+      closeAnalysisTransactionsModal();
+      setAppTab(APP_TAB_TRANSACTIONS);
+      refs.searchInput && (refs.searchInput.value = "");
+      state.search = "";
+      persistDraftIfPossible();
+      renderAll();
+      showToast(english
+        ? "Transactions opened for the current filtered period."
+        : "Transactions ouvertes pour la période filtrée actuelle.");
+      return;
+    }
+
+    if (action === "open-category") {
+      openTransactionsWithSearch(actionButton.dataset.analysisQuery || "");
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeAnalysisTransactionsModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  analysisTransactionsModal = overlay;
 }
 
 function buildJournalRowSearchHaystack(row) {
@@ -4827,6 +5112,7 @@ function closeAnalysisTransactionsModal() {
     analysisTransactionsModal.remove();
   }
   analysisTransactionsModal = null;
+  hideAnalysisHoverTooltip();
 }
 
 function getAnalysisMetricTransactionsModalCopy(metricLabel, count) {
@@ -14052,6 +14338,62 @@ function createAnalysisMetricBarMarkup(row, maxValue) {
   `;
 }
 
+function createAnalysisDonutSvgMarkup(rows, options = {}) {
+  const radius = Number.isFinite(options.radius) ? options.radius : 36;
+  const strokeWidth = Number.isFinite(options.strokeWidth) ? options.strokeWidth : 28;
+  const circumference = 2 * Math.PI * radius;
+  const total = rows.reduce((sum, row) => sum + (Number.isFinite(row?.value) ? row.value : 0), 0);
+  const emptyLabel = String(options.emptyLabel || "").trim();
+
+  if (!rows.length || total <= 0) {
+    return `
+      <svg class="analysis-donut-svg" viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="analysis-donut-ring" cx="50" cy="50" r="${radius}" fill="none" stroke-width="${strokeWidth}"></circle>
+      </svg>
+      ${emptyLabel ? `<span class="sr-only">${escapeHtml(emptyLabel)}</span>` : ""}
+    `;
+  }
+
+  let accumulated = 0;
+  const segments = rows.map((row) => {
+    const value = Number.isFinite(row?.value) ? row.value : 0;
+    const fraction = total > 0 ? value / total : 0;
+    const dash = fraction * circumference;
+    const offset = -accumulated * circumference;
+    accumulated += fraction;
+    const tooltip = [row.label, row.displayValue, row.shareLabel].filter(Boolean).join(" · ");
+    return `
+      <circle
+        class="analysis-donut-segment"
+        cx="50"
+        cy="50"
+        r="${radius}"
+        fill="none"
+        stroke="${escapeHtml(row.color)}"
+        stroke-width="${strokeWidth}"
+        stroke-dasharray="${dash} ${circumference}"
+        stroke-dashoffset="${offset}"
+        stroke-linecap="butt"
+        tabindex="0"
+        role="img"
+        aria-label="${escapeHtml(tooltip)}"
+        data-analysis-hover="${escapeHtml(tooltip)}"
+      >
+        <title>${escapeHtml(tooltip)}</title>
+      </circle>
+    `;
+  }).join("");
+
+  return `
+    <svg class="analysis-donut-svg" viewBox="0 0 100 100" aria-hidden="true">
+      <circle class="analysis-donut-ring" cx="50" cy="50" r="${radius}" fill="none" stroke-width="${strokeWidth}"></circle>
+      <g transform="rotate(-90 50 50)">
+        ${segments}
+      </g>
+    </svg>
+  `;
+}
+
 function createAnalysisCashFlowMarkup(cashFlow) {
   if (!cashFlow) {
     return "";
@@ -14073,17 +14415,37 @@ function createAnalysisCashFlowMarkup(cashFlow) {
       </div>
       <div class="analysis-cash-chart">
         <div class="analysis-cash-column">
-          <div class="analysis-cash-track">
-            <span class="analysis-cash-fill income" style="height: ${incomeHeight}%;"></span>
+          <div class="analysis-cash-track" title="${escapeHtml(`${english ? "Income" : "Revenu"} · ${formatCurrency(cashFlow.income)}`)}">
+            <span
+              class="analysis-cash-fill income"
+              style="height: ${incomeHeight}%;"
+              title="${escapeHtml(`${english ? "Income" : "Revenu"} · ${formatCurrency(cashFlow.income)}`)}"
+              data-analysis-hover="${escapeHtml(`${english ? "Income" : "Revenu"} · ${formatCurrency(cashFlow.income)}`)}"
+            ></span>
           </div>
           <strong>${english ? "Income" : "Revenu"}</strong>
           <span>${escapeHtml(formatCurrency(cashFlow.income))}</span>
         </div>
         <div class="analysis-cash-column">
-          <div class="analysis-cash-track stacked">
-            <span class="analysis-cash-fill cash" style="height: ${cashHeight}%;"></span>
-            <span class="analysis-cash-fill savings" style="height: ${savingsHeight}%;"></span>
-            <span class="analysis-cash-fill expenses" style="height: ${expensesHeight}%;"></span>
+          <div class="analysis-cash-track stacked" title="${escapeHtml(`${english ? "Usage" : "Utilisation"} · ${formatCurrency(cashFlow.usageTotal)}`)}">
+            <span
+              class="analysis-cash-fill cash"
+              style="height: ${cashHeight}%;"
+              title="${escapeHtml(`Cash · ${formatSignedCurrency(cashFlow.cash)}`)}"
+              data-analysis-hover="${escapeHtml(`Cash · ${formatSignedCurrency(cashFlow.cash)}`)}"
+            ></span>
+            <span
+              class="analysis-cash-fill savings"
+              style="height: ${savingsHeight}%;"
+              title="${escapeHtml(`${english ? "Savings" : "Épargne"} · ${formatCurrency(cashFlow.savings)}`)}"
+              data-analysis-hover="${escapeHtml(`${english ? "Savings" : "Épargne"} · ${formatCurrency(cashFlow.savings)}`)}"
+            ></span>
+            <span
+              class="analysis-cash-fill expenses"
+              style="height: ${expensesHeight}%;"
+              title="${escapeHtml(`${english ? "Expenses" : "Dépenses"} · ${formatCurrency(cashFlow.expenses)}`)}"
+              data-analysis-hover="${escapeHtml(`${english ? "Expenses" : "Dépenses"} · ${formatCurrency(cashFlow.expenses)}`)}"
+            ></span>
           </div>
           <strong>${english ? "Usage" : "Utilisation"}</strong>
           <span>${escapeHtml(formatCurrency(cashFlow.usageTotal))}</span>
@@ -14131,14 +14493,30 @@ function createAnalysisExpenseDonutMarkup(expenseBreakdown) {
         <p>${english
           ? "The heaviest categories take up more visual space."
           : "Les catégories les plus lourdes prennent visuellement plus de place."}</p>
+        <button type="button" class="analysis-inline-button" data-analysis-action="open-expense-breakdown">
+          ${escapeHtml(english ? "Open the detailed view" : "Ouvrir la vue détaillée")}
+        </button>
       </div>
       <div class="analysis-donut-layout">
-        <div class="analysis-donut-chart" style="--analysis-donut:${expenseBreakdown.gradient};">
-          <div class="analysis-donut-center">
-            <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
-            <span>${english ? "Expenses" : "Dépenses"}</span>
+        <button
+          type="button"
+          class="analysis-donut-launch analysis-clickable"
+          data-analysis-action="open-expense-breakdown"
+          aria-label="${escapeHtml(english ? "Open the detailed expense view" : "Ouvrir la vue détaillée des dépenses")}"
+        >
+          <div class="analysis-donut-chart">
+            ${createAnalysisDonutSvgMarkup(expenseBreakdown.rows, {
+              radius: 36,
+              strokeWidth: 28,
+              emptyLabel: english ? "No expense data" : "Aucune donnée de dépense",
+            })}
+            <div class="analysis-donut-center">
+              <strong>${escapeHtml(formatCurrency(expenseBreakdown.total))}</strong>
+              <span>${english ? "Expenses" : "Dépenses"}</span>
+            </div>
           </div>
-        </div>
+          <span class="analysis-donut-launch-label">${escapeHtml(english ? "Tap to expand" : "Touchez pour agrandir")}</span>
+        </button>
         <div class="analysis-donut-legend">
           ${expenseBreakdown.rows.map((row) => `
             <button
