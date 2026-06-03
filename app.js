@@ -92,7 +92,7 @@ const UI_STRINGS = {
     "welcome.pointOffline": "Hors ligne prêt",
     "welcome.pointShareLater": "Partage activable plus tard",
     "welcome.pointExportAnytime": "Export Excel à tout moment",
-    "toolbar.filePickerLabel": "Charger Budget_2025 Final",
+    "toolbar.filePickerLabel": "Charger fichier Excel",
     "toolbar.filePickerHint": ".xlsx recommandé",
     "toolbar.year": "Année",
     "toolbar.month": "Mois",
@@ -388,6 +388,13 @@ const UI_STRINGS = {
     "recurring.createButton": "Créer une récurrente",
     "recurring.createUnavailable": "Chargez ou restaurez un budget avant de créer une récurrente.",
     "recurring.createFlowHint": "Remplissez la transaction dans Formulaire, puis cliquez sur Enregistrer comme modèle.",
+    "recurring.templatesLauncherTitle": "Modèles rapides",
+    "recurring.templatesLauncherDescription": "Ouvrez vos modèles récurrents pour les utiliser, les configurer ou en créer un nouveau.",
+    "recurring.templatesLauncherOpen": "Ouvrir les récurrentes",
+    "recurring.templatesLauncherCount": "{count} modèle{plural}",
+    "recurring.templatesLauncherPending": "{count} occurrence{plural} en attente",
+    "recurring.templatesModalTitle": "Transactions récurrentes",
+    "recurring.templatesModalDescription": "Retrouvez tous vos modèles récurrents dans une vue dédiée, sans alourdir la page principale.",
     "recurring.duplicateTemplate": "Un modèle récurrent identique existe déjà pour {label} le {date} avec le montant {amount}.",
     "recurring.duplicateTemplateSkipped": "Le doublon de modèle récurrent n'a pas été créé.",
     "recurring.duplicateTemplateUpdateSkipped": "La mise à jour du modèle récurrent a été ignorée car un doublon identique existe déjà.",
@@ -399,6 +406,21 @@ const UI_STRINGS = {
     "recurring.editOccurrenceTemplateToggle": "Mettre aussi à jour le modèle pour la suite",
     "recurring.editOccurrencePreview": "Occurrence ajustée",
     "recurring.viewOccurrences": "Voir occurrences",
+    "recurring.billsTitle": "Factures du mois",
+    "recurring.billsDescription": "Suivez vos factures récurrentes du mois, voyez ce qui est payé et ce qui arrive bientôt.",
+    "recurring.billsEmpty": "Aucune facture récurrente pour cette période.",
+    "recurring.billsNoTemplates": "Ajoutez une récurrente de sortie avec une date de départ pour la voir apparaître ici.",
+    "recurring.billsStatusPaid": "Payée",
+    "recurring.billsStatusDue": "À payer",
+    "recurring.billsStatusUpcoming": "À venir",
+    "recurring.billsStatusIgnored": "Ignorée",
+    "recurring.billsAutomatic": "Auto",
+    "recurring.billsManual": "Manuel",
+    "recurring.billsUse": "Utiliser",
+    "recurring.billsHint": "Le calendrier du mois reprend vos modèles récurrents de sortie avec une date de départ.",
+    "recurring.billsAllMonth": "Tout le mois",
+    "recurring.billsSelectedDay": "Factures du {date}",
+    "recurring.billsEmptyDay": "Aucune facture pour cette journée.",
     "recurring.viewOccurrencesTitle": "Historique des occurrences",
     "recurring.viewOccurrencesDescription": "Retrouvez les occurrences en attente, déjà ajoutées ou ignorées pour cette règle récurrente.",
     "recurring.viewOccurrencesPending": "En attente",
@@ -481,7 +503,7 @@ const UI_STRINGS = {
     "welcome.pointOffline": "Offline ready",
     "welcome.pointShareLater": "Sharing can be enabled later",
     "welcome.pointExportAnytime": "Excel export anytime",
-    "toolbar.filePickerLabel": "Load Budget_2025 Final",
+    "toolbar.filePickerLabel": "Load Excel file",
     "toolbar.filePickerHint": ".xlsx recommended",
     "toolbar.year": "Year",
     "toolbar.month": "Month",
@@ -777,6 +799,13 @@ const UI_STRINGS = {
     "recurring.createButton": "Create recurring",
     "recurring.createUnavailable": "Load or restore a budget before creating a recurring template.",
     "recurring.createFlowHint": "Fill out the transaction in Form, then click Save as template.",
+    "recurring.templatesLauncherTitle": "Quick templates",
+    "recurring.templatesLauncherDescription": "Open your recurring templates to use them, configure them, or create a new one.",
+    "recurring.templatesLauncherOpen": "Open recurring templates",
+    "recurring.templatesLauncherCount": "{count} template{plural}",
+    "recurring.templatesLauncherPending": "{count} pending occurrence{plural}",
+    "recurring.templatesModalTitle": "Recurring transactions",
+    "recurring.templatesModalDescription": "Find all your recurring templates in a dedicated view without overloading the main page.",
     "recurring.duplicateTemplate": "An identical recurring template already exists for {label} on {date} with amount {amount}.",
     "recurring.duplicateTemplateSkipped": "The duplicate recurring template was not created.",
     "recurring.duplicateTemplateUpdateSkipped": "The recurring template update was skipped because an identical duplicate already exists.",
@@ -788,6 +817,21 @@ const UI_STRINGS = {
     "recurring.editOccurrenceTemplateToggle": "Also update the template for future entries",
     "recurring.editOccurrencePreview": "Adjusted occurrence",
     "recurring.viewOccurrences": "View occurrences",
+    "recurring.billsTitle": "Bills this month",
+    "recurring.billsDescription": "Track your recurring bills for the month and see what is already paid or coming soon.",
+    "recurring.billsEmpty": "No recurring bill for this period.",
+    "recurring.billsNoTemplates": "Add an expense recurring template with a start date to show it here.",
+    "recurring.billsStatusPaid": "Paid",
+    "recurring.billsStatusDue": "Due",
+    "recurring.billsStatusUpcoming": "Upcoming",
+    "recurring.billsStatusIgnored": "Ignored",
+    "recurring.billsAutomatic": "Auto",
+    "recurring.billsManual": "Manual",
+    "recurring.billsUse": "Use",
+    "recurring.billsHint": "The monthly calendar reuses your expense recurring templates that already have a start date.",
+    "recurring.billsAllMonth": "Whole month",
+    "recurring.billsSelectedDay": "Bills for {date}",
+    "recurring.billsEmptyDay": "No bill for this day.",
     "recurring.viewOccurrencesTitle": "Occurrence history",
     "recurring.viewOccurrencesDescription": "Review pending, added, and ignored occurrences for this recurring rule.",
     "recurring.viewOccurrencesPending": "Pending",
@@ -1308,11 +1352,15 @@ let budgetPlanModal = null;
 let budgetPlanGroupEditorModal = null;
 let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
+let recurringTemplatesModal = null;
 let analysisTransactionsModal = null;
 let analysisHoverTooltip = null;
 let activeAnalysisHoverTarget = null;
 let androidViewportProfileBound = false;
 let heroClockTimer = null;
+let recurringBillsMonthCursor = new Date().toISOString().slice(0, 7);
+let recurringBillsSelectedDate = "";
+let recurringBillsUseTodayDefault = true;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -2710,6 +2758,330 @@ function getPendingRecurringOccurrences() {
 
   syncRecurringReviewDrafts(sortedPending);
   return sortedPending;
+}
+
+function normalizeRecurringBillsMonthKey(value) {
+  const rawValue = String(value || "").trim();
+  if (/^\d{4}-\d{2}$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  const normalizedDate = normalizeDateValue(rawValue);
+  return normalizedDate ? normalizedDate.slice(0, 7) : "";
+}
+
+function shiftRecurringBillsMonth(monthKey, offset) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  if (!normalizedMonthKey) {
+    return new Date().toISOString().slice(0, 7);
+  }
+
+  const shifted = addMonthsToIsoDate(`${normalizedMonthKey}-01`, Number(offset) || 0, 1);
+  return shifted ? shifted.slice(0, 7) : normalizedMonthKey;
+}
+
+function getRecurringBillTemplates() {
+  return getRecurringTemplates().filter((template) => {
+    const startDate = getRecurringStartDate(template);
+    const value = roundCurrencyValue(parseAmount(template?.value));
+    return Boolean(startDate) && Number.isFinite(value) && value < 0;
+  });
+}
+
+function buildRecurringBillsOccurrences(monthKey) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  if (!normalizedMonthKey) {
+    return [];
+  }
+
+  const monthStart = `${normalizedMonthKey}-01`;
+  const monthEnd = addDaysToIsoDate(addMonthsToIsoDate(monthStart, 1, 1), -1);
+  const today = new Date().toISOString().slice(0, 10);
+  const occurrences = [];
+
+  getRecurringBillTemplates().forEach((template) => {
+    const startDate = getRecurringStartDate(template);
+    if (!startDate || compareRecurringOccurrenceDate(startDate, monthEnd) > 0) {
+      return;
+    }
+
+    const anchorDay = Number(startDate.split("-")[2] || 1);
+    const generatedKeys = new Set(normalizeRecurringTrackedKeys(template.generatedKeys));
+    const dismissedKeys = new Set(normalizeRecurringTrackedKeys(template.dismissedKeys));
+    let cursor = startDate;
+    let iterations = 0;
+
+    while (cursor && compareRecurringOccurrenceDate(cursor, monthEnd) <= 0 && iterations < MAX_RECURRING_OCCURRENCES_PER_TEMPLATE) {
+      if (compareRecurringOccurrenceDate(cursor, monthStart) >= 0) {
+        const record = buildRecurringOccurrenceRecord(template, cursor);
+        const key = buildRecurringOccurrenceKey(template, cursor);
+        const existsInBudget = hasMatchingBudgetRow(record);
+        const paid = generatedKeys.has(key) || existsInBudget;
+        const ignored = dismissedKeys.has(key);
+        const status = paid
+          ? "paid"
+          : ignored
+            ? "ignored"
+            : compareRecurringOccurrenceDate(cursor, today) <= 0
+              ? "due"
+              : "upcoming";
+        const displayLabel = getDisplayCategoryLabel(template.label) || getDisplayCategoryLabel(template.category) || template.label || template.category;
+        occurrences.push({
+          key,
+          templateId: template.id,
+          templateLabel: String(displayLabel || "").trim(),
+          categoryLabel: getDisplayCategoryLabel(template.category) || template.category,
+          parentLabel: getBudgetFraCategoryLabel(template.category || "", "", template.value),
+          date: record.Date,
+          value: record.Value,
+          period: template.period,
+          autoCreate: template.autoCreate === true,
+          status,
+        });
+      }
+
+      cursor = getNextRecurringOccurrenceDate(cursor, template.period, anchorDay);
+      iterations += 1;
+    }
+  });
+
+  return occurrences.sort((left, right) => {
+    const dateCompare = compareRecurringOccurrenceDate(left.date, right.date);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return String(left.templateLabel || "").localeCompare(String(right.templateLabel || ""), getUiLocale(), {
+      sensitivity: "base",
+    });
+  });
+}
+
+function buildRecurringBillsDayTooltip(isoDate, dayOccurrences = []) {
+  const targetDate = normalizeDateValue(isoDate);
+  if (!targetDate || !Array.isArray(dayOccurrences) || !dayOccurrences.length) {
+    return "";
+  }
+
+  const lines = [
+    formatDateForDisplay(targetDate) || targetDate,
+  ];
+
+  dayOccurrences.slice(0, 5).forEach((occurrence) => {
+    const statusLabel = occurrence.status === "paid"
+      ? t("recurring.billsStatusPaid")
+      : occurrence.status === "ignored"
+        ? t("recurring.billsStatusIgnored")
+        : occurrence.status === "due"
+          ? t("recurring.billsStatusDue")
+          : t("recurring.billsStatusUpcoming");
+
+    lines.push(
+      `${occurrence.templateLabel} · ${formatCurrency(Math.abs(parseAmount(occurrence.value) || 0))} · ${statusLabel}`
+    );
+  });
+
+  if (dayOccurrences.length > 5) {
+    lines.push(
+      isEnglishUi()
+        ? `+ ${dayOccurrences.length - 5} more`
+        : `+ ${dayOccurrences.length - 5} autre${dayOccurrences.length - 5 > 1 ? "s" : ""}`
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function getRecurringBillsDisplayDate(monthKey) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  const selectedDate = normalizeDateValue(recurringBillsSelectedDate);
+  if (selectedDate && selectedDate.startsWith(`${normalizedMonthKey}-`)) {
+    return selectedDate;
+  }
+
+  if (!recurringBillsUseTodayDefault) {
+    return "";
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  return todayIso.startsWith(`${normalizedMonthKey}-`) ? todayIso : "";
+}
+
+function buildRecurringBillsListElement(options = {}) {
+  const english = getCurrentLanguage() === "en";
+  const monthKey = normalizeRecurringBillsMonthKey(options.monthKey) || new Date().toISOString().slice(0, 7);
+  const occurrences = Array.isArray(options.occurrences) ? options.occurrences : [];
+  const displayDate = normalizeDateValue(options.displayDate);
+  const displayDateInMonth = displayDate && displayDate.startsWith(`${monthKey}-`) ? displayDate : "";
+  const filteredOccurrences = displayDateInMonth
+    ? occurrences.filter((occurrence) => occurrence.date === displayDateInMonth)
+    : occurrences;
+
+  const list = document.createElement("div");
+  list.className = "recurring-bills-list";
+  const listHeader = document.createElement("div");
+  listHeader.className = "recurring-bills-list-head";
+  listHeader.innerHTML = `
+    <div>
+      <strong>${escapeHtml(displayDateInMonth ? t("recurring.billsSelectedDay", {
+        date: formatDateForDisplay(displayDateInMonth) || displayDateInMonth,
+      }) : t("recurring.billsTitle"))}</strong>
+      <span>${escapeHtml(displayDateInMonth ? `${filteredOccurrences.length}` : `${occurrences.length}`)} ${escapeHtml((displayDateInMonth ? filteredOccurrences.length : occurrences.length) > 1 ? (english ? "entries" : "échéances") : (english ? "entry" : "échéance"))}</span>
+    </div>
+    ${displayDateInMonth ? `<button type="button" class="button ghost" data-recurring-bills-action="clear-day">${escapeHtml(t("recurring.billsAllMonth"))}</button>` : ""}
+  `;
+  list.appendChild(listHeader);
+
+  if (!getRecurringBillTemplates().length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-form recurring-empty";
+    empty.textContent = t("recurring.billsNoTemplates");
+    list.appendChild(empty);
+    return list;
+  }
+
+  if (!occurrences.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-form recurring-empty";
+    empty.textContent = t("recurring.billsEmpty");
+    list.appendChild(empty);
+    return list;
+  }
+
+  if (displayDateInMonth && !filteredOccurrences.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-form recurring-empty";
+    empty.textContent = t("recurring.billsEmptyDay");
+    list.appendChild(empty);
+    return list;
+  }
+
+  filteredOccurrences.forEach((occurrence) => {
+    const row = document.createElement("article");
+    row.className = `recurring-bill-row is-${occurrence.status}`;
+    const metaParts = [
+      formatDateForDisplay(occurrence.date) || occurrence.date,
+      getPlanPeriodLabel(occurrence.period),
+    ];
+    if (occurrence.parentLabel) {
+      metaParts.push(occurrence.parentLabel);
+    }
+    const statusLabel = occurrence.status === "paid"
+      ? t("recurring.billsStatusPaid")
+      : occurrence.status === "ignored"
+        ? t("recurring.billsStatusIgnored")
+        : occurrence.status === "due"
+          ? t("recurring.billsStatusDue")
+          : t("recurring.billsStatusUpcoming");
+    const modeLabel = occurrence.autoCreate ? t("recurring.billsAutomatic") : t("recurring.billsManual");
+    row.innerHTML = `
+      <div class="recurring-bill-copy">
+        <div class="recurring-bill-title-row">
+          <strong>${escapeHtml(occurrence.templateLabel)}</strong>
+          <span class="recurring-bill-chip recurring-bill-chip-mode">${escapeHtml(modeLabel)}</span>
+        </div>
+        <p>${escapeHtml(metaParts.join(" · "))}</p>
+        <small>${escapeHtml(occurrence.categoryLabel || "")}</small>
+      </div>
+      <div class="recurring-bill-side">
+        <strong>${escapeHtml(formatCurrency(Math.abs(parseAmount(occurrence.value) || 0)))}</strong>
+        <span class="recurring-bill-chip recurring-bill-chip-status is-${escapeHtml(occurrence.status)}">${escapeHtml(statusLabel)}</span>
+      </div>
+      <div class="recurring-bill-actions">
+        <button type="button" class="button secondary" data-recurring-action="use" data-template-id="${escapeHtml(occurrence.templateId)}" data-recurring-date="${escapeHtml(occurrence.date)}" data-recurring-value="${escapeHtml(String(occurrence.value))}">${escapeHtml(t("recurring.billsUse"))}</button>
+        <button type="button" class="button ghost" data-recurring-action="view-occurrences" data-template-id="${escapeHtml(occurrence.templateId)}">${escapeHtml(t("recurring.viewOccurrences"))}</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  return list;
+}
+
+function refreshRecurringBillsPreview(root) {
+  const panel = root?.closest?.(".recurring-bills-panel") || root;
+  if (!(panel instanceof Element)) {
+    return;
+  }
+
+  const monthKey = normalizeRecurringBillsMonthKey(panel.getAttribute("data-recurring-bills-month")) || normalizeRecurringBillsMonthKey(recurringBillsMonthCursor);
+  if (!monthKey) {
+    return;
+  }
+
+  const occurrences = buildRecurringBillsOccurrences(monthKey);
+  const displayDate = getRecurringBillsDisplayDate(monthKey);
+  const listSlot = panel.querySelector("[data-recurring-bills-list-slot]");
+  if (listSlot) {
+    listSlot.replaceChildren(buildRecurringBillsListElement({
+      monthKey,
+      occurrences,
+      displayDate,
+    }));
+  }
+}
+
+function buildRecurringBillsCalendar(monthKey, occurrences) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  if (!normalizedMonthKey) {
+    return [];
+  }
+
+  const [yearText, monthText] = normalizedMonthKey.split("-");
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return [];
+  }
+
+  const occurrenceCounts = occurrences.reduce((map, occurrence) => {
+    const dayKey = normalizeDateValue(occurrence?.date);
+    if (dayKey) {
+      map.set(dayKey, (map.get(dayKey) || 0) + 1);
+    }
+    return map;
+  }, new Map());
+  const occurrenceDetails = occurrences.reduce((map, occurrence) => {
+    const dayKey = normalizeDateValue(occurrence?.date);
+    if (!dayKey) {
+      return map;
+    }
+
+    if (!map.has(dayKey)) {
+      map.set(dayKey, []);
+    }
+
+    map.get(dayKey).push(occurrence);
+    return map;
+  }, new Map());
+
+  const days = [];
+  const firstWeekday = (new Date(Date.UTC(year, monthIndex, 1, 12)).getUTCDay() + 6) % 7;
+  const daysInMonth = getDaysInUtcMonth(year, monthIndex);
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    days.push({ key: `empty-start-${index}`, empty: true });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const isoDate = new Date(Date.UTC(year, monthIndex, day, 12)).toISOString().slice(0, 10);
+    const dayOccurrences = occurrenceDetails.get(isoDate) || [];
+    days.push({
+      key: isoDate,
+      day,
+      isoDate,
+      count: occurrenceCounts.get(isoDate) || 0,
+      isToday: isoDate === todayIso,
+      tooltip: buildRecurringBillsDayTooltip(isoDate, dayOccurrences),
+    });
+  }
+
+  while (days.length % 7 !== 0) {
+    days.push({ key: `empty-end-${days.length}`, empty: true });
+  }
+
+  return days;
 }
 
 function getPendingRecurringOccurrenceMap() {
@@ -4202,8 +4574,8 @@ function setAppTab(nextTab) {
 function cacheDom() {
   refs.fileInput = document.getElementById("excel-file");
   refs.welcomeScreen = document.getElementById("welcome-screen");
-  refs.heroClock = document.getElementById("hero-clock");
   refs.heroDate = document.getElementById("hero-date");
+  refs.heroTime = document.getElementById("hero-time");
   refs.appNav = document.querySelector(".app-nav");
   refs.toolbar = document.getElementById("workspace-toolbar");
   refs.toolbarPrimary = document.getElementById("toolbar-primary");
@@ -4308,7 +4680,7 @@ function cacheDom() {
 }
 
 function setupHeroClock() {
-  if (!refs.heroClock) {
+  if (!refs.heroDate && !refs.heroTime) {
     return;
   }
 
@@ -4322,31 +4694,11 @@ function setupHeroClock() {
 }
 
 function updateHeroClock() {
-  if (!refs.heroClock) {
+  if (!refs.heroDate && !refs.heroTime) {
     return;
   }
 
   const now = new Date();
-  const seconds = now.getSeconds();
-  const minutes = now.getMinutes() + seconds / 60;
-  const hours = (now.getHours() % 12) + minutes / 60;
-
-  const hourHand = refs.heroClock.querySelector("[data-clock-hand='hour']");
-  const minuteHand = refs.heroClock.querySelector("[data-clock-hand='minute']");
-  const secondHand = refs.heroClock.querySelector("[data-clock-hand='second']");
-
-  if (hourHand) {
-    hourHand.style.transform = `rotate(${hours * 30}deg)`;
-  }
-
-  if (minuteHand) {
-    minuteHand.style.transform = `rotate(${minutes * 6}deg)`;
-  }
-
-  if (secondHand) {
-    secondHand.style.transform = `rotate(${seconds * 6}deg)`;
-  }
-
   const timeLabel = now.toLocaleTimeString(getUiLocale(), {
     hour: "2-digit",
     minute: "2-digit",
@@ -4363,12 +4715,9 @@ function updateHeroClock() {
     refs.heroDate.textContent = dateLabel;
   }
 
-  refs.heroClock.setAttribute(
-    "aria-label",
-    getCurrentLanguage() === "en"
-      ? `Analog clock showing ${timeLabel}, ${dateLabel}`
-      : `Horloge analogique indiquant ${timeLabel}, ${dateLabel}`
-  );
+  if (refs.heroTime) {
+    refs.heroTime.textContent = timeLabel;
+  }
 }
 
 function bindEvents() {
@@ -4443,6 +4792,7 @@ function bindEvents() {
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
   refs.recapView.addEventListener("click", onAnalysisInteraction);
+  refs.cardsGrid.addEventListener("click", onRecurringBillsAction);
   refs.cardsGrid.addEventListener("click", onRecurringTemplateAction);
   refs.cardsGrid.addEventListener("click", onRecurringReviewAction);
   refs.cardsGrid.addEventListener("input", onRecurringTemplateConfigChanged);
@@ -8021,7 +8371,527 @@ async function importWorkbookFile(file, options = {}) {
   await importWorkbookBuffer(buffer, file.name, options);
 }
 
+const APP_EXPORT_SHEET_ALIASES = {
+  info: ["Info", "Infos"],
+  journal: [JOURNAL_SHEET_NAME],
+  categories: ["Categories", "Catégories"],
+  plan: ["Planned budget", "Budget planifié"],
+  recurring: ["Recurring templates", "Transactions récurrentes"],
+};
+
+const IMPORTED_BUILT_IN_BUDGET_GROUP_ALIASES = {
+  income: ["revenu", "income"],
+  savings: ["épargnes", "epargnes", "savings"],
+  debt: ["remboursement de dettes", "dettes", "debt repayment", "debt"],
+  housing: ["logement", "housing", "home"],
+  communications: ["communications", "communication"],
+  food: ["alimentation", "food"],
+  insurance: ["assurances", "insurance"],
+  transportation: ["transport", "transportation"],
+  childcare: ["soins aux enfants", "childcare"],
+  education: ["éducation", "education"],
+  "recréation": ["loisirs", "récréation", "recreation"],
+  personalcare: ["soins personnels", "personal care"],
+  clothing: ["vêtements", "vetements", "clothing"],
+  medical: ["soins médicaux", "soins medicaux", "medical care", "medical"],
+  pets: ["animaux", "pets"],
+  fees: ["frais", "fees"],
+  gifts: ["cadeaux et dons", "gifts and donations", "gifts", "donations"],
+  custom: ["autres postes", "other items", "other", "custom"],
+};
+
+function getWorkbookSheetMatchByAliases(workbook, aliases = []) {
+  const sheetNames = Array.isArray(workbook?.SheetNames) ? workbook.SheetNames : [];
+  const index = new Map(sheetNames.map((name) => [normalizeHeaderName(name), name]));
+
+  for (const alias of aliases) {
+    const match = index.get(normalizeHeaderName(alias));
+    if (match) {
+      return {
+        name: match,
+        sheet: workbook?.Sheets?.[match] || null,
+      };
+    }
+  }
+
+  return {
+    name: "",
+    sheet: null,
+  };
+}
+
+function readWorkbookSheetMatrixByAliases(workbook, aliases = []) {
+  const { sheet } = getWorkbookSheetMatchByAliases(workbook, aliases);
+  if (!sheet) {
+    return [];
+  }
+
+  return XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: "",
+    raw: false,
+    blankrows: false,
+  });
+}
+
+function readWorkbookSheetObjectsByAliases(workbook, aliases = []) {
+  const { sheet } = getWorkbookSheetMatchByAliases(workbook, aliases);
+  if (!sheet) {
+    return [];
+  }
+
+  return XLSX.utils.sheet_to_json(sheet, {
+    defval: "",
+    raw: false,
+  });
+}
+
+function readImportedRowValue(row, keys = []) {
+  if (!row || typeof row !== "object") {
+    return "";
+  }
+
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(row, key)) {
+      continue;
+    }
+
+    const value = row[key];
+    if (value === null || value === undefined) {
+      continue;
+    }
+
+    if (typeof value === "string" && !value.trim()) {
+      continue;
+    }
+
+    return value;
+  }
+
+  return "";
+}
+
+function readAppExportMetadata(workbook) {
+  const rows = readWorkbookSheetMatrixByAliases(workbook, APP_EXPORT_SHEET_ALIASES.info);
+  const title = String(rows?.[0]?.[0] || "").trim();
+  if (normalizeHeaderName(title) !== "budegetapp") {
+    return null;
+  }
+
+  const metadata = new Map();
+  rows.forEach((row) => {
+    if (!Array.isArray(row) || row.length < 2) {
+      return;
+    }
+
+    const key = normalizeHeaderName(row[0]);
+    if (!key) {
+      return;
+    }
+
+    metadata.set(key, row[1]);
+  });
+
+  return {
+    modeLabel: String(rows?.[1]?.[0] || "").trim(),
+    rows,
+    metadata,
+  };
+}
+
+function detectImportedBudgetWorkbookKind(workbook) {
+  const exportMetadata = readAppExportMetadata(workbook);
+  const hasPlanSheet = Boolean(getWorkbookSheetMatchByAliases(workbook, APP_EXPORT_SHEET_ALIASES.plan).sheet);
+  const hasCategorySheet = Boolean(getWorkbookSheetMatchByAliases(workbook, APP_EXPORT_SHEET_ALIASES.categories).sheet);
+  const hasRecurringSheet = Boolean(getWorkbookSheetMatchByAliases(workbook, APP_EXPORT_SHEET_ALIASES.recurring).sheet);
+
+  if (exportMetadata) {
+    const normalizedMode = normalizeHeaderName(exportMetadata.modeLabel);
+    if (normalizedMode.includes("classeur complet") || normalizedMode.includes("complete workbook")) {
+      return "app-complete";
+    }
+
+    if (normalizedMode.includes("journalier seulement") || normalizedMode.includes("journal only")) {
+      return "journal-compatible";
+    }
+
+    return hasPlanSheet || hasCategorySheet || hasRecurringSheet ? "app-complete" : "journal-compatible";
+  }
+
+  if (workbook?.Sheets?.[TCD_SHEET_NAME]) {
+    return "source";
+  }
+
+  return "journal-compatible";
+}
+
+function buildImportedBudgetCategoryList(...sources) {
+  const seen = new Set();
+  const categories = [];
+
+  sources
+    .flat()
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .forEach((category) => {
+      const key = normalizeHeaderName(category);
+      if (!key || seen.has(key) || isDerivedPlanLabel(category)) {
+        return;
+      }
+
+      seen.add(key);
+      categories.push(category);
+    });
+
+  return categories;
+}
+
+function buildImportedBudgetPlanSeedRows(categories = [], baseRows = []) {
+  const rows = Array.isArray(baseRows) && baseRows.length ? clonePlanTemplateRows(baseRows) : createFallbackPlanTemplate();
+  const nextRows = clonePlanTemplateRows(rows);
+  const seen = new Set(nextRows.map((row) => normalizeHeaderName(row.label)).filter(Boolean));
+
+  categories
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .forEach((category) => {
+      const key = normalizeHeaderName(category);
+      if (!key || seen.has(key) || isDerivedPlanLabel(category)) {
+        return;
+      }
+
+      nextRows.push({
+        label: category,
+        plan: "0",
+        period: DEFAULT_PLAN_PERIOD,
+        group: normalizePlanGroup("", category),
+      });
+      seen.add(key);
+    });
+
+  return sanitizeBudgetPlanRows(nextRows);
+}
+
+function getImportedWorkbookSnapshotDateLabel(workbook, budgetModel) {
+  const metadata = readAppExportMetadata(workbook);
+  const exportDate = metadata?.metadata?.get("date export") || metadata?.metadata?.get("export date") || "";
+  const exportIso = normalizeDateValue(exportDate);
+  if (exportIso) {
+    return formatDateForDisplay(exportIso);
+  }
+
+  const datedRows = Array.isArray(budgetModel?.rows)
+    ? budgetModel.rows
+      .map((row) => normalizeDateValue(row?.Date))
+      .filter(Boolean)
+      .sort()
+    : [];
+  if (datedRows.length) {
+    return formatDateForDisplay(datedRows.at(-1));
+  }
+
+  return formatDateForDisplay(new Date().toISOString().slice(0, 10));
+}
+
+function buildImportedRecapModel(plans = [], snapshotDate = "") {
+  const normalizedPlans = cloneBudgetPlanDefinitions(plans);
+  const activePlan = normalizedPlans[0] || null;
+
+  return {
+    available: Boolean(activePlan),
+    snapshotDate: snapshotDate || "",
+    planTemplate: activePlan ? resolvePlanTemplate(activePlan.rows) : [],
+    budgetPlans: activePlan ? normalizedPlans : [],
+    activeBudgetPlanId: activePlan?.id || "",
+  };
+}
+
+function findImportedBuiltInBudgetGroupKey(label) {
+  const normalizedLabel = normalizeHeaderName(label);
+  if (!normalizedLabel) {
+    return "";
+  }
+
+  return Object.entries(IMPORTED_BUILT_IN_BUDGET_GROUP_ALIASES).find(([, aliases]) =>
+    aliases.some((alias) => normalizeHeaderName(alias) === normalizedLabel)
+  )?.[0] || "";
+}
+
+function createImportedBudgetGroupKey(label, usedKeys = new Set()) {
+  const normalizedLabel = String(label || "").trim();
+  if (!normalizedLabel) {
+    return "";
+  }
+
+  const builtInKey = findImportedBuiltInBudgetGroupKey(normalizedLabel);
+  if (builtInKey) {
+    return builtInKey;
+  }
+
+  const baseKey = normalizeHeaderName(normalizedLabel).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "custom-group";
+  let nextKey = `custom-${baseKey}`;
+  let suffix = 2;
+  const blockedKeys = new Set([...BUDGET_FRA_GROUP_ORDER, ...Array.from(usedKeys)]);
+
+  while (blockedKeys.has(nextKey)) {
+    nextKey = `custom-${baseKey}-${suffix}`;
+    suffix += 1;
+  }
+
+  return nextKey;
+}
+
+function resolveImportedBudgetGroupKey(rawKey, rawLabel, rawPlanGroup, usedKeys = new Set(), labelKeyIndex = new Map()) {
+  const normalizedKey = String(rawKey || "").trim();
+  if (normalizedKey) {
+    return normalizedKey;
+  }
+
+  const normalizedLabel = String(rawLabel || "").trim();
+  if (!normalizedLabel) {
+    return findImportedBuiltInBudgetGroupKey(rawPlanGroup) || "";
+  }
+
+  const builtInKey = findImportedBuiltInBudgetGroupKey(normalizedLabel);
+  if (builtInKey) {
+    return builtInKey;
+  }
+
+  const normalizedLabelKey = normalizeHeaderName(normalizedLabel);
+  if (labelKeyIndex.has(normalizedLabelKey)) {
+    return labelKeyIndex.get(normalizedLabelKey);
+  }
+
+  const customKey = createImportedBudgetGroupKey(normalizedLabel, usedKeys);
+  if (customKey) {
+    usedKeys.add(customKey);
+    labelKeyIndex.set(normalizedLabelKey, customKey);
+  }
+
+  return customKey;
+}
+
+function normalizeImportedPlanPeriod(value) {
+  const rawValue = String(value || "").trim();
+  const normalizedValue = normalizeHeaderName(rawValue);
+
+  if (normalizedValue === "par semaine" || normalizedValue === "per week" || normalizedValue === "weekly") {
+    return "weekly";
+  }
+
+  if (normalizedValue === "aux 2 semaines" || normalizedValue === "every 2 weeks" || normalizedValue === "biweekly") {
+    return "biweekly";
+  }
+
+  if (normalizedValue === "par mois" || normalizedValue === "per month" || normalizedValue === "monthly") {
+    return "monthly";
+  }
+
+  return normalizePlanPeriod(rawValue);
+}
+
+function parseAppExportBudgetCategories(workbook) {
+  const rows = readWorkbookSheetObjectsByAliases(workbook, APP_EXPORT_SHEET_ALIASES.categories);
+  const usedKeys = new Set(BUDGET_FRA_GROUP_ORDER);
+  const labelKeyIndex = new Map();
+  const seenCategories = new Set();
+  const categories = [];
+  const categoryAssignments = [];
+  const customGroups = [];
+  const customGroupKeys = new Set();
+
+  rows.forEach((row, index) => {
+    const category = String(readImportedRowValue(row, ["Internal category", "Catégorie interne", "Displayed category", "Catégorie affichée"]) || "").trim();
+    const groupLabel = String(readImportedRowValue(row, ["Main category", "Grande catégorie"]) || "").trim();
+    const groupKey = resolveImportedBudgetGroupKey(
+      readImportedRowValue(row, ["Main category key", "Clé grande catégorie"]),
+      groupLabel,
+      readImportedRowValue(row, ["Main category mode", "Mode grande catégorie"]),
+      usedKeys,
+      labelKeyIndex
+    );
+
+    if (category) {
+      const normalizedCategory = normalizeHeaderName(category);
+      if (normalizedCategory && !seenCategories.has(normalizedCategory)) {
+        seenCategories.add(normalizedCategory);
+        categories.push(category);
+      }
+    }
+
+    if (!category || !groupKey) {
+      return;
+    }
+
+    const assignment = sanitizeBudgetCategoryAssignment({
+      category,
+      groupKey,
+    });
+    if (assignment) {
+      categoryAssignments.push(assignment);
+    }
+
+    if (BUDGET_FRA_GROUP_ORDER.includes(groupKey) || customGroupKeys.has(groupKey)) {
+      return;
+    }
+
+    const customGroup = sanitizeBudgetCustomGroup({
+      key: groupKey,
+      label: groupLabel || category,
+      planGroup: readImportedRowValue(row, ["Main category mode", "Mode grande catégorie"]),
+      tone: readImportedRowValue(row, ["Main category tone", "Ton grande catégorie"]),
+      description: readImportedRowValue(row, ["Main category description", "Description grande catégorie"]),
+      position: parseInt(readImportedRowValue(row, ["Main category position", "Position grande catégorie"]), 10),
+    }, index);
+
+    if (customGroup) {
+      customGroups.push(customGroup);
+      customGroupKeys.add(customGroup.key);
+      usedKeys.add(customGroup.key);
+    }
+  });
+
+  return {
+    categories,
+    categoryAssignments,
+    customGroups,
+  };
+}
+
+function parseAppExportBudgetPlans(workbook, fallbackName = "") {
+  const rows = readWorkbookSheetObjectsByAliases(workbook, APP_EXPORT_SHEET_ALIASES.plan);
+
+  const payload = rows
+    .map((row, index) => ({
+      plan_id: String(readImportedRowValue(row, ["Plan ID", "ID du plan"]) || "").trim() || null,
+      plan_name: String(readImportedRowValue(row, ["Plan name", "Nom du plan"]) || "").trim() || null,
+      plan_start_date: readImportedRowValue(row, ["Plan start date", "Date début plan"]),
+      plan_end_date: readImportedRowValue(row, ["Plan end date", "Date fin plan"]),
+      plan_sort_order: Number.isFinite(Number(readImportedRowValue(row, ["Plan sort order", "Ordre plan"])))
+        ? Number(readImportedRowValue(row, ["Plan sort order", "Ordre plan"]))
+        : 0,
+      label: String(readImportedRowValue(row, ["Internal label", "Libellé interne"]) || "").trim(),
+      plan_amount: readImportedRowValue(row, ["Entered amount", "Montant saisi"]),
+      plan_period: normalizeImportedPlanPeriod(readImportedRowValue(row, ["Period", "Période"])),
+      plan_group: readImportedRowValue(row, ["Plan group", "Groupe plan"]),
+      position: Number.isFinite(Number(readImportedRowValue(row, ["Row position", "Position ligne"])))
+        ? Number(readImportedRowValue(row, ["Row position", "Position ligne"]))
+        : index,
+    }))
+    .filter((row) => row.label);
+
+  if (!payload.length) {
+    return [];
+  }
+
+  return parseSupabaseBudgetPlans(payload, fallbackName);
+}
+
+function parseImportedBooleanFlag(value) {
+  const normalized = normalizeHeaderName(value);
+  return normalized === "true" || normalized === "yes" || normalized === "oui" || normalized === "1";
+}
+
+function parseImportedTrackedKeys(value) {
+  if (Array.isArray(value)) {
+    return normalizeRecurringTrackedKeys(value);
+  }
+
+  const text = String(value || "").trim();
+  if (!text) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    return normalizeRecurringTrackedKeys(parsed);
+  } catch (error) {
+    return normalizeRecurringTrackedKeys(text.split(/[\n,;|]+/));
+  }
+}
+
+function parseAppExportRecurringTemplates(workbook) {
+  const rows = readWorkbookSheetObjectsByAliases(workbook, APP_EXPORT_SHEET_ALIASES.recurring);
+
+  const payload = rows
+    .map((row, index) => ({
+      template_id: String(readImportedRowValue(row, ["Template ID", "ID du modèle"]) || "").trim() || null,
+      label: String(readImportedRowValue(row, ["Internal label", "Libellé interne", "Displayed label", "Libellé affiché"]) || "").trim(),
+      category: String(readImportedRowValue(row, ["Internal category", "Catégorie interne", "Displayed category", "Catégorie affichée"]) || "").trim(),
+      amount: readImportedRowValue(row, ["Amount", "Montant"]),
+      period: normalizeImportedPlanPeriod(readImportedRowValue(row, ["Period", "Période"])),
+      start_date: readImportedRowValue(row, ["Start date", "Date de départ"]),
+      auto_create: parseImportedBooleanFlag(readImportedRowValue(row, ["Automatic rule", "Règle automatique"])),
+      generated_keys: parseImportedTrackedKeys(readImportedRowValue(row, ["Generated keys", "Clés générées"])),
+      dismissed_keys: parseImportedTrackedKeys(readImportedRowValue(row, ["Dismissed keys", "Clés ignorées"])),
+      sort_order: index,
+    }))
+    .filter((row) => row.label || row.category);
+
+  return parseSupabaseRecurringTemplateRows(payload);
+}
+
+function buildImportedWorkbookPayload(workbook, fileName = "") {
+  const kind = detectImportedBudgetWorkbookKind(workbook);
+  const budget = parseBudgetWorkbook(workbook);
+  const categorySnapshot = kind === "app-complete"
+    ? parseAppExportBudgetCategories(workbook)
+    : { categories: [], categoryAssignments: [], customGroups: [] };
+  const recurringTemplates = kind === "app-complete" ? parseAppExportRecurringTemplates(workbook) : [];
+  const importedPlans = kind === "app-complete" ? parseAppExportBudgetPlans(workbook, buildBudgetPlanDefaultName(0)) : [];
+
+  const allCategories = buildImportedBudgetCategoryList(
+    budget.categories,
+    budget.rows.map((row) => row.Categories),
+    categorySnapshot.categories,
+    importedPlans.flatMap((plan) => sanitizeBudgetPlanRows(plan.rows).map((row) => row.label)),
+    recurringTemplates.map((template) => template.category)
+  );
+
+  budget.categories = allCategories;
+  budget.customGroups = categorySnapshot.customGroups;
+  budget.categoryAssignments = categorySnapshot.categoryAssignments;
+  budget.clearEndRow = START_ROW + Math.max(budget.rows.length, budget.categories.length) + 2;
+
+  if (kind === "source") {
+    return {
+      kind,
+      budget,
+      recap: parseRecapWorkbook(workbook),
+      recurringTemplates: null,
+    };
+  }
+
+  const fallbackPlans = importedPlans.length
+    ? importedPlans
+    : [sanitizeBudgetPlanDefinition({
+      name: buildBudgetPlanDefaultName(0),
+      rows: buildImportedBudgetPlanSeedRows(allCategories),
+      ...buildBudgetPlanFallbackDateRange(
+        budget.rows
+          .map((row) => normalizeDateValue(row?.Date))
+          .filter(Boolean)
+          .sort()
+          .at(-1) || ""
+      ),
+    }, 0)];
+
+  return {
+    kind,
+    budget,
+    recap: buildImportedRecapModel(fallbackPlans, getImportedWorkbookSnapshotDateLabel(workbook, budget)),
+    recurringTemplates,
+  };
+}
+
 async function importWorkbookBuffer(buffer, fileName, options = {}) {
+  const previousBudgetPlans = cloneBudgetPlanDefinitions(state.recap?.budgetPlans);
+  const previousCustomGroups = getBudgetCustomGroups();
+  const previousCategoryAssignments = getBudgetCategoryAssignments();
+  const previousRecurringTemplates = getRecurringTemplates()
+    .map((template) => sanitizeRecurringTemplate(template))
+    .filter(Boolean);
+
   const workbook = XLSX.read(buffer, {
     type: "array",
     cellDates: true,
@@ -8037,6 +8907,45 @@ async function importWorkbookBuffer(buffer, fileName, options = {}) {
     return;
   }
 
+  const importedPayload = buildImportedWorkbookPayload(workbook, fileName);
+  const importedKind = importedPayload.kind;
+  const shouldPreserveExistingPlanState = importedKind === "journal-compatible" && previousBudgetPlans.length > 0;
+  const shouldOfferPlanSetup = importedKind === "journal-compatible" && previousBudgetPlans.length === 0;
+
+  if (shouldPreserveExistingPlanState) {
+    importedPayload.budget.categories = buildImportedBudgetCategoryList(
+      importedPayload.budget.categories,
+      previousBudgetPlans.flatMap((plan) => sanitizeBudgetPlanRows(plan.rows).map((row) => row.label)),
+      previousRecurringTemplates.map((template) => template.category)
+    );
+    importedPayload.budget.customGroups = previousCustomGroups;
+    importedPayload.budget.categoryAssignments = previousCategoryAssignments;
+    importedPayload.recap = buildImportedRecapModel(
+      previousBudgetPlans,
+      state.recap?.snapshotDate || importedPayload.recap?.snapshotDate || ""
+    );
+    importedPayload.recurringTemplates = previousRecurringTemplates;
+    importedPayload.budget.clearEndRow = START_ROW + Math.max(importedPayload.budget.rows.length, importedPayload.budget.categories.length) + 2;
+  } else if (shouldOfferPlanSetup) {
+    importedPayload.budget.categories = buildImportedBudgetCategoryList(
+      importedPayload.budget.categories,
+      sanitizeBudgetPlanRows(importedPayload.recap?.planTemplate || []).map((row) => row.label),
+      previousRecurringTemplates.map((template) => template.category)
+    );
+    importedPayload.budget.clearEndRow = START_ROW + Math.max(importedPayload.budget.rows.length, importedPayload.budget.categories.length) + 2;
+  }
+
+  let successMessage = options.successMessage || `Classeur charge: ${fileName}`;
+  if (shouldPreserveExistingPlanState) {
+    successMessage = isEnglishUi()
+      ? `Journal imported: ${fileName}. The existing planned budget was kept.`
+      : `Journal importé : ${fileName}. Le budget planifié existant a été conservé.`;
+  } else if (shouldOfferPlanSetup) {
+    successMessage = isEnglishUi()
+      ? `Journal imported: ${fileName}. No planned budget was found yet.`
+      : `Journal importé : ${fileName}. Aucun budget planifié existant n'a été trouvé.`;
+  }
+
   state.workbookName = fileName;
   state.workbook = workbook;
   state.sourceLink = options.sourceLink || null;
@@ -8046,9 +8955,13 @@ async function importWorkbookBuffer(buffer, fileName, options = {}) {
   state.search = "";
   state.editingIndex = null;
   state.editorMode = "create";
-  state.budget = parseBudgetWorkbook(workbook);
-  state.recap = parseRecapWorkbook(workbook);
+  state.budget = importedPayload.budget;
+  state.recap = importedPayload.recap;
   state.recapFilters = createEmptyRecapFilters();
+  if (importedPayload.recurringTemplates !== null) {
+    state.recurringTemplates = importedPayload.recurringTemplates;
+    persistRecurringTemplates();
+  }
 
   refs.searchInput.value = "";
   refs.fileInput.value = "";
@@ -8056,10 +8969,28 @@ async function importWorkbookBuffer(buffer, fileName, options = {}) {
   persistDraft();
   setLastAction(
     state.sourceSafety.allowDirectWrite
-      ? options.successMessage || `Classeur charge: ${fileName}`
-      : `${options.successMessage || `Classeur charge: ${fileName}`} - source protégée, export copie uniquement`
+      ? successMessage
+      : `${successMessage} - source protégée, export copie uniquement`
   );
   renderAll();
+
+  if (shouldOfferPlanSetup) {
+    const wantsPlanSetup = window.confirm(
+      isEnglishUi()
+        ? "This Journal file does not contain a planned budget. Do you want to set one up now?"
+        : "Ce fichier Journalier n'inclut pas le budget planifié. Voulez-vous le configurer maintenant ?"
+    );
+
+    if (wantsPlanSetup) {
+      setAppTab(APP_TAB_PLAN);
+      setLastAction(
+        isEnglishUi()
+          ? "Journal imported. You can now configure your planned budget."
+          : "Journal importé. Vous pouvez maintenant configurer votre budget planifié."
+      );
+      startPlanEditMode();
+    }
+  }
 }
 
 function resetBudgetStateForInvalidWorkbook(fileName) {
@@ -8077,7 +9008,7 @@ function resetBudgetStateForInvalidWorkbook(fileName) {
   state.recapFilters = createEmptyRecapFilters();
   refs.searchInput.value = "";
   refs.fileInput.value = "";
-  setLastAction("Ce prototype attend Budget_2025 Final.xlsx");
+  setLastAction("Import attendu : fichier Excel valide, export Journalier ou classeur complet BUDEGETAPP.");
   renderAll();
 }
 
@@ -8754,7 +9685,7 @@ async function saveCurrentTransactionAsRecurringTemplate(options = {}) {
   }
 }
 
-function applyRecurringTemplateToForm(templateId) {
+function applyRecurringTemplateToForm(templateId, options = {}) {
   const template = getRecurringTemplates().find((entry) => entry.id === templateId);
   if (!template) {
     return;
@@ -8762,7 +9693,8 @@ function applyRecurringTemplateToForm(templateId) {
 
   const current = captureCurrentTransactionFormSnapshot();
   const today = new Date().toISOString().slice(0, 10);
-  const targetDate = normalizeDateValue(current.Date) || today;
+  const targetDate = normalizeDateValue(options.targetDate) || normalizeDateValue(current.Date) || today;
+  const targetValue = normalizeAmountValue(options.targetValue ?? template.value);
   if (!confirmRecurringTemplateUseIfNeeded(template, targetDate)) {
     setLastAction(t("recurring.useCancelled"));
     renderAll();
@@ -8780,9 +9712,42 @@ function applyRecurringTemplateToForm(templateId) {
   applyTransactionFormSnapshot({
     Date: targetDate,
     Categories: template.category,
-    Value: template.value,
+    Value: targetValue,
   });
   setLastAction(`Modèle appliqué : ${template.label}`);
+}
+
+function onRecurringBillsAction(event) {
+  const actionButton = event.target.closest("[data-recurring-bills-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  const action = String(actionButton.dataset.recurringBillsAction || "").trim();
+  if (action === "prev-month") {
+    recurringBillsMonthCursor = shiftRecurringBillsMonth(recurringBillsMonthCursor, -1);
+    recurringBillsSelectedDate = "";
+    recurringBillsUseTodayDefault = true;
+  } else if (action === "next-month") {
+    recurringBillsMonthCursor = shiftRecurringBillsMonth(recurringBillsMonthCursor, 1);
+    recurringBillsSelectedDate = "";
+    recurringBillsUseTodayDefault = true;
+  } else if (action === "select-day") {
+    const targetDate = normalizeDateValue(actionButton.dataset.recurringDate);
+    if (!targetDate) {
+      return;
+    }
+
+    recurringBillsSelectedDate = recurringBillsSelectedDate === targetDate ? "" : targetDate;
+    recurringBillsUseTodayDefault = false;
+  } else if (action === "clear-day") {
+    recurringBillsSelectedDate = "";
+    recurringBillsUseTodayDefault = false;
+  } else {
+    return;
+  }
+
+  renderAll();
 }
 
 async function onRecurringTemplateAction(event) {
@@ -8792,6 +9757,11 @@ async function onRecurringTemplateAction(event) {
   }
 
   const action = String(actionButton.dataset.recurringAction || "").trim();
+  if (action === "open-templates-modal") {
+    openRecurringTemplatesModal();
+    return;
+  }
+
   if (action === "create-new") {
     if (!isRecurringAutomationAvailable()) {
       setLastAction(t("recurring.createUnavailable"));
@@ -8825,7 +9795,10 @@ async function onRecurringTemplateAction(event) {
   }
 
   if (action === "use") {
-    applyRecurringTemplateToForm(templateId);
+    applyRecurringTemplateToForm(templateId, {
+      targetDate: actionButton.dataset.recurringDate,
+      targetValue: actionButton.dataset.recurringValue,
+    });
     return;
   }
 
@@ -10410,7 +11383,7 @@ async function saveSourceWorkbook(options = {}) {
 
   if (!state.workbook || state.mode !== "budget") {
     if (!automatic) {
-      setLastAction("Chargez d'abord Budget_2025 Final.xlsx");
+      setLastAction(isEnglishUi() ? "Load an Excel file first." : "Chargez d'abord un fichier Excel.");
       renderStats();
     }
     return false;
@@ -10663,31 +11636,54 @@ function buildBudgetCategoryExportRows() {
       orderedCategories.push(category);
     });
 
-  return orderedCategories.map((category) => ({
-    [english ? "Internal category" : "Catégorie interne"]: category,
-    [english ? "Displayed category" : "Catégorie affichée"]: getDisplayCategoryLabel(category) || category,
-    [english ? "Main category" : "Grande catégorie"]: getBudgetFraCategoryLabel(category, "", null) || (english ? "None" : "Aucune"),
-  }));
+  return orderedCategories.map((category) => {
+    const assignment = getBudgetCategoryAssignment(category);
+    const resolvedRule = getResolvedBudgetCategoryRule(category, "", null);
+    const resolvedGroupKey = String(assignment?.groupKey || resolvedRule?.parent || inferBudgetFraCategory(category, "", null) || "").trim();
+    const customGroup = getBudgetCustomGroupMeta(resolvedGroupKey);
+
+    return {
+      [english ? "Internal category" : "Catégorie interne"]: category,
+      [english ? "Displayed category" : "Catégorie affichée"]: getDisplayCategoryLabel(category) || category,
+      [english ? "Main category" : "Grande catégorie"]: getBudgetFraCategoryLabel(category, "", null) || (english ? "None" : "Aucune"),
+      [english ? "Main category key" : "Clé grande catégorie"]: resolvedGroupKey,
+      [english ? "Main category mode" : "Mode grande catégorie"]: getBudgetCustomGroupPlanMode(resolvedGroupKey),
+      [english ? "Main category tone" : "Ton grande catégorie"]: customGroup?.tone || "",
+      [english ? "Main category description" : "Description grande catégorie"]: customGroup?.description || "",
+      [english ? "Main category position" : "Position grande catégorie"]: Number.isInteger(customGroup?.position) ? customGroup.position : "",
+    };
+  });
 }
 
 function buildPlannedBudgetExportRows() {
   const english = isEnglishUi();
 
-  return resolvePlanTemplate(state.recap.planTemplate).map((row) => {
-    const amountValue = Number.isFinite(parseAmount(row.plan)) ? parseAmount(row.plan) : row.plan;
-    return {
-      [english ? "Type" : "Type"]: isDerivedPlanLabel(row.label)
-        ? (english ? "Derived" : "Dérivé")
-        : (english ? "Editable" : "Modifiable"),
-      [english ? "Main category" : "Grande catégorie"]: getBudgetFraCategoryLabel(row.label, row.group, amountValue) || (english ? "None" : "Aucune"),
-      [english ? "Internal label" : "Libellé interne"]: row.label,
-      [english ? "Displayed label" : "Libellé affiché"]: getDisplayCategoryLabel(row.label) || row.label,
-      [english ? "Entered amount" : "Montant saisi"]: amountValue,
-      [english ? "Period" : "Période"]: getPlanPeriodLabel(row.period),
-      [english ? "Monthly equivalent" : "Équivalent mensuel"]: convertPlanAmountToMonthly(row.plan, row.period),
-      [english ? "Plan group" : "Groupe plan"]: normalizePlanGroup(row.group, row.label),
-    };
-  });
+  return ensureBudgetPlansSeeded().flatMap((plan, planIndex) =>
+    resolvePlanTemplate(plan.rows).map((row, rowIndex) => {
+      const amountValue = Number.isFinite(parseAmount(row.plan)) ? parseAmount(row.plan) : row.plan;
+      const resolvedGroupKey = String(getResolvedBudgetCategoryRule(row.label, row.group, amountValue)?.parent || inferBudgetFraCategory(row.label, row.group, amountValue) || "").trim();
+
+      return {
+        [english ? "Plan ID" : "ID du plan"]: plan.id,
+        [english ? "Plan name" : "Nom du plan"]: plan.name,
+        [english ? "Plan start date" : "Date début plan"]: plan.startDate,
+        [english ? "Plan end date" : "Date fin plan"]: plan.endDate,
+        [english ? "Plan sort order" : "Ordre plan"]: planIndex,
+        [english ? "Row position" : "Position ligne"]: rowIndex,
+        [english ? "Type" : "Type"]: isDerivedPlanLabel(row.label)
+          ? (english ? "Derived" : "Dérivé")
+          : (english ? "Editable" : "Modifiable"),
+        [english ? "Main category" : "Grande catégorie"]: getBudgetFraCategoryLabel(row.label, row.group, amountValue) || (english ? "None" : "Aucune"),
+        [english ? "Main category key" : "Clé grande catégorie"]: resolvedGroupKey,
+        [english ? "Internal label" : "Libellé interne"]: row.label,
+        [english ? "Displayed label" : "Libellé affiché"]: getDisplayCategoryLabel(row.label) || row.label,
+        [english ? "Entered amount" : "Montant saisi"]: amountValue,
+        [english ? "Period" : "Période"]: getPlanPeriodLabel(row.period),
+        [english ? "Monthly equivalent" : "Équivalent mensuel"]: convertPlanAmountToMonthly(row.plan, row.period),
+        [english ? "Plan group" : "Groupe plan"]: normalizePlanGroup(row.group, row.label),
+      };
+    })
+  );
 }
 
 function buildMetricExportRows(snapshot) {
@@ -10773,6 +11769,7 @@ function buildRecurringTemplateExportRows() {
   });
 
   return getRecurringTemplates().map((template) => ({
+    [english ? "Template ID" : "ID du modèle"]: template.id,
     [english ? "Displayed label" : "Libellé affiché"]: getDisplayCategoryLabel(template.label) || template.label,
     [english ? "Internal label" : "Libellé interne"]: template.label,
     [english ? "Displayed category" : "Catégorie affichée"]: getDisplayCategoryLabel(template.category) || template.category,
@@ -10781,6 +11778,8 @@ function buildRecurringTemplateExportRows() {
     [english ? "Period" : "Période"]: getPlanPeriodLabel(template.period),
     [english ? "Automatic rule" : "Règle automatique"]: template.autoCreate ? (english ? "Yes" : "Oui") : (english ? "No" : "Non"),
     [english ? "Start date" : "Date de départ"]: template.startDate || "",
+    [english ? "Generated keys" : "Clés générées"]: JSON.stringify(normalizeRecurringTrackedKeys(template.generatedKeys)),
+    [english ? "Dismissed keys" : "Clés ignorées"]: JSON.stringify(normalizeRecurringTrackedKeys(template.dismissedKeys)),
     [english ? "Pending occurrences" : "Occurrences en attente"]: pendingCounts.get(template.id) || 0,
   }));
 }
@@ -10809,8 +11808,8 @@ function buildCompleteExportWorkbook() {
     buildSheetFromObjects(
       buildBudgetCategoryExportRows(),
       isEnglishUi()
-        ? ["Internal category", "Displayed category", "Main category"]
-        : ["Catégorie interne", "Catégorie affichée", "Grande catégorie"]
+        ? ["Internal category", "Displayed category", "Main category", "Main category key", "Main category mode", "Main category tone", "Main category description", "Main category position"]
+        : ["Catégorie interne", "Catégorie affichée", "Grande catégorie", "Clé grande catégorie", "Mode grande catégorie", "Ton grande catégorie", "Description grande catégorie", "Position grande catégorie"]
     ),
     sheetNames.categories
   );
@@ -10819,8 +11818,8 @@ function buildCompleteExportWorkbook() {
     buildSheetFromObjects(
       buildPlannedBudgetExportRows(),
       isEnglishUi()
-        ? ["Type", "Main category", "Internal label", "Displayed label", "Entered amount", "Period", "Monthly equivalent", "Plan group"]
-        : ["Type", "Grande catégorie", "Libellé interne", "Libellé affiché", "Montant saisi", "Période", "Équivalent mensuel", "Groupe plan"]
+        ? ["Plan ID", "Plan name", "Plan start date", "Plan end date", "Plan sort order", "Row position", "Type", "Main category", "Main category key", "Internal label", "Displayed label", "Entered amount", "Period", "Monthly equivalent", "Plan group"]
+        : ["ID du plan", "Nom du plan", "Date début plan", "Date fin plan", "Ordre plan", "Position ligne", "Type", "Grande catégorie", "Clé grande catégorie", "Libellé interne", "Libellé affiché", "Montant saisi", "Période", "Équivalent mensuel", "Groupe plan"]
     ),
     sheetNames.plan
   );
@@ -10879,8 +11878,8 @@ function buildCompleteExportWorkbook() {
     buildSheetFromObjects(
       buildRecurringTemplateExportRows(),
       isEnglishUi()
-        ? ["Displayed label", "Internal label", "Displayed category", "Internal category", "Amount", "Period", "Automatic rule", "Start date", "Pending occurrences"]
-        : ["Libellé affiché", "Libellé interne", "Catégorie affichée", "Catégorie interne", "Montant", "Période", "Règle automatique", "Date de départ", "Occurrences en attente"]
+        ? ["Template ID", "Displayed label", "Internal label", "Displayed category", "Internal category", "Amount", "Period", "Automatic rule", "Start date", "Generated keys", "Dismissed keys", "Pending occurrences"]
+        : ["ID du modèle", "Libellé affiché", "Libellé interne", "Catégorie affichée", "Catégorie interne", "Montant", "Période", "Règle automatique", "Date de départ", "Clés générées", "Clés ignorées", "Occurrences en attente"]
     ),
     sheetNames.recurring
   );
@@ -11286,6 +12285,7 @@ function renderAll() {
   renderCloudPanel();
   renderDraftStatus();
   renderAppShellState();
+  refreshRecurringTemplatesModal();
 }
 
 function shouldShowWelcomeScreen() {
@@ -12076,7 +13076,7 @@ function renderJournalCards() {
     refs.cardsEmpty.classList.remove("hidden");
     refs.cardsEmpty.innerHTML = state.workbook
       ? [
-          "<strong>Chargez Budget_2025 Final.xlsx pour demarrer.</strong>",
+          `<strong>${escapeHtml(isEnglishUi() ? "Load an Excel file to get started." : "Chargez un fichier Excel pour démarrer.")}</strong>`,
           "<p>L'app utilisera Journalier!D:F et la liste de categories de Journalier!B.</p>",
         ].join("")
       : buildLocalTransactionsEmptyStateMarkup();
@@ -12166,7 +13166,8 @@ function renderRecurringWorkspace() {
     hub.appendChild(reviewPanel);
   }
 
-  hub.appendChild(renderRecurringTemplatesPanel({ showSaveButton: false }));
+  hub.appendChild(renderRecurringBillsPanel());
+  hub.appendChild(renderRecurringTemplatesLauncher());
   refs.cardsGrid.appendChild(hub);
 }
 
@@ -15242,6 +16243,32 @@ function closeRecurringOccurrencesHistoryModal() {
   recurringOccurrencesHistoryModal = null;
 }
 
+function closeRecurringTemplatesModal() {
+  if (recurringTemplatesModal?.remove) {
+    recurringTemplatesModal.remove();
+  }
+  recurringTemplatesModal = null;
+}
+
+function refreshRecurringTemplatesModal() {
+  if (!recurringTemplatesModal) {
+    return;
+  }
+
+  if (state.appTab !== APP_TAB_RECURRING) {
+    closeRecurringTemplatesModal();
+    return;
+  }
+
+  const body = recurringTemplatesModal.querySelector("[data-recurring-templates-body]");
+  if (!body) {
+    return;
+  }
+
+  body.innerHTML = "";
+  body.appendChild(renderRecurringTemplatesPanel({ showSaveButton: false }));
+}
+
 function isBuiltInBudgetMainCategory(groupKey) {
   return BUDGET_FRA_GROUP_ORDER.includes(String(groupKey || "").trim());
 }
@@ -16202,6 +17229,59 @@ function openRecurringOccurrenceEditorModal(occurrence) {
   });
 }
 
+function openRecurringTemplatesModal() {
+  if (recurringTemplatesModal) {
+    refreshRecurringTemplatesModal();
+    recurringTemplatesModal.querySelector("[data-recurring-action='create-new'], [data-recurring-action='use'], [data-recurring-setting]")?.focus?.();
+    return;
+  }
+
+  const english = getCurrentLanguage() === "en";
+  const overlay = document.createElement("div");
+  overlay.className = "recurring-occurrence-modal recurring-templates-modal";
+  overlay.innerHTML = `
+    <div class="recurring-occurrence-dialog recurring-templates-dialog" role="dialog" aria-modal="true" aria-labelledby="recurring-templates-title">
+      <div class="recurring-occurrence-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Recurring transactions" : "Transactions récurrentes")}</p>
+          <h3 id="recurring-templates-title">${escapeHtml(t("recurring.templatesModalTitle"))}</h3>
+          <p>${escapeHtml(t("recurring.templatesModalDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-recurring-templates-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div data-recurring-templates-body></div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-recurring-templates-action]");
+    if (event.target === overlay || action?.dataset.recurringTemplatesAction === "close") {
+      closeRecurringTemplatesModal();
+      return;
+    }
+
+    void onRecurringTemplateAction(event);
+  });
+
+  overlay.addEventListener("input", (event) => {
+    void onRecurringTemplateConfigChanged(event);
+  });
+
+  overlay.addEventListener("change", (event) => {
+    void onRecurringTemplateConfigChanged(event);
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeRecurringTemplatesModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  recurringTemplatesModal = overlay;
+  refreshRecurringTemplatesModal();
+}
+
 function openRecurringOccurrencesHistoryModal(template) {
   if (!template?.id) {
     return;
@@ -16389,6 +17469,142 @@ function renderValueField(value) {
   wrapper.append(label, inputRow, hint);
   queueMicrotask(refreshCategoryParentMeta);
   return wrapper;
+}
+
+function renderRecurringBillsPanel() {
+  const section = document.createElement("section");
+  section.className = "recurring-panel recurring-bills-panel";
+  const english = getCurrentLanguage() === "en";
+  const monthKey = normalizeRecurringBillsMonthKey(recurringBillsMonthCursor) || new Date().toISOString().slice(0, 7);
+  recurringBillsMonthCursor = monthKey;
+  section.setAttribute("data-recurring-bills-month", monthKey);
+
+  const occurrences = buildRecurringBillsOccurrences(monthKey);
+  const calendarDays = buildRecurringBillsCalendar(monthKey, occurrences);
+  const selectedDate = normalizeDateValue(recurringBillsSelectedDate);
+  const selectedDateInMonth = selectedDate && selectedDate.startsWith(`${monthKey}-`) ? selectedDate : "";
+  if (selectedDate && !selectedDateInMonth) {
+    recurringBillsSelectedDate = "";
+  }
+  const displayDateInMonth = getRecurringBillsDisplayDate(monthKey);
+  const monthLabel = formatMonthYearLabelFromIso(`${monthKey}-01`) || monthKey;
+  const weekdayLabels = english
+    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    : ["L", "M", "M", "J", "V", "S", "D"];
+
+  const heading = document.createElement("div");
+  heading.className = "recurring-panel-head recurring-bills-head";
+  heading.innerHTML = `
+    <div>
+      <span class="section-kicker">${english ? "Recurring bills" : "Factures récurrentes"}</span>
+      <h3>${escapeHtml(t("recurring.billsTitle"))}</h3>
+      <p class="recurring-panel-note">${escapeHtml(t("recurring.billsDescription"))}</p>
+    </div>
+    <div class="recurring-panel-toolbar recurring-bills-nav">
+      <button type="button" class="button ghost" data-recurring-bills-action="prev-month" aria-label="${escapeHtml(english ? "Previous month" : "Mois précédent")}">‹</button>
+      <strong>${escapeHtml(monthLabel)}</strong>
+      <button type="button" class="button ghost" data-recurring-bills-action="next-month" aria-label="${escapeHtml(english ? "Next month" : "Mois suivant")}">›</button>
+    </div>
+  `;
+
+  const shell = document.createElement("div");
+  shell.className = "recurring-bills-shell";
+
+  const calendar = document.createElement("div");
+  calendar.className = "recurring-bills-calendar";
+  calendar.innerHTML = `
+    <div class="recurring-bills-weekdays">
+      ${weekdayLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
+    </div>
+    <div class="recurring-bills-days">
+      ${calendarDays.map((day) => {
+        if (day.empty) {
+          return `<span class="recurring-bills-day is-empty" aria-hidden="true"></span>`;
+        }
+
+        return `
+          <button
+            type="button"
+            class="recurring-bills-day${day.isToday ? " is-today" : ""}${day.count ? " has-items" : ""}${selectedDateInMonth === day.isoDate ? " is-selected" : ""}"
+            data-recurring-bills-action="select-day"
+            data-recurring-date="${escapeHtml(day.isoDate)}"
+            ${day.tooltip ? `data-analysis-hover="${escapeHtml(day.tooltip)}"` : ""}
+            aria-pressed="${selectedDateInMonth === day.isoDate ? "true" : "false"}"
+          >
+            <strong>${escapeHtml(String(day.day))}</strong>
+            ${day.count ? `<small>${escapeHtml(String(day.count))}</small>` : ""}
+          </button>
+        `;
+      }).join("")}
+    </div>
+    <p class="recurring-bills-hint">${escapeHtml(t("recurring.billsHint"))}</p>
+  `;
+
+  const listSlot = document.createElement("div");
+  listSlot.setAttribute("data-recurring-bills-list-slot", "true");
+  listSlot.appendChild(buildRecurringBillsListElement({
+    monthKey,
+    occurrences,
+    displayDate: displayDateInMonth,
+  }));
+
+  shell.append(calendar, listSlot);
+  section.append(heading, shell);
+  return section;
+}
+
+function renderRecurringTemplatesLauncher() {
+  const section = document.createElement("section");
+  section.className = "recurring-panel recurring-templates-launcher";
+  section.setAttribute("data-recurring-action", "open-templates-modal");
+  section.setAttribute("role", "button");
+  section.setAttribute("tabindex", "0");
+  const english = getCurrentLanguage() === "en";
+  const templates = getRecurringTemplates();
+  const pendingCount = getPendingRecurringOccurrences().length;
+  const automaticCount = templates.filter((template) => template.autoCreate).length;
+
+  section.innerHTML = `
+    <div class="recurring-panel-head">
+      <div>
+        <span class="section-kicker">${english ? "Recurring transactions" : "Transactions récurrentes"}</span>
+        <h3>${escapeHtml(t("recurring.templatesLauncherTitle"))}</h3>
+        <p class="recurring-panel-note">${escapeHtml(t("recurring.templatesLauncherDescription"))}</p>
+      </div>
+      <div class="recurring-panel-toolbar">
+        <button type="button" class="button secondary" data-recurring-action="open-templates-modal">${escapeHtml(t("recurring.templatesLauncherOpen"))}</button>
+      </div>
+    </div>
+    <div class="recurring-templates-launcher-stats">
+      <article class="recurring-templates-stat">
+        <span>${escapeHtml(t("recurring.templatesLauncherCount", {
+          count: templates.length,
+          plural: templates.length > 1 ? "s" : "",
+        }))}</span>
+        <strong>${escapeHtml(String(templates.length))}</strong>
+      </article>
+      <article class="recurring-templates-stat">
+        <span>${escapeHtml(t("recurring.templatesLauncherPending", {
+          count: pendingCount,
+          plural: pendingCount > 1 ? "s" : "",
+        }))}</span>
+        <strong>${escapeHtml(String(pendingCount))}</strong>
+      </article>
+      <article class="recurring-templates-stat">
+        <span>${escapeHtml(english ? "Automatic rules" : "Règles automatiques")}</span>
+        <strong>${escapeHtml(String(automaticCount))}</strong>
+      </article>
+    </div>
+  `;
+
+  section.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openRecurringTemplatesModal();
+    }
+  });
+
+  return section;
 }
 
 function renderRecurringTemplatesPanel(options = {}) {
