@@ -5,7 +5,6 @@ const RECURRING_TEMPLATES_KEY = "budget-2025-card-view-recurring-v1";
 const HISTORY_STATE_KEY = "budget-2025-card-view-history-v1";
 const HISTORY_STACK_LIMIT = 20;
 const HISTORY_EVENT_LIMIT = 8;
-const RECURRING_TEMPLATE_LIMIT = 12;
 const MAX_RECURRING_OCCURRENCES_PER_TEMPLATE = 48;
 const MAX_RECURRING_TRACKED_KEYS = 180;
 
@@ -2505,7 +2504,6 @@ function upsertRecurringTemplate(nextTemplate) {
     state.recurringTemplates.unshift(template);
   }
 
-  state.recurringTemplates = state.recurringTemplates.slice(0, RECURRING_TEMPLATE_LIMIT);
   persistRecurringTemplates();
   return true;
 }
