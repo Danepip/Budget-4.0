@@ -421,6 +421,20 @@ const UI_STRINGS = {
     "recurring.billsAllMonth": "Tout le mois",
     "recurring.billsSelectedDay": "Factures du {date}",
     "recurring.billsEmptyDay": "Aucune facture pour cette journée.",
+    "recurring.allTitle": "Toutes les récurrentes du mois",
+    "recurring.allDescription": "Suivez toutes les récurrentes du mois, y compris les entrées et les sorties.",
+    "recurring.allEmpty": "Aucune récurrente pour cette période.",
+    "recurring.allNoTemplates": "Ajoutez une récurrente avec une date de départ pour la voir apparaître ici.",
+    "recurring.allStatusPaid": "Ajoutée",
+    "recurring.allStatusDue": "À traiter",
+    "recurring.allStatusUpcoming": "À venir",
+    "recurring.allStatusIgnored": "Ignorée",
+    "recurring.allAutomatic": "Auto",
+    "recurring.allManual": "Manuel",
+    "recurring.allUse": "Utiliser",
+    "recurring.allHint": "Le calendrier du mois reprend tous vos modèles récurrents avec une date de départ.",
+    "recurring.allSelectedDay": "Récurrentes du {date}",
+    "recurring.allEmptyDay": "Aucune récurrente pour cette journée.",
     "recurring.viewOccurrencesTitle": "Historique des occurrences",
     "recurring.viewOccurrencesDescription": "Retrouvez les occurrences en attente, déjà ajoutées ou ignorées pour cette règle récurrente.",
     "recurring.viewOccurrencesPending": "En attente",
@@ -832,6 +846,20 @@ const UI_STRINGS = {
     "recurring.billsAllMonth": "Whole month",
     "recurring.billsSelectedDay": "Bills for {date}",
     "recurring.billsEmptyDay": "No bill for this day.",
+    "recurring.allTitle": "All recurring this month",
+    "recurring.allDescription": "Track all recurring entries for the month, including money in and money out.",
+    "recurring.allEmpty": "No recurring entry for this period.",
+    "recurring.allNoTemplates": "Add a recurring template with a start date to show it here.",
+    "recurring.allStatusPaid": "Added",
+    "recurring.allStatusDue": "To review",
+    "recurring.allStatusUpcoming": "Upcoming",
+    "recurring.allStatusIgnored": "Ignored",
+    "recurring.allAutomatic": "Auto",
+    "recurring.allManual": "Manual",
+    "recurring.allUse": "Use",
+    "recurring.allHint": "The monthly calendar reuses all your recurring templates that already have a start date.",
+    "recurring.allSelectedDay": "Recurring entries for {date}",
+    "recurring.allEmptyDay": "No recurring entry for this day.",
     "recurring.viewOccurrencesTitle": "Occurrence history",
     "recurring.viewOccurrencesDescription": "Review pending, added, and ignored occurrences for this recurring rule.",
     "recurring.viewOccurrencesPending": "Pending",
@@ -1361,6 +1389,9 @@ let heroClockTimer = null;
 let recurringBillsMonthCursor = new Date().toISOString().slice(0, 7);
 let recurringBillsSelectedDate = "";
 let recurringBillsUseTodayDefault = true;
+let recurringAllMonthCursor = new Date().toISOString().slice(0, 7);
+let recurringAllSelectedDate = "";
+let recurringAllUseTodayDefault = true;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -2788,6 +2819,14 @@ function getRecurringBillTemplates() {
   });
 }
 
+function getAllRecurringCalendarTemplates() {
+  return getRecurringTemplates().filter((template) => {
+    const startDate = getRecurringStartDate(template);
+    const value = roundCurrencyValue(parseAmount(template?.value));
+    return Boolean(startDate) && Number.isFinite(value) && value !== 0;
+  });
+}
+
 function buildRecurringBillsOccurrences(monthKey) {
   const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
   if (!normalizedMonthKey) {
@@ -2800,6 +2839,75 @@ function buildRecurringBillsOccurrences(monthKey) {
   const occurrences = [];
 
   getRecurringBillTemplates().forEach((template) => {
+    const startDate = getRecurringStartDate(template);
+    if (!startDate || compareRecurringOccurrenceDate(startDate, monthEnd) > 0) {
+      return;
+    }
+
+    const anchorDay = Number(startDate.split("-")[2] || 1);
+    const generatedKeys = new Set(normalizeRecurringTrackedKeys(template.generatedKeys));
+    const dismissedKeys = new Set(normalizeRecurringTrackedKeys(template.dismissedKeys));
+    let cursor = startDate;
+    let iterations = 0;
+
+    while (cursor && compareRecurringOccurrenceDate(cursor, monthEnd) <= 0 && iterations < MAX_RECURRING_OCCURRENCES_PER_TEMPLATE) {
+      if (compareRecurringOccurrenceDate(cursor, monthStart) >= 0) {
+        const record = buildRecurringOccurrenceRecord(template, cursor);
+        const key = buildRecurringOccurrenceKey(template, cursor);
+        const existsInBudget = hasMatchingBudgetRow(record);
+        const paid = generatedKeys.has(key) || existsInBudget;
+        const ignored = dismissedKeys.has(key);
+        const status = paid
+          ? "paid"
+          : ignored
+            ? "ignored"
+            : compareRecurringOccurrenceDate(cursor, today) <= 0
+              ? "due"
+              : "upcoming";
+        const displayLabel = getDisplayCategoryLabel(template.label) || getDisplayCategoryLabel(template.category) || template.label || template.category;
+        occurrences.push({
+          key,
+          templateId: template.id,
+          templateLabel: String(displayLabel || "").trim(),
+          categoryLabel: getDisplayCategoryLabel(template.category) || template.category,
+          parentLabel: getBudgetFraCategoryLabel(template.category || "", "", template.value),
+          date: record.Date,
+          value: record.Value,
+          period: template.period,
+          autoCreate: template.autoCreate === true,
+          status,
+        });
+      }
+
+      cursor = getNextRecurringOccurrenceDate(cursor, template.period, anchorDay);
+      iterations += 1;
+    }
+  });
+
+  return occurrences.sort((left, right) => {
+    const dateCompare = compareRecurringOccurrenceDate(left.date, right.date);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return String(left.templateLabel || "").localeCompare(String(right.templateLabel || ""), getUiLocale(), {
+      sensitivity: "base",
+    });
+  });
+}
+
+function buildRecurringAllOccurrences(monthKey) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  if (!normalizedMonthKey) {
+    return [];
+  }
+
+  const monthStart = `${normalizedMonthKey}-01`;
+  const monthEnd = addDaysToIsoDate(addMonthsToIsoDate(monthStart, 1, 1), -1);
+  const today = new Date().toISOString().slice(0, 10);
+  const occurrences = [];
+
+  getAllRecurringCalendarTemplates().forEach((template) => {
     const startDate = getRecurringStartDate(template);
     if (!startDate || compareRecurringOccurrenceDate(startDate, monthEnd) > 0) {
       return;
@@ -2892,6 +3000,43 @@ function buildRecurringBillsDayTooltip(isoDate, dayOccurrences = []) {
   return lines.join("\n");
 }
 
+function buildRecurringAllDayTooltip(isoDate, dayOccurrences = []) {
+  const targetDate = normalizeDateValue(isoDate);
+  if (!targetDate || !Array.isArray(dayOccurrences) || !dayOccurrences.length) {
+    return "";
+  }
+
+  const lines = [
+    formatDateForDisplay(targetDate) || targetDate,
+  ];
+
+  dayOccurrences.slice(0, 5).forEach((occurrence) => {
+    const statusLabel = occurrence.status === "paid"
+      ? t("recurring.allStatusPaid")
+      : occurrence.status === "ignored"
+        ? t("recurring.allStatusIgnored")
+        : occurrence.status === "due"
+          ? t("recurring.allStatusDue")
+          : t("recurring.allStatusUpcoming");
+    const rawValue = roundCurrencyValue(parseAmount(occurrence.value));
+    const amountLabel = Number.isFinite(rawValue)
+      ? `${rawValue > 0 ? "+ " : rawValue < 0 ? "- " : ""}${formatCurrency(Math.abs(rawValue))}`
+      : formatCurrency(occurrence.value);
+
+    lines.push(`${occurrence.templateLabel} · ${amountLabel} · ${statusLabel}`);
+  });
+
+  if (dayOccurrences.length > 5) {
+    lines.push(
+      isEnglishUi()
+        ? `+ ${dayOccurrences.length - 5} more`
+        : `+ ${dayOccurrences.length - 5} autre${dayOccurrences.length - 5 > 1 ? "s" : ""}`
+    );
+  }
+
+  return lines.join("\n");
+}
+
 function getRecurringBillsDisplayDate(monthKey) {
   const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
   const selectedDate = normalizeDateValue(recurringBillsSelectedDate);
@@ -2900,6 +3045,21 @@ function getRecurringBillsDisplayDate(monthKey) {
   }
 
   if (!recurringBillsUseTodayDefault) {
+    return "";
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  return todayIso.startsWith(`${normalizedMonthKey}-`) ? todayIso : "";
+}
+
+function getRecurringAllDisplayDate(monthKey) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  const selectedDate = normalizeDateValue(recurringAllSelectedDate);
+  if (selectedDate && selectedDate.startsWith(`${normalizedMonthKey}-`)) {
+    return selectedDate;
+  }
+
+  if (!recurringAllUseTodayDefault) {
     return "";
   }
 
@@ -2998,6 +3158,94 @@ function buildRecurringBillsListElement(options = {}) {
   return list;
 }
 
+function buildRecurringAllListElement(options = {}) {
+  const english = getCurrentLanguage() === "en";
+  const monthKey = normalizeRecurringBillsMonthKey(options.monthKey) || new Date().toISOString().slice(0, 7);
+  const occurrences = Array.isArray(options.occurrences) ? options.occurrences : [];
+  const displayDate = normalizeDateValue(options.displayDate);
+  const displayDateInMonth = displayDate && displayDate.startsWith(`${monthKey}-`) ? displayDate : "";
+  const filteredOccurrences = displayDateInMonth
+    ? occurrences.filter((occurrence) => occurrence.date === displayDateInMonth)
+    : occurrences;
+
+  const list = document.createElement("div");
+  list.className = "recurring-bills-list";
+  const listHeader = document.createElement("div");
+  listHeader.className = "recurring-bills-list-head";
+  listHeader.innerHTML = `
+    <div>
+      <strong>${escapeHtml(displayDateInMonth ? t("recurring.allSelectedDay", {
+        date: formatDateForDisplay(displayDateInMonth) || displayDateInMonth,
+      }) : t("recurring.allTitle"))}</strong>
+      <span>${escapeHtml(displayDateInMonth ? `${filteredOccurrences.length}` : `${occurrences.length}`)} ${escapeHtml((displayDateInMonth ? filteredOccurrences.length : occurrences.length) > 1 ? (english ? "occurrences" : "occurrences") : (english ? "occurrence" : "occurrence"))}</span>
+    </div>
+    ${displayDateInMonth ? `<button type="button" class="button ghost" data-recurring-all-action="clear-day">${escapeHtml(t("recurring.billsAllMonth"))}</button>` : ""}
+  `;
+  list.appendChild(listHeader);
+
+  if (!getAllRecurringCalendarTemplates().length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-form recurring-empty";
+    empty.textContent = t("recurring.allNoTemplates");
+    list.appendChild(empty);
+    return list;
+  }
+
+  if (!occurrences.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-form recurring-empty";
+    empty.textContent = t("recurring.allEmpty");
+    list.appendChild(empty);
+    return list;
+  }
+
+  if (!filteredOccurrences.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-form recurring-empty";
+    empty.textContent = t("recurring.allEmptyDay");
+    list.appendChild(empty);
+    return list;
+  }
+
+  filteredOccurrences.forEach((occurrence) => {
+    const row = document.createElement("article");
+    row.className = `recurring-bill-row is-${occurrence.status}`;
+    const statusLabel = occurrence.status === "paid"
+      ? t("recurring.allStatusPaid")
+      : occurrence.status === "ignored"
+        ? t("recurring.allStatusIgnored")
+        : occurrence.status === "due"
+          ? t("recurring.allStatusDue")
+          : t("recurring.allStatusUpcoming");
+    const modeLabel = occurrence.autoCreate ? t("recurring.allAutomatic") : t("recurring.allManual");
+    const rawValue = roundCurrencyValue(parseAmount(occurrence.value));
+    const signedAmount = Number.isFinite(rawValue)
+      ? `${rawValue > 0 ? "+ " : rawValue < 0 ? "- " : ""}${formatCurrency(Math.abs(rawValue))}`
+      : formatCurrency(occurrence.value);
+    row.innerHTML = `
+      <div class="recurring-bill-copy">
+        <div class="recurring-bill-title-row">
+          <strong>${escapeHtml(occurrence.templateLabel || occurrence.categoryLabel || "-")}</strong>
+          <span class="recurring-bill-chip recurring-bill-chip-mode">${escapeHtml(modeLabel)}</span>
+        </div>
+        <span>${escapeHtml(formatDateForDisplay(occurrence.date) || occurrence.date || "-")}</span>
+        <span>${escapeHtml(occurrence.parentLabel || occurrence.categoryLabel || "-")}</span>
+      </div>
+      <div class="recurring-bill-side">
+        <strong>${escapeHtml(signedAmount)}</strong>
+        <span class="recurring-bill-chip recurring-bill-chip-status is-${escapeHtml(occurrence.status)}">${escapeHtml(statusLabel)}</span>
+      </div>
+      <div class="recurring-bill-actions">
+        <button type="button" class="button secondary" data-recurring-action="use" data-template-id="${escapeHtml(occurrence.templateId)}" data-recurring-date="${escapeHtml(occurrence.date)}" data-recurring-value="${escapeHtml(String(occurrence.value))}">${escapeHtml(t("recurring.allUse"))}</button>
+        <button type="button" class="button ghost" data-recurring-action="view-occurrences" data-template-id="${escapeHtml(occurrence.templateId)}">${escapeHtml(t("recurring.viewOccurrences"))}</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  return list;
+}
+
 function refreshRecurringBillsPreview(root) {
   const panel = root?.closest?.(".recurring-bills-panel") || root;
   if (!(panel instanceof Element)) {
@@ -3074,6 +3322,69 @@ function buildRecurringBillsCalendar(monthKey, occurrences) {
       count: occurrenceCounts.get(isoDate) || 0,
       isToday: isoDate === todayIso,
       tooltip: buildRecurringBillsDayTooltip(isoDate, dayOccurrences),
+    });
+  }
+
+  while (days.length % 7 !== 0) {
+    days.push({ key: `empty-end-${days.length}`, empty: true });
+  }
+
+  return days;
+}
+
+function buildRecurringAllCalendar(monthKey, occurrences) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  if (!normalizedMonthKey) {
+    return [];
+  }
+
+  const [yearText, monthText] = normalizedMonthKey.split("-");
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return [];
+  }
+
+  const occurrenceCounts = occurrences.reduce((map, occurrence) => {
+    const dayKey = normalizeDateValue(occurrence?.date);
+    if (dayKey) {
+      map.set(dayKey, (map.get(dayKey) || 0) + 1);
+    }
+    return map;
+  }, new Map());
+  const occurrenceDetails = occurrences.reduce((map, occurrence) => {
+    const dayKey = normalizeDateValue(occurrence?.date);
+    if (!dayKey) {
+      return map;
+    }
+
+    if (!map.has(dayKey)) {
+      map.set(dayKey, []);
+    }
+
+    map.get(dayKey).push(occurrence);
+    return map;
+  }, new Map());
+
+  const days = [];
+  const firstWeekday = (new Date(Date.UTC(year, monthIndex, 1, 12)).getUTCDay() + 6) % 7;
+  const daysInMonth = getDaysInUtcMonth(year, monthIndex);
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    days.push({ key: `empty-start-${index}`, empty: true });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const isoDate = new Date(Date.UTC(year, monthIndex, day, 12)).toISOString().slice(0, 10);
+    const dayOccurrences = occurrenceDetails.get(isoDate) || [];
+    days.push({
+      key: isoDate,
+      day,
+      isoDate,
+      count: occurrenceCounts.get(isoDate) || 0,
+      isToday: isoDate === todayIso,
+      tooltip: buildRecurringAllDayTooltip(isoDate, dayOccurrences),
     });
   }
 
@@ -4793,6 +5104,7 @@ function bindEvents() {
   refs.cardsGrid.addEventListener("click", onCardAction);
   refs.recapView.addEventListener("click", onAnalysisInteraction);
   refs.cardsGrid.addEventListener("click", onRecurringBillsAction);
+  refs.cardsGrid.addEventListener("click", onRecurringAllAction);
   refs.cardsGrid.addEventListener("click", onRecurringTemplateAction);
   refs.cardsGrid.addEventListener("click", onRecurringReviewAction);
   refs.cardsGrid.addEventListener("input", onRecurringTemplateConfigChanged);
@@ -9750,6 +10062,39 @@ function onRecurringBillsAction(event) {
   renderAll();
 }
 
+function onRecurringAllAction(event) {
+  const actionButton = event.target.closest("[data-recurring-all-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  const action = String(actionButton.dataset.recurringAllAction || "").trim();
+  if (action === "prev-month") {
+    recurringAllMonthCursor = shiftRecurringBillsMonth(recurringAllMonthCursor, -1);
+    recurringAllSelectedDate = "";
+    recurringAllUseTodayDefault = true;
+  } else if (action === "next-month") {
+    recurringAllMonthCursor = shiftRecurringBillsMonth(recurringAllMonthCursor, 1);
+    recurringAllSelectedDate = "";
+    recurringAllUseTodayDefault = true;
+  } else if (action === "select-day") {
+    const targetDate = normalizeDateValue(actionButton.dataset.recurringDate);
+    if (!targetDate) {
+      return;
+    }
+
+    recurringAllSelectedDate = recurringAllSelectedDate === targetDate ? "" : targetDate;
+    recurringAllUseTodayDefault = false;
+  } else if (action === "clear-day") {
+    recurringAllSelectedDate = "";
+    recurringAllUseTodayDefault = false;
+  } else {
+    return;
+  }
+
+  renderAll();
+}
+
 async function onRecurringTemplateAction(event) {
   const actionButton = event.target.closest("[data-recurring-action]");
   if (!actionButton) {
@@ -13166,7 +13511,7 @@ function renderRecurringWorkspace() {
     hub.appendChild(reviewPanel);
   }
 
-  hub.appendChild(renderRecurringBillsPanel());
+  hub.appendChild(renderRecurringAllPanel());
   hub.appendChild(renderRecurringTemplatesLauncher());
   refs.cardsGrid.appendChild(hub);
 }
@@ -17543,6 +17888,87 @@ function renderRecurringBillsPanel() {
   const listSlot = document.createElement("div");
   listSlot.setAttribute("data-recurring-bills-list-slot", "true");
   listSlot.appendChild(buildRecurringBillsListElement({
+    monthKey,
+    occurrences,
+    displayDate: displayDateInMonth,
+  }));
+
+  shell.append(calendar, listSlot);
+  section.append(heading, shell);
+  return section;
+}
+
+function renderRecurringAllPanel() {
+  const section = document.createElement("section");
+  section.className = "recurring-panel recurring-bills-panel recurring-all-panel";
+  const english = getCurrentLanguage() === "en";
+  const monthKey = normalizeRecurringBillsMonthKey(recurringAllMonthCursor) || new Date().toISOString().slice(0, 7);
+  recurringAllMonthCursor = monthKey;
+  section.setAttribute("data-recurring-all-month", monthKey);
+
+  const occurrences = buildRecurringAllOccurrences(monthKey);
+  const calendarDays = buildRecurringAllCalendar(monthKey, occurrences);
+  const selectedDate = normalizeDateValue(recurringAllSelectedDate);
+  const selectedDateInMonth = selectedDate && selectedDate.startsWith(`${monthKey}-`) ? selectedDate : "";
+  if (selectedDate && !selectedDateInMonth) {
+    recurringAllSelectedDate = "";
+  }
+  const displayDateInMonth = getRecurringAllDisplayDate(monthKey);
+  const monthLabel = formatMonthYearLabelFromIso(`${monthKey}-01`) || monthKey;
+  const weekdayLabels = english
+    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    : ["L", "M", "M", "J", "V", "S", "D"];
+
+  const heading = document.createElement("div");
+  heading.className = "recurring-panel-head recurring-bills-head";
+  heading.innerHTML = `
+    <div>
+      <span class="section-kicker">${english ? "All recurring" : "Toutes les récurrentes"}</span>
+      <h3>${escapeHtml(t("recurring.allTitle"))}</h3>
+      <p class="recurring-panel-note">${escapeHtml(t("recurring.allDescription"))}</p>
+    </div>
+    <div class="recurring-panel-toolbar recurring-bills-nav">
+      <button type="button" class="button ghost" data-recurring-all-action="prev-month" aria-label="${escapeHtml(english ? "Previous month" : "Mois précédent")}">‹</button>
+      <strong>${escapeHtml(monthLabel)}</strong>
+      <button type="button" class="button ghost" data-recurring-all-action="next-month" aria-label="${escapeHtml(english ? "Next month" : "Mois suivant")}">›</button>
+    </div>
+  `;
+
+  const shell = document.createElement("div");
+  shell.className = "recurring-bills-shell";
+
+  const calendar = document.createElement("div");
+  calendar.className = "recurring-bills-calendar";
+  calendar.innerHTML = `
+    <div class="recurring-bills-weekdays">
+      ${weekdayLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
+    </div>
+    <div class="recurring-bills-days">
+      ${calendarDays.map((day) => {
+        if (day.empty) {
+          return `<span class="recurring-bills-day is-empty" aria-hidden="true"></span>`;
+        }
+
+        return `
+          <button
+            type="button"
+            class="recurring-bills-day${day.isToday ? " is-today" : ""}${day.count ? " has-items" : ""}${selectedDateInMonth === day.isoDate ? " is-selected" : ""}"
+            data-recurring-all-action="select-day"
+            data-recurring-date="${escapeHtml(day.isoDate)}"
+            ${day.tooltip ? `data-analysis-hover="${escapeHtml(day.tooltip)}"` : ""}
+            aria-pressed="${selectedDateInMonth === day.isoDate ? "true" : "false"}"
+          >
+            <strong>${escapeHtml(String(day.day))}</strong>
+            ${day.count ? `<small>${escapeHtml(String(day.count))}</small>` : ""}
+          </button>
+        `;
+      }).join("")}
+    </div>
+    <p class="recurring-bills-hint">${escapeHtml(t("recurring.allHint"))}</p>
+  `;
+
+  const listSlot = document.createElement("div");
+  listSlot.appendChild(buildRecurringAllListElement({
     monthKey,
     occurrences,
     displayDate: displayDateInMonth,
