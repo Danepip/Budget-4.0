@@ -435,6 +435,9 @@ const UI_STRINGS = {
     "recurring.allHint": "Le calendrier du mois reprend tous vos modèles récurrents avec une date de départ.",
     "recurring.allSelectedDay": "Récurrentes du {date}",
     "recurring.allEmptyDay": "Aucune récurrente pour cette journée.",
+    "recurring.allIncomeTotal": "Revenus prévus",
+    "recurring.allExpenseTotal": "Dépenses prévues",
+    "recurring.allDifferenceTotal": "Différence prévue",
     "recurring.viewOccurrencesTitle": "Historique des occurrences",
     "recurring.viewOccurrencesDescription": "Retrouvez les occurrences en attente, déjà ajoutées ou ignorées pour cette règle récurrente.",
     "recurring.viewOccurrencesPending": "En attente",
@@ -860,6 +863,9 @@ const UI_STRINGS = {
     "recurring.allHint": "The monthly calendar reuses all your recurring templates that already have a start date.",
     "recurring.allSelectedDay": "Recurring entries for {date}",
     "recurring.allEmptyDay": "No recurring entry for this day.",
+    "recurring.allIncomeTotal": "Planned income",
+    "recurring.allExpenseTotal": "Planned expenses",
+    "recurring.allDifferenceTotal": "Planned difference",
     "recurring.viewOccurrencesTitle": "Occurrence history",
     "recurring.viewOccurrencesDescription": "Review pending, added, and ignored occurrences for this recurring rule.",
     "recurring.viewOccurrencesPending": "Pending",
@@ -17907,6 +17913,19 @@ function renderRecurringAllPanel() {
   section.setAttribute("data-recurring-all-month", monthKey);
 
   const occurrences = buildRecurringAllOccurrences(monthKey);
+  const projectedIncomeTotal = roundCurrencyValue(
+    occurrences.reduce((sum, occurrence) => {
+      const value = roundCurrencyValue(parseAmount(occurrence?.value));
+      return value > 0 ? sum + value : sum;
+    }, 0)
+  );
+  const projectedExpenseTotal = roundCurrencyValue(
+    Math.abs(occurrences.reduce((sum, occurrence) => {
+      const value = roundCurrencyValue(parseAmount(occurrence?.value));
+      return value < 0 ? sum + value : sum;
+    }, 0))
+  );
+  const projectedDifferenceTotal = roundCurrencyValue(projectedIncomeTotal - projectedExpenseTotal);
   const calendarDays = buildRecurringAllCalendar(monthKey, occurrences);
   const selectedDate = normalizeDateValue(recurringAllSelectedDate);
   const selectedDateInMonth = selectedDate && selectedDate.startsWith(`${monthKey}-`) ? selectedDate : "";
@@ -17964,7 +17983,20 @@ function renderRecurringAllPanel() {
         `;
       }).join("")}
     </div>
-    <p class="recurring-bills-hint">${escapeHtml(t("recurring.allHint"))}</p>
+    <div class="recurring-bills-totals" aria-label="${escapeHtml(english ? "Recurring monthly totals" : "Totaux récurrents du mois")}">
+      <article class="recurring-bills-total is-income">
+        <span>${escapeHtml(t("recurring.allIncomeTotal"))}</span>
+        <strong>${escapeHtml(formatCurrency(projectedIncomeTotal))}</strong>
+      </article>
+      <article class="recurring-bills-total is-expense">
+        <span>${escapeHtml(t("recurring.allExpenseTotal"))}</span>
+        <strong>${escapeHtml(formatCurrency(projectedExpenseTotal))}</strong>
+      </article>
+      <article class="recurring-bills-total is-difference${projectedDifferenceTotal < 0 ? " is-negative" : ""}">
+        <span>${escapeHtml(t("recurring.allDifferenceTotal"))}</span>
+        <strong>${escapeHtml(formatCurrency(projectedDifferenceTotal))}</strong>
+      </article>
+    </div>
   `;
 
   const listSlot = document.createElement("div");

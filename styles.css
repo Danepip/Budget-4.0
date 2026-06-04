@@ -2913,6 +2913,53 @@ textarea {
   font-size: 0.88rem;
 }
 
+.recurring-bills-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+  gap: 10px;
+}
+
+.recurring-bills-total {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 51, 59, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.recurring-bills-total span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recurring-bills-total strong {
+  font-size: clamp(0.98rem, 1.6vw, 1.12rem);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.recurring-bills-total.is-income strong {
+  color: var(--teal);
+}
+
+.recurring-bills-total.is-expense strong {
+  color: var(--orange);
+}
+
+.recurring-bills-total.is-difference strong {
+  color: var(--teal);
+}
+
+.recurring-bills-total.is-difference.is-negative strong {
+  color: var(--orange);
+}
+
 .recurring-bills-list-head {
   display: flex;
   align-items: center;
@@ -5149,7 +5196,8 @@ body[data-theme="dark"] .recurring-templates-stat {
 }
 
 body[data-theme="dark"] .recurring-bills-calendar,
-body[data-theme="dark"] .recurring-bill-row {
+body[data-theme="dark"] .recurring-bill-row,
+body[data-theme="dark"] .recurring-bills-total {
   border-color: var(--line);
   background: linear-gradient(180deg, rgba(20, 33, 39, 0.96), rgba(14, 24, 30, 0.94));
 }
@@ -5667,6 +5715,10 @@ body[data-theme="dark"] .app-toast {
   }
 
   .recurring-templates-launcher-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .recurring-bills-totals {
     grid-template-columns: 1fr;
   }
 
