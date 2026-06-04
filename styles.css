@@ -556,6 +556,10 @@ textarea {
   bottom: 22px;
   z-index: 80;
   max-width: min(420px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid rgba(55, 146, 108, 0.22);
@@ -564,6 +568,27 @@ textarea {
   font-weight: 700;
   line-height: 1.45;
   box-shadow: 0 18px 38px rgba(18, 41, 36, 0.18);
+}
+
+.app-toast-message {
+  flex: 1 1 220px;
+}
+
+.app-toast-action {
+  border: 0;
+  min-height: 38px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(31, 93, 70, 0.12);
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.app-toast-action:hover,
+.app-toast-action:focus-visible {
+  background: rgba(31, 93, 70, 0.2);
 }
 
 .toolbar-side {
@@ -5582,6 +5607,15 @@ body[data-theme="dark"] .app-toast {
   background: rgba(20, 70, 54, 0.96);
   color: #d9fff0;
   box-shadow: 0 24px 44px rgba(0, 0, 0, 0.34);
+}
+
+body[data-theme="dark"] .app-toast-action {
+  background: rgba(217, 255, 240, 0.12);
+}
+
+body[data-theme="dark"] .app-toast-action:hover,
+body[data-theme="dark"] .app-toast-action:focus-visible {
+  background: rgba(217, 255, 240, 0.2);
 }
 
 .hidden {

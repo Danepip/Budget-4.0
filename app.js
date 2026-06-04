@@ -36,7 +36,7 @@ const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
 const SUPPORTED_UI_LANGUAGES = ["fr", "en"];
 const SUPPORTED_UI_THEMES = ["auto", "light", "dark"];
-const SUPPORTED_TRANSACTION_VIEWS = ["cards", "compact", "journal"];
+const SUPPORTED_TRANSACTION_VIEWS = ["compact", "journal"];
 const UI_STRINGS = {
   fr: {
     "hero.badge": "Budget",
@@ -69,6 +69,15 @@ const UI_STRINGS = {
     "tab.transactions.viewCards": "Cartes",
     "tab.transactions.viewCompact": "Compacte",
     "tab.transactions.viewJournal": "Journal",
+    "transactions.detailsTitle": "Détail de la transaction",
+    "transactions.detailsDescription": "Consultez cette écriture ici. Pour la modifier, utilisez le bouton Modifier dans la liste.",
+    "transactions.detailsDate": "Date",
+    "transactions.detailsCategory": "Catégorie",
+    "transactions.detailsParent": "Grande catégorie",
+    "transactions.detailsAmount": "Montant",
+    "transactions.detailsSource": "Source",
+    "transactions.useAsRecurring": "Utiliser comme modèle récurrent",
+    "transactions.recurringUnavailable": "Cette transaction doit contenir une catégorie et un montant pour devenir un modèle récurrent.",
     "tab.form.title": "Formulaire",
     "tab.form.description": "Un espace dédié à la création et à la modification d'une transaction, sans distraction autour.",
     "tab.recurring.title": "Transactions récurrentes",
@@ -383,11 +392,13 @@ const UI_STRINGS = {
     "categories.customSavingsDescription": "Épargne personnalisée",
     "recurring.confirmUseSameMonth": "Le modèle récurrent « {label} » a déjà été utilisé pour {month}. Voulez-vous l'utiliser quand même ?",
     "recurring.useCancelled": "Utilisation du modèle récurrent annulée.",
-    "recurring.confirmCreateAndOpen": "Voulez-vous créer ce modèle récurrent et ouvrir l'onglet Récurrentes ?",
     "recurring.createCancelled": "Création du modèle récurrent annulée.",
     "recurring.createButton": "Créer une récurrente",
     "recurring.createUnavailable": "Chargez ou restaurez un budget avant de créer une récurrente.",
     "recurring.createFlowHint": "Remplissez la transaction dans Formulaire, puis cliquez sur Enregistrer comme modèle.",
+    "recurring.confirmCreate": "Voulez-vous créer un modèle récurrent à partir de cette transaction ?",
+    "recurring.created": "Modèle récurrent créé : {label}",
+    "recurring.openTemplatesModal": "Ouvrir les récurrentes",
     "recurring.templatesLauncherTitle": "Modèles rapides",
     "recurring.templatesLauncherDescription": "Ouvrez vos modèles récurrents pour les utiliser, les configurer ou en créer un nouveau.",
     "recurring.templatesLauncherOpen": "Ouvrir les récurrentes",
@@ -497,6 +508,15 @@ const UI_STRINGS = {
     "tab.transactions.viewCards": "Cards",
     "tab.transactions.viewCompact": "Compact",
     "tab.transactions.viewJournal": "Journal",
+    "transactions.detailsTitle": "Transaction details",
+    "transactions.detailsDescription": "Review this entry here. To edit it, use the Edit button in the list.",
+    "transactions.detailsDate": "Date",
+    "transactions.detailsCategory": "Category",
+    "transactions.detailsParent": "Main category",
+    "transactions.detailsAmount": "Amount",
+    "transactions.detailsSource": "Source",
+    "transactions.useAsRecurring": "Use as recurring template",
+    "transactions.recurringUnavailable": "This transaction must include a category and amount to become a recurring template.",
     "tab.form.title": "Form",
     "tab.form.description": "A dedicated space to create and edit a transaction without distractions.",
     "tab.recurring.title": "Recurring transactions",
@@ -811,11 +831,13 @@ const UI_STRINGS = {
     "categories.customSavingsDescription": "Custom savings",
     "recurring.confirmUseSameMonth": "The recurring template \"{label}\" was already used for {month}. Do you still want to use it?",
     "recurring.useCancelled": "Recurring template use cancelled.",
-    "recurring.confirmCreateAndOpen": "Do you want to create this recurring template and open the Recurring tab?",
     "recurring.createCancelled": "Recurring template creation cancelled.",
     "recurring.createButton": "Create recurring",
     "recurring.createUnavailable": "Load or restore a budget before creating a recurring template.",
     "recurring.createFlowHint": "Fill out the transaction in Form, then click Save as template.",
+    "recurring.confirmCreate": "Do you want to create a recurring template from this transaction?",
+    "recurring.created": "Recurring template created: {label}",
+    "recurring.openTemplatesModal": "Open recurring templates",
     "recurring.templatesLauncherTitle": "Quick templates",
     "recurring.templatesLauncherDescription": "Open your recurring templates to use them, configure them, or create a new one.",
     "recurring.templatesLauncherOpen": "Open recurring templates",
@@ -1388,8 +1410,10 @@ let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
 let recurringTemplatesModal = null;
 let analysisTransactionsModal = null;
+let transactionDetailsModal = null;
 let analysisHoverTooltip = null;
 let activeAnalysisHoverTarget = null;
+let appToastActionHandler = null;
 let androidViewportProfileBound = false;
 let heroClockTimer = null;
 let recurringBillsMonthCursor = new Date().toISOString().slice(0, 7);
@@ -1573,7 +1597,7 @@ function createDefaultUiSettings() {
   return {
     language: "fr",
     theme: "auto",
-    transactionView: "cards",
+    transactionView: "compact",
     autoRestoreDraft: true,
     showBudgetFraAlerts: true,
     showBudgetFraSuggestions: false,
@@ -1596,7 +1620,7 @@ function normalizeUiTheme(value) {
 
 function normalizeTransactionView(value) {
   const nextValue = String(value || "").trim().toLowerCase();
-  return SUPPORTED_TRANSACTION_VIEWS.includes(nextValue) ? nextValue : "cards";
+  return SUPPORTED_TRANSACTION_VIEWS.includes(nextValue) ? nextValue : "compact";
 }
 
 function getCurrentLanguage() {
@@ -1608,7 +1632,7 @@ function getCurrentThemePreference() {
 }
 
 function getCurrentTransactionView() {
-  return normalizeTransactionView(state?.settings?.transactionView || "cards");
+  return normalizeTransactionView(state?.settings?.transactionView || "compact");
 }
 
 function getResolvedTheme() {
@@ -3071,6 +3095,38 @@ function getRecurringAllDisplayDate(monthKey) {
 
   const todayIso = new Date().toISOString().slice(0, 10);
   return todayIso.startsWith(`${normalizedMonthKey}-`) ? todayIso : "";
+}
+
+function syncRecurringBillsSelectedDateForMonth(monthKey, occurrences) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  const selectedDate = normalizeDateValue(recurringBillsSelectedDate);
+  if (!normalizedMonthKey || !selectedDate || !selectedDate.startsWith(`${normalizedMonthKey}-`)) {
+    return;
+  }
+
+  const hasSelectedOccurrences = (Array.isArray(occurrences) ? occurrences : [])
+    .some((occurrence) => normalizeDateValue(occurrence?.date) === selectedDate);
+
+  if (!hasSelectedOccurrences) {
+    recurringBillsSelectedDate = "";
+    recurringBillsUseTodayDefault = true;
+  }
+}
+
+function syncRecurringAllSelectedDateForMonth(monthKey, occurrences) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey);
+  const selectedDate = normalizeDateValue(recurringAllSelectedDate);
+  if (!normalizedMonthKey || !selectedDate || !selectedDate.startsWith(`${normalizedMonthKey}-`)) {
+    return;
+  }
+
+  const hasSelectedOccurrences = (Array.isArray(occurrences) ? occurrences : [])
+    .some((occurrence) => normalizeDateValue(occurrence?.date) === selectedDate);
+
+  if (!hasSelectedOccurrences) {
+    recurringAllSelectedDate = "";
+    recurringAllUseTodayDefault = true;
+  }
 }
 
 function buildRecurringBillsListElement(options = {}) {
@@ -6030,6 +6086,133 @@ function openAnalysisMetricTransactionsModal(metricLabel) {
 
   document.body.appendChild(overlay);
   analysisTransactionsModal = overlay;
+}
+
+function closeTransactionDetailsModal() {
+  if (transactionDetailsModal?.remove) {
+    transactionDetailsModal.remove();
+  }
+  transactionDetailsModal = null;
+}
+
+function refreshTransactionDetailsModal() {
+  if (!transactionDetailsModal) {
+    return;
+  }
+
+  if (state.appTab !== APP_TAB_TRANSACTIONS || state.activeView !== JOURNAL_SHEET_NAME) {
+    closeTransactionDetailsModal();
+    return;
+  }
+
+  const entryId = String(transactionDetailsModal.dataset.entryId || "").trim();
+  if (!entryId) {
+    closeTransactionDetailsModal();
+    return;
+  }
+
+  const record = state.budget.rows.find((row) => String(row?.__id || "").trim() === entryId);
+  if (!record) {
+    closeTransactionDetailsModal();
+  }
+}
+
+function openTransactionDetailsModal(index) {
+  const row = state.budget.rows[index];
+  if (!row) {
+    return;
+  }
+
+  closeTransactionDetailsModal();
+
+  const english = isEnglishUi();
+  const entryId = String(row.__id || "").trim();
+  const categoryLabel = getDisplayCategoryLabel(row.Categories || "") || row.Categories || (english ? "Undefined category" : "Catégorie non définie");
+  const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value) || (english ? "No main category" : "Aucune grande catégorie");
+  const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
+  const amountLabel = formatCurrency(row.Value) || row.Value || "-";
+  const sourceLabel = english ? "Journal sheet" : "Feuille Journalier";
+  const recurringDisabled = canCreateRecurringTemplateFromRecord(row) ? "" : "disabled";
+
+  const overlay = document.createElement("div");
+  overlay.className = "analysis-transactions-modal transaction-details-modal";
+  overlay.dataset.entryId = entryId;
+  overlay.innerHTML = `
+    <div class="analysis-transactions-dialog transaction-details-dialog" role="dialog" aria-modal="true" aria-labelledby="transaction-details-title">
+      <div class="analysis-transactions-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Transactions" : "Transactions")}</p>
+          <h3 id="transaction-details-title">${escapeHtml(t("transactions.detailsTitle"))}</h3>
+          <p>${escapeHtml(t("transactions.detailsDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-transaction-details-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div class="analysis-transactions-summary">
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(t("transactions.detailsDate"))}</span>
+          <strong>${escapeHtml(dateLabel)}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(t("transactions.detailsCategory"))}</span>
+          <strong>${escapeHtml(categoryLabel)}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(t("transactions.detailsParent"))}</span>
+          <strong>${escapeHtml(parentLabel)}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(t("transactions.detailsAmount"))}</span>
+          <strong>${escapeHtml(amountLabel)}</strong>
+        </article>
+      </div>
+      <div class="analysis-transactions-results">
+        <article class="analysis-transaction-item">
+          <div class="analysis-transaction-copy">
+            <span class="analysis-transaction-date">${escapeHtml(dateLabel)}</span>
+            <strong>${escapeHtml(categoryLabel)}</strong>
+            <p>${escapeHtml(`${t("transactions.detailsSource")} · ${sourceLabel}`)}</p>
+          </div>
+          <span class="analysis-transaction-amount">${escapeHtml(amountLabel)}</span>
+        </article>
+      </div>
+      <div class="analysis-transactions-actions">
+        <button type="button" class="button secondary" data-transaction-details-action="save-recurring" ${recurringDisabled}>${escapeHtml(t("transactions.useAsRecurring"))}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", async (event) => {
+    const action = event.target.closest("[data-transaction-details-action]");
+    if (event.target === overlay || action?.dataset.transactionDetailsAction === "close") {
+      closeTransactionDetailsModal();
+      return;
+    }
+
+    if (action?.dataset.transactionDetailsAction === "save-recurring") {
+      const currentId = String(overlay.dataset.entryId || "").trim();
+      const currentRow = state.budget.rows.find((entry) => String(entry?.__id || "").trim() === currentId);
+      if (!currentRow) {
+        closeTransactionDetailsModal();
+        return;
+      }
+
+      if (!window.confirm(t("recurring.confirmCreate"))) {
+        setLastAction(t("recurring.createCancelled"));
+        return;
+      }
+
+      await saveRecurringTemplateFromRecord(currentRow);
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeTransactionDetailsModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  transactionDetailsModal = overlay;
 }
 
 function applyAnalysisPeriodSelection(year, month) {
@@ -9872,14 +10055,43 @@ function clearAppToastTimer() {
   }
 }
 
-function showAppToast(message = "", durationMs = 3200) {
+function showAppToast(message = "", durationMs = 3200, options = {}) {
   if (!refs.appToast) {
     return;
   }
 
   clearAppToastTimer();
   const content = String(message || "").trim();
-  refs.appToast.textContent = content;
+  refs.appToast.replaceChildren();
+  refs.appToast.onclick = null;
+  appToastActionHandler = null;
+
+  if (content) {
+    const messageSpan = document.createElement("span");
+    messageSpan.className = "app-toast-message";
+    messageSpan.textContent = content;
+    refs.appToast.appendChild(messageSpan);
+
+    const actionLabel = String(options.actionLabel || "").trim();
+    if (actionLabel && typeof options.onAction === "function") {
+      const actionButton = document.createElement("button");
+      actionButton.type = "button";
+      actionButton.className = "app-toast-action";
+      actionButton.textContent = actionLabel;
+      actionButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const handler = appToastActionHandler;
+        showAppToast("", 0);
+        if (typeof handler === "function") {
+          handler();
+        }
+      });
+      refs.appToast.appendChild(actionButton);
+      appToastActionHandler = options.onAction;
+    }
+  }
+
   refs.appToast.classList.toggle("hidden", !content);
 
   if (!content || durationMs <= 0) {
@@ -9887,8 +10099,10 @@ function showAppToast(message = "", durationMs = 3200) {
   }
 
   appToastTimer = window.setTimeout(() => {
-    refs.appToast.textContent = "";
+    refs.appToast.replaceChildren();
     refs.appToast.classList.add("hidden");
+    refs.appToast.onclick = null;
+    appToastActionHandler = null;
     appToastTimer = null;
   }, durationMs);
 }
@@ -9957,6 +10171,77 @@ async function syncRecurringTemplatesIfNeeded(actionLabel, activityLabel = "les 
   }
 }
 
+function canCreateRecurringTemplateFromRecord(record) {
+  const category = String(record?.Categories || "").trim();
+  const value = String(record?.Value ?? "").trim();
+  return Boolean(category && value);
+}
+
+function buildRecurringTemplateFromRecord(record) {
+  if (!canCreateRecurringTemplateFromRecord(record)) {
+    return null;
+  }
+
+  const internalCategory = getInternalCategoryLabel(record.Categories);
+  const anchorDate = normalizeDateValue(record.Date) || new Date().toISOString().slice(0, 10);
+  return {
+    label: internalCategory,
+    category: internalCategory,
+    value: record.Value,
+    period: DEFAULT_PLAN_PERIOD,
+    startDate: anchorDate,
+    autoCreate: false,
+  };
+}
+
+async function saveRecurringTemplateFromRecord(record, options = {}) {
+  if (!canCreateRecurringTemplateFromRecord(record)) {
+    setLastAction(t("transactions.recurringUnavailable"));
+    return false;
+  }
+
+  const nextTemplate = buildRecurringTemplateFromRecord(record);
+  if (!nextTemplate) {
+    setLastAction(t("transactions.recurringUnavailable"));
+    return false;
+  }
+
+  if (findRecurringTemplateDuplicate(nextTemplate)) {
+    window.alert(buildRecurringTemplateDuplicateMessage(nextTemplate));
+    setLastAction(t("recurring.duplicateTemplateSkipped"));
+    return false;
+  }
+
+  const saved = upsertRecurringTemplate(nextTemplate);
+  if (!saved) {
+    setLastAction("Le modèle récurrent n'a pas pu être enregistré.");
+    return false;
+  }
+
+  const displayLabel = getDisplayCategoryLabel(record.Categories) || String(record.Categories || "").trim();
+  const createdMessage = t("recurring.created", {
+    label: displayLabel || nextTemplate.label,
+  });
+  setLastAction(createdMessage);
+  await syncRecurringTemplatesIfNeeded(
+    createdMessage,
+    `le modèle récurrent ${displayLabel || nextTemplate.label}`
+  );
+
+  showAppToast(createdMessage, 5200, {
+    actionLabel: t("recurring.openTemplatesModal"),
+    onAction: () => {
+      openRecurringTemplatesModal();
+    },
+  });
+
+  if (options.openRecurringModal) {
+    openRecurringTemplatesModal();
+  }
+
+  return true;
+}
+
 async function saveCurrentTransactionAsRecurringTemplate(options = {}) {
   if (!canSaveCurrentTransactionAsRecurringTemplate()) {
     setLastAction("Saisissez au moins une categorie et une valeur avant d'enregistrer un modèle récurrent.");
@@ -9965,41 +10250,10 @@ async function saveCurrentTransactionAsRecurringTemplate(options = {}) {
   }
 
   const snapshot = captureCurrentTransactionFormSnapshot();
-  const internalCategory = getInternalCategoryLabel(snapshot.Categories);
-  const anchorDate = normalizeDateValue(snapshot.Date) || new Date().toISOString().slice(0, 10);
-  const nextTemplate = {
-    label: internalCategory,
-    category: internalCategory,
-    value: snapshot.Value,
-    period: DEFAULT_PLAN_PERIOD,
-    startDate: anchorDate,
-    autoCreate: false,
-  };
-
-  if (findRecurringTemplateDuplicate(nextTemplate)) {
-    window.alert(buildRecurringTemplateDuplicateMessage(nextTemplate));
-    setLastAction(t("recurring.duplicateTemplateSkipped"));
-    refreshFormEditorPreservingValues(snapshot);
-    return;
-  }
-
-  const saved = upsertRecurringTemplate(nextTemplate);
-
-  if (!saved) {
-    setLastAction("Le modèle récurrent n'a pas pu être enregistré.");
-    refreshCategoryParentMeta();
-    return;
-  }
-
-  setLastAction(`Modèle récurrent enregistre: ${snapshot.Categories}`);
+  const saved = await saveRecurringTemplateFromRecord(snapshot, options);
   refreshFormEditorPreservingValues(snapshot);
-  await syncRecurringTemplatesIfNeeded(
-    `Modèle récurrent enregistre: ${snapshot.Categories}`,
-    `le modèle récurrent ${snapshot.Categories}`
-  );
-
-  if (options.openRecurringTab) {
-    setAppTab(APP_TAB_RECURRING);
+  if (!saved) {
+    refreshCategoryParentMeta();
   }
 }
 
@@ -10130,13 +10384,11 @@ async function onRecurringTemplateAction(event) {
   }
 
   if (action === "save-current") {
-    if (!window.confirm(t("recurring.confirmCreateAndOpen"))) {
+    if (!window.confirm(t("recurring.confirmCreate"))) {
       setLastAction(t("recurring.createCancelled"));
-      renderAll();
       return;
     }
-
-    await saveCurrentTransactionAsRecurringTemplate({ openRecurringTab: true });
+    await saveCurrentTransactionAsRecurringTemplate();
     return;
   }
 
@@ -10165,10 +10417,11 @@ async function onRecurringTemplateAction(event) {
     const snapshot = captureCurrentTransactionFormSnapshot();
     const template = getRecurringTemplates().find((entry) => entry.id === templateId);
     deleteRecurringTemplate(templateId);
-    setLastAction("Modèle récurrent supprime.");
+    setLastAction("Modèle récurrent supprimé.");
     refreshFormEditorPreservingValues(snapshot);
+    renderAll();
     await syncRecurringTemplatesIfNeeded(
-      "Modèle récurrent supprime.",
+      "Modèle récurrent supprimé.",
       `le modèle récurrent ${(getDisplayCategoryLabel(template?.label) || template?.label || templateId)}`
     );
   }
@@ -10511,8 +10764,13 @@ function onCardAction(event) {
     return;
   }
 
-  if (editButton || entry) {
+  if (editButton) {
     openEditor(index);
+    return;
+  }
+
+  if (entry) {
+    openTransactionDetailsModal(index);
   }
 }
 
@@ -10521,6 +10779,7 @@ function openEditor(index) {
     return;
   }
 
+  closeTransactionDetailsModal();
   state.editorMode = "edit";
   state.editingIndex = index;
   clearFormFeedbackTimer();
@@ -10534,6 +10793,11 @@ async function deleteRecord(index) {
   const target = state.budget.rows[index];
   if (!target) {
     return;
+  }
+
+  const openTransactionDetailId = String(transactionDetailsModal?.dataset.entryId || "").trim();
+  if (openTransactionDetailId && openTransactionDetailId === String(target.__id || "").trim()) {
+    closeTransactionDetailsModal();
   }
 
   const title = target.Categories || `transaction ${index + 1}`;
@@ -12637,6 +12901,7 @@ function renderAll() {
   renderDraftStatus();
   renderAppShellState();
   refreshRecurringTemplatesModal();
+  refreshTransactionDetailsModal();
 }
 
 function shouldShowWelcomeScreen() {
@@ -13063,7 +13328,7 @@ function renderTransactionsViewToggle(isVisible) {
         data-transaction-view="${escapeHtml(view)}"
         aria-pressed="${currentView === view ? "true" : "false"}"
       >
-        ${escapeHtml(t(`tab.transactions.view${view === "cards" ? "Cards" : view === "compact" ? "Compact" : "Journal"}`))}
+        ${escapeHtml(t(`tab.transactions.view${view === "compact" ? "Compact" : "Journal"}`))}
       </button>
     `).join("")}
   `;
@@ -13460,46 +13725,7 @@ function renderJournalCards() {
     renderJournalLedgerRows(filteredRows, english);
     return;
   }
-
-  filteredRows.forEach(({ row, index: sourceIndex }) => {
-    const card = document.createElement("article");
-    card.className = `data-card${sourceIndex === state.editingIndex ? " active" : ""}`;
-    card.dataset.entryIndex = String(sourceIndex);
-
-    const amountLabel = formatCurrency(row.Value) || row.Value || "-";
-    const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
-    const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value);
-    const parentChipMarkup = parentLabel
-      ? `<span class="card-parent-chip">${escapeHtml(parentLabel)}</span>`
-      : "";
-    const parentDetailMarkup = parentLabel
-      ? createDetailMarkup(english ? "Main category" : "Grande catégorie", parentLabel)
-      : "";
-
-    card.innerHTML = `
-      <div class="card-topline">
-        <span class="card-index">${escapeHtml(dateLabel)}</span>
-        <div class="card-actions">
-          <button class="card-action" type="button" data-action="edit" aria-label="${english ? "Edit" : "Modifier"}">${english ? "Edit" : "Modifier"}</button>
-          <button class="card-action delete" type="button" data-action="delete" aria-label="${english ? "Delete" : "Supprimer"}">X</button>
-        </div>
-      </div>
-      <div>
-        ${parentChipMarkup}
-        <h3 class="card-title">${escapeHtml(getDisplayCategoryLabel(row.Categories || "") || (english ? "Undefined category" : "Catégorie non définie"))}</h3>
-        <p class="card-subtitle">${english ? "Sheet" : "Feuille"} ${JOURNAL_SHEET_NAME}</p>
-        <p class="card-amount">${escapeHtml(amountLabel)}</p>
-      </div>
-      <div class="card-details">
-        ${createDetailMarkup(english ? "Date" : "Date", dateLabel)}
-        ${createDetailMarkup(english ? "Category" : "Catégorie", getDisplayCategoryLabel(row.Categories || "") || "-")}
-        ${parentDetailMarkup}
-        ${createDetailMarkup(english ? "Amount" : "Montant", amountLabel)}
-      </div>
-    `;
-
-    refs.cardsGrid.appendChild(card);
-  });
+  renderJournalCompactRows(filteredRows, english);
 }
 
 function renderRecurringWorkspace() {
@@ -16606,11 +16832,6 @@ function refreshRecurringTemplatesModal() {
     return;
   }
 
-  if (state.appTab !== APP_TAB_RECURRING) {
-    closeRecurringTemplatesModal();
-    return;
-  }
-
   const body = recurringTemplatesModal.querySelector("[data-recurring-templates-body]");
   if (!body) {
     return;
@@ -17831,6 +18052,7 @@ function renderRecurringBillsPanel() {
   section.setAttribute("data-recurring-bills-month", monthKey);
 
   const occurrences = buildRecurringBillsOccurrences(monthKey);
+  syncRecurringBillsSelectedDateForMonth(monthKey, occurrences);
   const calendarDays = buildRecurringBillsCalendar(monthKey, occurrences);
   const selectedDate = normalizeDateValue(recurringBillsSelectedDate);
   const selectedDateInMonth = selectedDate && selectedDate.startsWith(`${monthKey}-`) ? selectedDate : "";
@@ -17913,6 +18135,7 @@ function renderRecurringAllPanel() {
   section.setAttribute("data-recurring-all-month", monthKey);
 
   const occurrences = buildRecurringAllOccurrences(monthKey);
+  syncRecurringAllSelectedDateForMonth(monthKey, occurrences);
   const projectedIncomeTotal = roundCurrencyValue(
     occurrences.reduce((sum, occurrence) => {
       const value = roundCurrencyValue(parseAmount(occurrence?.value));
