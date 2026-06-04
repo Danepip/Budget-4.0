@@ -448,6 +448,7 @@ const UI_STRINGS = {
     "recurring.allEmptyDay": "Aucune récurrente pour cette journée.",
     "recurring.allIncomeTotal": "Revenus prévus",
     "recurring.allExpenseTotal": "Dépenses prévues",
+    "recurring.allSavingsTotal": "Épargne prévue",
     "recurring.allDifferenceTotal": "Différence prévue",
     "recurring.viewOccurrencesTitle": "Historique des occurrences",
     "recurring.viewOccurrencesDescription": "Retrouvez les occurrences en attente, déjà ajoutées ou ignorées pour cette règle récurrente.",
@@ -887,6 +888,7 @@ const UI_STRINGS = {
     "recurring.allEmptyDay": "No recurring entry for this day.",
     "recurring.allIncomeTotal": "Planned income",
     "recurring.allExpenseTotal": "Planned expenses",
+    "recurring.allSavingsTotal": "Planned savings",
     "recurring.allDifferenceTotal": "Planned difference",
     "recurring.viewOccurrencesTitle": "Occurrence history",
     "recurring.viewOccurrencesDescription": "Review pending, added, and ignored occurrences for this recurring rule.",
@@ -2901,6 +2903,7 @@ function buildRecurringBillsOccurrences(monthKey) {
           templateLabel: String(displayLabel || "").trim(),
           categoryLabel: getDisplayCategoryLabel(template.category) || template.category,
           parentLabel: getBudgetFraCategoryLabel(template.category || "", "", template.value),
+          flowType: getResolvedBudgetCategoryRule(template.category || template.label || "", "", template.value)?.flowType || "expense",
           date: record.Date,
           value: record.Value,
           period: template.period,
@@ -2970,6 +2973,7 @@ function buildRecurringAllOccurrences(monthKey) {
           templateLabel: String(displayLabel || "").trim(),
           categoryLabel: getDisplayCategoryLabel(template.category) || template.category,
           parentLabel: getBudgetFraCategoryLabel(template.category || "", "", template.value),
+          flowType: getResolvedBudgetCategoryRule(template.category || template.label || "", "", template.value)?.flowType || "expense",
           date: record.Date,
           value: record.Value,
           period: template.period,
@@ -6147,6 +6151,7 @@ function openTransactionDetailsModal(index) {
         </div>
         <button type="button" class="button ghost" data-transaction-details-action="close">${escapeHtml(t("categories.close"))}</button>
       </div>
+      <p class="form-feedback hidden" data-transaction-details-feedback="true"></p>
       <div class="analysis-transactions-summary">
         <article class="analysis-transactions-stat">
           <span>${escapeHtml(t("transactions.detailsDate"))}</span>
@@ -6201,7 +6206,16 @@ function openTransactionDetailsModal(index) {
         return;
       }
 
-      await saveRecurringTemplateFromRecord(currentRow);
+      const createdMessage = await saveRecurringTemplateFromRecord(currentRow);
+      if (!createdMessage) {
+        return;
+      }
+
+      const feedback = overlay.querySelector("[data-transaction-details-feedback]");
+      if (feedback) {
+        feedback.textContent = createdMessage;
+        feedback.classList.remove("hidden");
+      }
     }
   });
 
@@ -10197,25 +10211,25 @@ function buildRecurringTemplateFromRecord(record) {
 async function saveRecurringTemplateFromRecord(record, options = {}) {
   if (!canCreateRecurringTemplateFromRecord(record)) {
     setLastAction(t("transactions.recurringUnavailable"));
-    return false;
+    return "";
   }
 
   const nextTemplate = buildRecurringTemplateFromRecord(record);
   if (!nextTemplate) {
     setLastAction(t("transactions.recurringUnavailable"));
-    return false;
+    return "";
   }
 
   if (findRecurringTemplateDuplicate(nextTemplate)) {
     window.alert(buildRecurringTemplateDuplicateMessage(nextTemplate));
     setLastAction(t("recurring.duplicateTemplateSkipped"));
-    return false;
+    return "";
   }
 
   const saved = upsertRecurringTemplate(nextTemplate);
   if (!saved) {
     setLastAction("Le modèle récurrent n'a pas pu être enregistré.");
-    return false;
+    return "";
   }
 
   const displayLabel = getDisplayCategoryLabel(record.Categories) || String(record.Categories || "").trim();
@@ -10239,7 +10253,7 @@ async function saveRecurringTemplateFromRecord(record, options = {}) {
     openRecurringTemplatesModal();
   }
 
-  return true;
+  return createdMessage;
 }
 
 async function saveCurrentTransactionAsRecurringTemplate(options = {}) {
@@ -10250,9 +10264,9 @@ async function saveCurrentTransactionAsRecurringTemplate(options = {}) {
   }
 
   const snapshot = captureCurrentTransactionFormSnapshot();
-  const saved = await saveRecurringTemplateFromRecord(snapshot, options);
+  const createdMessage = await saveRecurringTemplateFromRecord(snapshot, options);
   refreshFormEditorPreservingValues(snapshot);
-  if (!saved) {
+  if (!createdMessage) {
     refreshCategoryParentMeta();
   }
 }
@@ -18138,17 +18152,23 @@ function renderRecurringAllPanel() {
   syncRecurringAllSelectedDateForMonth(monthKey, occurrences);
   const projectedIncomeTotal = roundCurrencyValue(
     occurrences.reduce((sum, occurrence) => {
-      const value = roundCurrencyValue(parseAmount(occurrence?.value));
-      return value > 0 ? sum + value : sum;
+      const value = Math.abs(roundCurrencyValue(parseAmount(occurrence?.value)));
+      return occurrence?.flowType === "income" ? sum + value : sum;
     }, 0)
   );
   const projectedExpenseTotal = roundCurrencyValue(
-    Math.abs(occurrences.reduce((sum, occurrence) => {
-      const value = roundCurrencyValue(parseAmount(occurrence?.value));
-      return value < 0 ? sum + value : sum;
-    }, 0))
+    occurrences.reduce((sum, occurrence) => {
+      const value = Math.abs(roundCurrencyValue(parseAmount(occurrence?.value)));
+      return occurrence?.flowType === "expense" ? sum + value : sum;
+    }, 0)
   );
-  const projectedDifferenceTotal = roundCurrencyValue(projectedIncomeTotal - projectedExpenseTotal);
+  const projectedSavingsTotal = roundCurrencyValue(
+    occurrences.reduce((sum, occurrence) => {
+      const value = Math.abs(roundCurrencyValue(parseAmount(occurrence?.value)));
+      return occurrence?.flowType === "savings" ? sum + value : sum;
+    }, 0)
+  );
+  const projectedDifferenceTotal = roundCurrencyValue(projectedIncomeTotal - projectedExpenseTotal - projectedSavingsTotal);
   const calendarDays = buildRecurringAllCalendar(monthKey, occurrences);
   const selectedDate = normalizeDateValue(recurringAllSelectedDate);
   const selectedDateInMonth = selectedDate && selectedDate.startsWith(`${monthKey}-`) ? selectedDate : "";
@@ -18214,6 +18234,10 @@ function renderRecurringAllPanel() {
       <article class="recurring-bills-total is-expense">
         <span>${escapeHtml(t("recurring.allExpenseTotal"))}</span>
         <strong>${escapeHtml(formatCurrency(projectedExpenseTotal))}</strong>
+      </article>
+      <article class="recurring-bills-total is-savings">
+        <span>${escapeHtml(t("recurring.allSavingsTotal"))}</span>
+        <strong>${escapeHtml(formatCurrency(projectedSavingsTotal))}</strong>
       </article>
       <article class="recurring-bills-total is-difference${projectedDifferenceTotal < 0 ? " is-negative" : ""}">
         <span>${escapeHtml(t("recurring.allDifferenceTotal"))}</span>

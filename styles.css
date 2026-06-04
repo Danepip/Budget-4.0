@@ -554,7 +554,7 @@ textarea {
   position: fixed;
   right: 22px;
   bottom: 22px;
-  z-index: 80;
+  z-index: 96;
   max-width: min(420px, calc(100vw - 32px));
   display: flex;
   align-items: center;
@@ -2975,6 +2975,10 @@ textarea {
 
 .recurring-bills-total.is-expense strong {
   color: var(--orange);
+}
+
+.recurring-bills-total.is-savings strong {
+  color: #74aee8;
 }
 
 .recurring-bills-total.is-difference strong {
