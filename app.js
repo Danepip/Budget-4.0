@@ -31,6 +31,7 @@ const APP_TAB_PLAN = "plan";
 const APP_TAB_TRANSACTIONS = "transactions";
 const APP_TAB_FORM = "form";
 const APP_TAB_RECURRING = "recurring";
+const APP_TAB_CARDS = "cards";
 const APP_TAB_ANALYSIS = "analysis";
 const APP_TAB_SHARE = "share";
 const SUPPORTED_UI_LANGUAGES = ["fr", "en"];
@@ -54,6 +55,8 @@ const UI_STRINGS = {
     "tab.form.meta": "Nouvelle transaction",
     "tab.recurring.label": "Récurrentes",
     "tab.recurring.meta": "Modèles et règles",
+    "tab.cards.label": "Cartes",
+    "tab.cards.meta": "Montants dus",
     "tab.analysis.label": "Analyse",
     "tab.analysis.meta": "Comparaisons",
     "tab.share.label": "Paramètres",
@@ -76,11 +79,14 @@ const UI_STRINGS = {
     "transactions.detailsAmount": "Montant",
     "transactions.detailsSource": "Source",
     "transactions.useAsRecurring": "Utiliser comme modèle récurrent",
+    "transactions.openRecurringAfterCreate": "Ouvrir les récurrentes",
     "transactions.recurringUnavailable": "Cette transaction doit contenir une catégorie et un montant pour devenir un modèle récurrent.",
     "tab.form.title": "Formulaire",
     "tab.form.description": "Un espace dédié à la création et à la modification d'une transaction, sans distraction autour.",
     "tab.recurring.title": "Transactions récurrentes",
     "tab.recurring.description": "Gérez ici vos modèles rapides, règles automatiques et validations en attente, sans alourdir le formulaire.",
+    "tab.cards.title": "Suivi des cartes",
+    "tab.cards.description": "Suivez ici les montants dus, les échéances et les dates de relevé pour chaque personne.",
     "tab.analysis.title": "Analyse",
     "tab.analysis.description": "Des comparaisons claires entre revenu, dépenses, épargne et cash pour comprendre votre rythme.",
     "tab.share.title": "Paramètres",
@@ -201,6 +207,7 @@ const UI_STRINGS = {
     "cloud.recurringSchemaOutdated": "Les récurrentes partagées nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
     "cloud.categorySchemaOutdated": "Les catégories partagées nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
     "cloud.budgetPlanSchemaOutdated": "Les plans budgétaires partagés nécessitent le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
+    "cloud.cardTrackerSchemaOutdated": "Le suivi des cartes partagé nécessite le schéma Supabase à jour. Relancez le script supabase/schema.sql.",
     "alerts.statusNotConfigured": "La fonction d'alerte email n'est pas configurée côté Supabase.",
     "alerts.statusNotReady": "Supabase doit être configuré pour activer les alertes email.",
     "alerts.statusDisabled": "Alertes email désactivées.",
@@ -253,9 +260,48 @@ const UI_STRINGS = {
     "cards.kickerRecurring": "Récurrentes",
     "cards.titleRecurring": "Modèles et validations récurrentes",
     "cards.captionRecurring": "Regroupez ici vos modèles rapides, règles automatiques et écritures dues à valider avant ajout au journal.",
+    "cards.kickerCards": "Cartes",
+    "cards.titleCards": "Montants dus par personne",
+    "cards.captionCards": "Un tableau dédié pour suivre les cartes, échéances, dates de relevé et balance globale sans passer par les transactions.",
     "cards.kickerJournal": "Journalier",
     "cards.titleJournal": "Les écritures deviennent des fiches",
     "cards.captionJournal": "Cette vue utilise Journalier!D:F, garde la liste des catégories de Journalier!B et reprend le même filtre année/mois que le récapitulatif.",
+    "cardTracker.kicker": "Suivi cartes",
+    "cardTracker.title": "Tableau des cartes",
+    "cardTracker.description": "Mettez à jour ici les montants dus, dates d'échéance, dates de relevé et notes par personne.",
+    "cardTracker.addPerson": "Ajouter une personne",
+    "cardTracker.addCard": "Ajouter une carte",
+    "cardTracker.resetTemplate": "Réinitialiser le modèle",
+    "cardTracker.cardColumn": "Carte",
+    "cardTracker.dueColumn": "Montant dû",
+    "cardTracker.dueDateColumn": "Date d'échéance",
+    "cardTracker.statementDateColumn": "Date du relevé",
+    "cardTracker.noteColumn": "Note",
+    "cardTracker.actionsColumn": "Action",
+    "cardTracker.total": "Total",
+    "cardTracker.balance": "Balance",
+    "cardTracker.removePerson": "Supprimer la personne",
+    "cardTracker.removeCard": "Supprimer la carte",
+    "cardTracker.personPlaceholder": "Nom de la personne",
+    "cardTracker.cardPlaceholder": "Nom de la carte",
+    "cardTracker.amountPlaceholder": "0,00",
+    "cardTracker.notePlaceholder": "Ajouter une note",
+    "cardTracker.noCards": "Aucune carte pour le moment. Ajoutez-en une pour commencer.",
+    "cardTracker.dayPlaceholder": "Jour",
+    "cardTracker.daySuffix": "du mois",
+    "cardTracker.statementAuto": "Calculée automatiquement à partir de la date d'échéance (-21 jours).",
+    "cardTracker.cardCount": "{count} carte{plural}",
+    "cardTracker.personDefault1": "Personne 1",
+    "cardTracker.personDefault2": "Personne 2",
+    "cardTracker.empty": "Aucune personne pour le moment. Ajoutez-en une pour commencer votre suivi.",
+    "cardTracker.personAdded": "Nouvelle personne ajoutée.",
+    "cardTracker.cardAdded": "Nouvelle carte ajoutée.",
+    "cardTracker.personRemoved": "Personne supprimée.",
+    "cardTracker.cardRemoved": "Carte supprimée.",
+    "cardTracker.templateResetDone": "Le modèle de suivi des cartes a été réinitialisé.",
+    "cardTracker.confirmRemovePerson": "Supprimer cette personne et toutes ses cartes ?",
+    "cardTracker.confirmRemoveCard": "Supprimer cette carte ?",
+    "cardTracker.confirmResetTemplate": "Réinitialiser le tableau des cartes avec le modèle de départ ?",
     "filters.allYears": "Toutes les années",
     "filters.allMonths": "Tous les mois",
     "filters.allPeriod": "Toute la période",
@@ -265,6 +311,7 @@ const UI_STRINGS = {
     "form.save": "Enregistrer",
     "form.saveRecurringTemplate": "Enregistrer comme modèle",
     "form.reset": "Réinitialiser",
+    "form.closeScreen": "Retour aux transactions",
     "form.newRecord": "Nouvelle fiche",
     "form.startFirst": "Démarrez d'abord votre budget local ou importez votre fichier Excel.",
     "form.readOnlyRecap": "Vue récap",
@@ -494,6 +541,8 @@ const UI_STRINGS = {
     "tab.form.meta": "New transaction",
     "tab.recurring.label": "Recurring",
     "tab.recurring.meta": "Templates and rules",
+    "tab.cards.label": "Cards",
+    "tab.cards.meta": "Amounts due",
     "tab.analysis.label": "Analysis",
     "tab.analysis.meta": "Comparisons",
     "tab.share.label": "Settings",
@@ -516,11 +565,14 @@ const UI_STRINGS = {
     "transactions.detailsAmount": "Amount",
     "transactions.detailsSource": "Source",
     "transactions.useAsRecurring": "Use as recurring template",
+    "transactions.openRecurringAfterCreate": "Open recurring templates",
     "transactions.recurringUnavailable": "This transaction must include a category and amount to become a recurring template.",
     "tab.form.title": "Form",
     "tab.form.description": "A dedicated space to create and edit a transaction without distractions.",
     "tab.recurring.title": "Recurring transactions",
     "tab.recurring.description": "Manage your quick templates, automatic rules, and pending validations here without cluttering the form.",
+    "tab.cards.title": "Card tracker",
+    "tab.cards.description": "Track amounts due, due dates, and statement dates for each person here.",
     "tab.analysis.title": "Analysis",
     "tab.analysis.description": "Clear comparisons between income, expenses, savings, and cash to understand your rhythm.",
     "tab.share.title": "Settings",
@@ -641,6 +693,7 @@ const UI_STRINGS = {
     "cloud.recurringSchemaOutdated": "Shared recurring templates require the latest Supabase schema. Run the updated supabase/schema.sql script.",
     "cloud.categorySchemaOutdated": "Shared categories require the latest Supabase schema. Run the updated supabase/schema.sql script.",
     "cloud.budgetPlanSchemaOutdated": "Shared budget plans require the latest Supabase schema. Run the updated supabase/schema.sql script.",
+    "cloud.cardTrackerSchemaOutdated": "Shared card tracking requires the latest Supabase schema. Run the updated supabase/schema.sql script.",
     "alerts.statusNotConfigured": "The email alert function is not configured on the Supabase side.",
     "alerts.statusNotReady": "Supabase must be configured to enable email alerts.",
     "alerts.statusDisabled": "Email alerts are disabled.",
@@ -693,9 +746,48 @@ const UI_STRINGS = {
     "cards.kickerRecurring": "Recurring",
     "cards.titleRecurring": "Recurring templates and reviews",
     "cards.captionRecurring": "Keep your quick templates, automatic rules, and due entries to review in one dedicated place.",
+    "cards.kickerCards": "Cards",
+    "cards.titleCards": "Amounts due by person",
+    "cards.captionCards": "A dedicated board to track cards, due dates, statement dates, and the global balance without going through transactions.",
     "cards.kickerJournal": "Journal",
     "cards.titleJournal": "Entries become cards",
     "cards.captionJournal": "This view uses Journalier!D:F, keeps the category list from Journalier!B, and uses the same year/month filter as the recap.",
+    "cardTracker.kicker": "Card tracker",
+    "cardTracker.title": "Cards board",
+    "cardTracker.description": "Update amounts due, due dates, statement dates, and notes for each person here.",
+    "cardTracker.addPerson": "Add person",
+    "cardTracker.addCard": "Add card",
+    "cardTracker.resetTemplate": "Reset template",
+    "cardTracker.cardColumn": "Card",
+    "cardTracker.dueColumn": "Amount due",
+    "cardTracker.dueDateColumn": "Due date",
+    "cardTracker.statementDateColumn": "Statement date",
+    "cardTracker.noteColumn": "Note",
+    "cardTracker.actionsColumn": "Action",
+    "cardTracker.total": "Total",
+    "cardTracker.balance": "Balance",
+    "cardTracker.removePerson": "Remove person",
+    "cardTracker.removeCard": "Remove card",
+    "cardTracker.personPlaceholder": "Person name",
+    "cardTracker.cardPlaceholder": "Card name",
+    "cardTracker.amountPlaceholder": "0.00",
+    "cardTracker.notePlaceholder": "Add a note",
+    "cardTracker.noCards": "No cards yet. Add one to get started.",
+    "cardTracker.dayPlaceholder": "Day",
+    "cardTracker.daySuffix": "of month",
+    "cardTracker.statementAuto": "Automatically calculated from the due date (-21 days).",
+    "cardTracker.cardCount": "{count} card{plural}",
+    "cardTracker.personDefault1": "Person 1",
+    "cardTracker.personDefault2": "Person 2",
+    "cardTracker.empty": "No person yet. Add one to start tracking your cards.",
+    "cardTracker.personAdded": "New person added.",
+    "cardTracker.cardAdded": "New card added.",
+    "cardTracker.personRemoved": "Person removed.",
+    "cardTracker.cardRemoved": "Card removed.",
+    "cardTracker.templateResetDone": "The card tracker template has been reset.",
+    "cardTracker.confirmRemovePerson": "Remove this person and all linked cards?",
+    "cardTracker.confirmRemoveCard": "Remove this card?",
+    "cardTracker.confirmResetTemplate": "Reset the card tracker with the starter template?",
     "filters.allYears": "All years",
     "filters.allMonths": "All months",
     "filters.allPeriod": "Whole period",
@@ -705,6 +797,7 @@ const UI_STRINGS = {
     "form.save": "Save",
     "form.saveRecurringTemplate": "Save as template",
     "form.reset": "Reset",
+    "form.closeScreen": "Back to transactions",
     "form.newRecord": "New record",
     "form.startFirst": "Start your local budget first or import your Excel file.",
     "form.readOnlyRecap": "Recap view",
@@ -1380,6 +1473,7 @@ const state = {
   budget: createEmptyBudgetModel(),
   recap: createEmptyRecapModel(),
   recapFilters: createEmptyRecapFilters(),
+  cardTracker: createDefaultCardTrackerModel({ language: "fr" }),
 };
 
 const refs = {};
@@ -1398,6 +1492,7 @@ let cloudSyncQueue = Promise.resolve();
 let recurringSupabaseSchemaReady = true;
 let categorySupabaseSchemaReady = true;
 let budgetPlanSupabaseSchemaReady = true;
+let cardTrackerSupabaseSchemaReady = true;
 let formFeedbackTimer = null;
 let appToastTimer = null;
 let nativeSupabaseRedirectListenerBound = false;
@@ -1592,6 +1687,244 @@ function createEmptyRecapModel() {
     budgetPlans: [],
     activeBudgetPlanId: "",
   };
+}
+
+function createEmptyCardTrackerModel() {
+  return {
+    people: [],
+  };
+}
+
+function getCardTrackerDefaultPersonName(index = 0, language = "fr") {
+  const safeIndex = Math.max(0, Number.isFinite(index) ? index : 0);
+
+  if (safeIndex === 0) {
+    return language === "en" ? "Person 1" : "Personne 1";
+  }
+
+  if (safeIndex === 1) {
+    return language === "en" ? "Person 2" : "Personne 2";
+  }
+
+  return language === "en" ? `Person ${safeIndex + 1}` : `Personne ${safeIndex + 1}`;
+}
+
+function normalizeCardTrackerAmount(value) {
+  const normalized = normalizeAmountValue(value);
+  if (normalized === "") {
+    return "";
+  }
+
+  return String(roundCurrencyValue(Math.abs(parseAmount(normalized))));
+}
+
+function normalizeCardTrackerDay(value) {
+  const raw = String(value ?? "").replace(/[^\d]/g, "");
+  if (!raw) {
+    return "";
+  }
+
+  const day = Math.max(1, Math.min(31, Number(raw)));
+  return Number.isFinite(day) ? String(day) : "";
+}
+
+function shiftIsoDateByDays(isoDate, dayOffset) {
+  const normalized = normalizeDateValue(isoDate);
+  if (!normalized) {
+    return "";
+  }
+
+  const baseDate = new Date(`${normalized}T00:00:00Z`);
+  if (Number.isNaN(baseDate.getTime())) {
+    return "";
+  }
+
+  baseDate.setUTCDate(baseDate.getUTCDate() + Number(dayOffset || 0));
+  return baseDate.toISOString().slice(0, 10);
+}
+
+function buildCardTrackerDueDateFromLegacyDay(dayValue, referenceDate = new Date()) {
+  const normalizedDay = Number(normalizeCardTrackerDay(dayValue));
+  if (!Number.isFinite(normalizedDay) || normalizedDay <= 0) {
+    return "";
+  }
+
+  const today = new Date(Date.UTC(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate()
+  ));
+
+  for (let offset = 0; offset < 24; offset += 1) {
+    const monthCursor = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, 1));
+    const daysInMonth = new Date(Date.UTC(
+      monthCursor.getUTCFullYear(),
+      monthCursor.getUTCMonth() + 1,
+      0
+    )).getUTCDate();
+
+    if (normalizedDay > daysInMonth) {
+      continue;
+    }
+
+    const candidate = new Date(Date.UTC(
+      monthCursor.getUTCFullYear(),
+      monthCursor.getUTCMonth(),
+      normalizedDay
+    ));
+    if (candidate >= today) {
+      return candidate.toISOString().slice(0, 10);
+    }
+  }
+
+  return "";
+}
+
+function normalizeCardTrackerDueDate(value, fallbackDay = "") {
+  const normalized = normalizeDateValue(value);
+  if (normalized) {
+    return normalized;
+  }
+
+  return buildCardTrackerDueDateFromLegacyDay(fallbackDay);
+}
+
+function getCardTrackerStatementDate(card) {
+  const dueDate = normalizeCardTrackerDueDate(card?.dueDate, card?.dueDay);
+  if (!dueDate) {
+    return "";
+  }
+
+  return shiftIsoDateByDays(dueDate, -21);
+}
+
+function createCardTrackerCard(overrides = {}) {
+  return {
+    id: String(overrides.id || createId()),
+    label: String(overrides.label || "").trim(),
+    due: normalizeCardTrackerAmount(overrides.due),
+    dueDate: normalizeCardTrackerDueDate(overrides.dueDate, overrides.dueDay),
+    note: String(overrides.note || "").trim(),
+  };
+}
+
+function createCardTrackerPerson(overrides = {}, index = 0, options = {}) {
+  const language = options.language === "en" ? "en" : "fr";
+  const cards = Array.isArray(overrides.cards)
+    ? overrides.cards.map((card) => createCardTrackerCard(card))
+    : [createCardTrackerCard()];
+
+  return {
+    id: String(overrides.id || createId()),
+    name: String(overrides.name || "").trim() || getCardTrackerDefaultPersonName(index, language),
+    cards,
+  };
+}
+
+function createDefaultCardTrackerModel(options = {}) {
+  const language = options.language === "en" ? "en" : "fr";
+  return {
+    people: [
+      createCardTrackerPerson({
+        name: getCardTrackerDefaultPersonName(0, language),
+        cards: [
+          { label: "BNC", due: "1700", dueDate: buildCardTrackerDueDateFromLegacyDay("31") },
+          { label: "CIBC", due: "0", dueDate: buildCardTrackerDueDateFromLegacyDay("13") },
+          { label: "AMEX", due: "220", dueDate: buildCardTrackerDueDateFromLegacyDay("8") },
+        ],
+      }, 0, { language }),
+      createCardTrackerPerson({
+        name: getCardTrackerDefaultPersonName(1, language),
+        cards: [
+          { label: "BNC", due: "297", dueDate: buildCardTrackerDueDateFromLegacyDay("25") },
+          { label: "CIBC", due: "300", dueDate: buildCardTrackerDueDateFromLegacyDay("11") },
+          { label: "WAL", due: "200", dueDate: buildCardTrackerDueDateFromLegacyDay("8") },
+        ],
+      }, 1, { language }),
+    ],
+  };
+}
+
+function sanitizeCardTrackerCard(rawCard) {
+  return createCardTrackerCard(rawCard || {});
+}
+
+function sanitizeCardTrackerPerson(rawPerson, index = 0, options = {}) {
+  const language = options.language === "en" ? "en" : "fr";
+  const cards = Array.isArray(rawPerson?.cards)
+    ? rawPerson.cards.map((card) => sanitizeCardTrackerCard(card))
+    : [];
+
+  return {
+    id: String(rawPerson?.id || createId()),
+    name: String(rawPerson?.name || "").trim() || getCardTrackerDefaultPersonName(index, language),
+    cards,
+  };
+}
+
+function sanitizeCardTrackerModel(rawModel, options = {}) {
+  const language = options.language === "en" ? "en" : "fr";
+  const fallbackToDefault = options.fallbackToDefault !== false;
+  const people = Array.isArray(rawModel?.people)
+    ? rawModel.people.map((person, index) => sanitizeCardTrackerPerson(person, index, { language }))
+    : [];
+
+  if (people.length) {
+    return { people };
+  }
+
+  return fallbackToDefault ? createDefaultCardTrackerModel({ language }) : createEmptyCardTrackerModel();
+}
+
+function ensureCardTrackerState() {
+  if (!state.cardTracker || !Array.isArray(state.cardTracker.people)) {
+    state.cardTracker = createDefaultCardTrackerModel({ language: getCurrentLanguage() });
+  }
+
+  return state.cardTracker;
+}
+
+function getCardTrackerPeople() {
+  return ensureCardTrackerState().people;
+}
+
+function findCardTrackerPerson(personId) {
+  return getCardTrackerPeople().find((person) => person.id === String(personId || "").trim()) || null;
+}
+
+function findCardTrackerCard(person, cardId) {
+  if (!person || !Array.isArray(person.cards)) {
+    return null;
+  }
+
+  return person.cards.find((card) => card.id === String(cardId || "").trim()) || null;
+}
+
+function getCardTrackerDueValue(card) {
+  return roundCurrencyValue(Math.abs(parseAmount(card?.due)));
+}
+
+function getCardTrackerPersonTotal(person) {
+  if (!person || !Array.isArray(person.cards)) {
+    return 0;
+  }
+
+  return roundCurrencyValue(
+    person.cards.reduce((total, card) => total + getCardTrackerDueValue(card), 0)
+  );
+}
+
+function getCardTrackerBalance() {
+  return roundCurrencyValue(
+    getCardTrackerPeople().reduce((total, person) => total + getCardTrackerPersonTotal(person), 0)
+  );
+}
+
+function buildCardTrackerCardCountLabel(count) {
+  return t("cardTracker.cardCount", {
+    count,
+    plural: count > 1 ? "s" : "",
+  });
 }
 
 function createDefaultUiSettings() {
@@ -2153,6 +2486,7 @@ function startLocalBudgetExperience(options = {}) {
     activeBudgetPlanId: initialPlan.id,
   };
   state.recapFilters = createEmptyRecapFilters();
+  state.cardTracker = createDefaultCardTrackerModel({ language: getCurrentLanguage() });
   if (recurringTemplates.length) {
     state.recurringTemplates = recurringTemplates;
     persistRecurringTemplates();
@@ -4874,6 +5208,7 @@ function normalizeAppTab(value) {
     value === APP_TAB_TRANSACTIONS ||
     value === APP_TAB_FORM ||
     value === APP_TAB_RECURRING ||
+    value === APP_TAB_CARDS ||
     value === APP_TAB_ANALYSIS ||
     value === APP_TAB_SHARE
   ) {
@@ -4906,7 +5241,12 @@ function syncActiveViewForCurrentTab() {
     return;
   }
 
-  if (state.appTab === APP_TAB_TRANSACTIONS || state.appTab === APP_TAB_FORM || state.appTab === APP_TAB_RECURRING) {
+  if (
+    state.appTab === APP_TAB_TRANSACTIONS ||
+    state.appTab === APP_TAB_FORM ||
+    state.appTab === APP_TAB_RECURRING ||
+    state.appTab === APP_TAB_CARDS
+  ) {
     state.activeView = JOURNAL_SHEET_NAME;
     return;
   }
@@ -5031,6 +5371,7 @@ function cacheDom() {
   refs.formFeedback = document.getElementById("form-feedback");
   refs.formTitle = document.getElementById("form-title");
   refs.formSubtitle = document.getElementById("form-subtitle");
+  refs.androidFormClose = document.getElementById("android-form-close");
   refs.appToast = document.getElementById("app-toast");
   refs.saveButton = document.getElementById("save-record");
   refs.saveRecurringTemplateButton = document.getElementById("save-recurring-template");
@@ -5148,6 +5489,7 @@ function bindEvents() {
     void onExportOptionRequested("complete");
   });
   refs.installButton.addEventListener("click", onInstallApp);
+  refs.androidFormClose?.addEventListener("click", onAndroidFormCloseRequested);
   refs.form.addEventListener("submit", onSaveRecord);
   refs.form.addEventListener("input", onPlanEditorFieldChanged);
   refs.form.addEventListener("change", onPlanEditorFieldChanged);
@@ -5166,11 +5508,14 @@ function bindEvents() {
   refs.formActions.addEventListener("click", onRecurringTemplateAction);
   refs.cancelButton.addEventListener("click", onEditorCancelRequested);
   refs.cardsGrid.addEventListener("click", onCardAction);
+  refs.cardsGrid.addEventListener("click", onCardTrackerAction);
   refs.recapView.addEventListener("click", onAnalysisInteraction);
   refs.cardsGrid.addEventListener("click", onRecurringBillsAction);
   refs.cardsGrid.addEventListener("click", onRecurringAllAction);
   refs.cardsGrid.addEventListener("click", onRecurringTemplateAction);
   refs.cardsGrid.addEventListener("click", onRecurringReviewAction);
+  refs.cardsGrid.addEventListener("input", onCardTrackerInput);
+  refs.cardsGrid.addEventListener("change", onCardTrackerChange);
   refs.cardsGrid.addEventListener("input", onRecurringTemplateConfigChanged);
   refs.cardsGrid.addEventListener("change", onRecurringTemplateConfigChanged);
   refs.cardsGrid.addEventListener("input", onRecurringReviewDraftChanged);
@@ -5323,6 +5668,10 @@ function syncAndroidViewportProfile() {
   document.body.classList.toggle("android-large-phone", largePhone);
   document.body.classList.toggle("android-ultra-phone", ultraPhone);
   document.body.classList.toggle("android-wide-layout", wideLayout);
+}
+
+function isAndroidFullscreenFormActive() {
+  return isAndroidNativeRuntime() && state.appTab === APP_TAB_FORM;
 }
 
 function getSupabaseRuntime() {
@@ -6094,7 +6443,24 @@ function closeTransactionDetailsModal() {
   if (transactionDetailsModal?.remove) {
     transactionDetailsModal.remove();
   }
+  document.querySelectorAll(".transaction-details-modal").forEach((modal) => {
+    if (modal?.remove) {
+      modal.remove();
+    }
+  });
   transactionDetailsModal = null;
+}
+
+function openRecurringTemplatesAfterTransactionModalClose() {
+  document.querySelectorAll(".transaction-details-modal").forEach((modal) => {
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    modal.style.display = "none";
+  });
+  closeTransactionDetailsModal();
+  window.setTimeout(() => {
+    openRecurringTemplatesModal({ skipTransactionClose: true });
+  }, 0);
 }
 
 function refreshTransactionDetailsModal() {
@@ -6180,6 +6546,7 @@ function openTransactionDetailsModal(index) {
       </div>
       <div class="analysis-transactions-actions">
         <button type="button" class="button secondary" data-transaction-details-action="save-recurring" ${recurringDisabled}>${escapeHtml(t("transactions.useAsRecurring"))}</button>
+        <button type="button" class="button ghost hidden" data-transaction-details-action="open-recurring">${escapeHtml(t("transactions.openRecurringAfterCreate"))}</button>
       </div>
     </div>
   `;
@@ -6204,7 +6571,9 @@ function openTransactionDetailsModal(index) {
         return;
       }
 
-      const createdMessage = await saveRecurringTemplateFromRecord(currentRow);
+      const createdMessage = await saveRecurringTemplateFromRecord(currentRow, {
+        showToast: false,
+      });
       if (!createdMessage) {
         return;
       }
@@ -6214,6 +6583,18 @@ function openTransactionDetailsModal(index) {
         feedback.textContent = createdMessage;
         feedback.classList.remove("hidden");
       }
+
+      const openRecurringButton = overlay.querySelector("[data-transaction-details-action='open-recurring']");
+      if (openRecurringButton) {
+        openRecurringButton.classList.remove("hidden");
+      }
+      return;
+    }
+
+    if (action?.dataset.transactionDetailsAction === "open-recurring") {
+      event.stopPropagation();
+      openRecurringTemplatesAfterTransactionModalClose();
+      return;
     }
   });
 
@@ -6690,6 +7071,8 @@ function getAppTabLabel(tab = state.appTab) {
       return t("tab.form.label");
     case APP_TAB_RECURRING:
       return t("tab.recurring.label");
+    case APP_TAB_CARDS:
+      return t("tab.cards.label");
     case APP_TAB_ANALYSIS:
       return t("tab.analysis.label");
     case APP_TAB_SHARE:
@@ -6716,6 +7099,10 @@ function buildCurrentEditActivityLabel() {
 
   if (state.appTab === APP_TAB_RECURRING) {
     return "gère les transactions récurrentes";
+  }
+
+  if (state.appTab === APP_TAB_CARDS) {
+    return "gère les cartes";
   }
 
   return "";
@@ -7046,6 +7433,10 @@ function describeSupabaseError(error, fallbackMessage) {
     return `${fallbackMessage} ${t("cloud.budgetPlanSchemaOutdated")}`;
   }
 
+  if (isSupabaseCardTrackerSchemaMissing(error)) {
+    return `${fallbackMessage} ${t("cloud.cardTrackerSchemaOutdated")}`;
+  }
+
   if (rawMessage) {
     return `${fallbackMessage} ${rawMessage}`;
   }
@@ -7122,6 +7513,26 @@ function isSupabaseBudgetPlanSchemaMissing(error) {
 
 function buildBudgetPlanSchemaWarningMessage() {
   return t("cloud.budgetPlanSchemaOutdated");
+}
+
+function isSupabaseCardTrackerSchemaMissing(error) {
+  const haystack = String(
+    `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""} ${error?.code || ""}`
+  ).toLowerCase();
+
+  if (!haystack) {
+    return false;
+  }
+
+  return [
+    "budget_card_tracker_state",
+    "card_tracker_state",
+    "payload",
+  ].some((needle) => haystack.includes(needle));
+}
+
+function buildCardTrackerSchemaWarningMessage() {
+  return t("cloud.cardTrackerSchemaOutdated");
 }
 
 async function consumeSupabaseAuthCallback(urlValue = window.location.href) {
@@ -7756,6 +8167,15 @@ function startSupabaseRealtime(spaceId) {
     }, queueCloudRefresh);
   }
 
+  if (cardTrackerSupabaseSchemaReady) {
+    channel = channel.on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "budget_card_tracker_state",
+      filter: `space_id=eq.${spaceId}`,
+    }, queueCloudRefresh);
+  }
+
   supabaseRealtimeChannel = channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void updateCloudPresenceTrack();
@@ -7792,10 +8212,12 @@ async function publishLocalBudgetToSupabase() {
     const planPayload = buildSupabasePlanPayload(spaceId);
     const legacyPlanPayload = buildLegacySupabasePlanPayload(spaceId);
     const recurringTemplatesPayload = buildSupabaseRecurringTemplatePayload(spaceId);
+    const cardTrackerPayload = buildSupabaseCardTrackerPayload(spaceId);
     const transactionsPayload = buildSupabaseTransactionPayload(spaceId);
     let recurringSchemaOutdated = false;
     let categorySchemaOutdated = false;
     let budgetPlanSchemaOutdated = false;
+    let cardTrackerSchemaOutdated = false;
 
     let query = supabaseClient.from("budget_transactions").delete();
     let { error } = await query.eq("space_id", spaceId);
@@ -7923,6 +8345,17 @@ async function publishLocalBudgetToSupabase() {
       }
     }
 
+    ({ error } = await supabaseClient.from("budget_card_tracker_state").upsert([cardTrackerPayload], {
+      onConflict: "space_id",
+    }));
+    if (error) {
+      if (isSupabaseCardTrackerSchemaMissing(error)) {
+        cardTrackerSchemaOutdated = true;
+      } else {
+        throw error;
+      }
+    }
+
     if (transactionsPayload.length) {
       ({ error } = await supabaseClient.from("budget_transactions").upsert(transactionsPayload));
       if (error) {
@@ -7934,17 +8367,21 @@ async function publishLocalBudgetToSupabase() {
     recurringSupabaseSchemaReady = !recurringSchemaOutdated;
     categorySupabaseSchemaReady = !categorySchemaOutdated;
     budgetPlanSupabaseSchemaReady = !budgetPlanSchemaOutdated;
+    cardTrackerSupabaseSchemaReady = !cardTrackerSchemaOutdated;
+    stopSupabaseRealtime();
+    startSupabaseRealtime(spaceId);
     const schemaWarnings = [
       categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
       recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
       budgetPlanSchemaOutdated ? buildBudgetPlanSchemaWarningMessage() : "",
+      cardTrackerSchemaOutdated ? buildCardTrackerSchemaWarningMessage() : "",
     ].filter(Boolean).join(" ");
     const successMessage = schemaWarnings
       ? `Budget publie vers ${state.cloud.space.name}. ${schemaWarnings}`
       : `Budget publie vers ${state.cloud.space.name}.`;
     setCloudStatus(successMessage);
     setLastAction(
-      [categorySchemaOutdated, recurringSchemaOutdated, budgetPlanSchemaOutdated].filter(Boolean).length
+      [categorySchemaOutdated, recurringSchemaOutdated, budgetPlanSchemaOutdated, cardTrackerSchemaOutdated].filter(Boolean).length
         ? `Données locales publiees vers ${state.cloud.space.name} - certaines données partagées restent sur l'ancien schéma`
         : `Données locales publiees vers ${state.cloud.space.name}`
     );
@@ -7972,7 +8409,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       renderAll();
     }
 
-    const [{ data: categories, error: categoriesError }, { data: categoryGroups, error: categoryGroupsError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult] = await Promise.all([
+    const [{ data: categories, error: categoriesError }, { data: categoryGroups, error: categoryGroupsError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult, cardTrackerResult] = await Promise.all([
       supabaseClient
         .from("budget_categories")
         .select("*")
@@ -8004,10 +8441,16 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
         .eq("space_id", spaceId)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }),
+      supabaseClient
+        .from("budget_card_tracker_state")
+        .select("*")
+        .eq("space_id", spaceId)
+        .maybeSingle(),
     ]);
     let recurringSchemaOutdated = false;
     let categorySchemaOutdated = false;
     let budgetPlanSchemaOutdated = false;
+    let cardTrackerSchemaOutdated = false;
 
     if (categoriesError) {
       throw categoriesError;
@@ -8041,6 +8484,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       }
     }
 
+    if (cardTrackerResult?.error) {
+      if (isSupabaseCardTrackerSchemaMissing(cardTrackerResult.error)) {
+        cardTrackerSchemaOutdated = true;
+      } else {
+        throw cardTrackerResult.error;
+      }
+    }
+
     state.mode = "budget";
     state.workbookName = state.workbookName || state.cloud.space.name || "Budget partage cloud";
     state.workbook = null;
@@ -8054,6 +8505,10 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     const preservedCustomGroups = getBudgetCustomGroups();
     const preservedCategoryAssignments = getBudgetCategoryAssignments();
     const preservedPlans = cloneBudgetPlanDefinitions(state.recap?.budgetPlans || []);
+    const preservedCardTracker = sanitizeCardTrackerModel(state.cardTracker, {
+      language: getCurrentLanguage(),
+      fallbackToDefault: true,
+    });
     const cloudCustomGroups = parseSupabaseCategoryGroupRows(categoryGroups || []);
     const cloudCategoryAssignments = parseSupabaseCategoryAssignmentsFromRows(categories || []);
     state.budget = {
@@ -8085,9 +8540,13 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       budgetPlans: cloudPlans,
       activeBudgetPlanId: preferredPlan?.id || "",
     };
+    state.cardTracker = cardTrackerSchemaOutdated
+      ? preservedCardTracker
+      : parseSupabaseCardTrackerStateRow(cardTrackerResult?.data, preservedCardTracker);
     recurringSupabaseSchemaReady = !recurringSchemaOutdated;
     categorySupabaseSchemaReady = !categorySchemaOutdated;
     budgetPlanSupabaseSchemaReady = !budgetPlanSchemaOutdated;
+    cardTrackerSupabaseSchemaReady = !cardTrackerSchemaOutdated;
     if (!recurringSchemaOutdated) {
       state.recurringTemplates = parseSupabaseRecurringTemplateRows(recurringResult?.data || []);
       persistRecurringTemplatesIfPossible();
@@ -8102,6 +8561,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
       recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
       budgetPlanSchemaOutdated ? buildBudgetPlanSchemaWarningMessage() : "",
+      cardTrackerSchemaOutdated ? buildCardTrackerSchemaWarningMessage() : "",
     ].filter(Boolean).join(" ");
 
     setCloudStatus(
@@ -8248,6 +8708,28 @@ function parseSupabaseRecurringTemplateRows(rows = []) {
       dismissedKeys: row.dismissed_keys,
     }))
     .filter(Boolean);
+}
+
+function buildSupabaseCardTrackerPayload(spaceId) {
+  return {
+    space_id: spaceId,
+    payload: sanitizeCardTrackerModel(state.cardTracker, {
+      language: getCurrentLanguage(),
+      fallbackToDefault: false,
+    }),
+  };
+}
+
+function parseSupabaseCardTrackerStateRow(row, fallbackModel = null) {
+  const fallback = fallbackModel || createDefaultCardTrackerModel({ language: getCurrentLanguage() });
+  if (!row?.payload) {
+    return fallback;
+  }
+
+  return sanitizeCardTrackerModel(row.payload, {
+    language: getCurrentLanguage(),
+    fallbackToDefault: true,
+  }) || fallback;
 }
 
 function parseSupabaseCategoryGroupRows(rows = []) {
@@ -8629,6 +9111,7 @@ function persistDraft() {
     },
     recurringTemplates: state.recurringTemplates,
     recapFilters: state.recapFilters,
+    cardTracker: state.cardTracker,
     savedAt: new Date().toISOString(),
   };
 
@@ -8699,6 +9182,10 @@ function applyStoredDraft(draft) {
   state.recurringTemplates = Array.isArray(draft.recurringTemplates)
     ? draft.recurringTemplates.map((template) => sanitizeRecurringTemplate(template)).filter(Boolean)
     : state.recurringTemplates;
+  state.cardTracker = sanitizeCardTrackerModel(draft.cardTracker, {
+    language: getCurrentLanguage(),
+    fallbackToDefault: true,
+  });
   state.sourceSafety = createEmptySourceSafety();
   state.draftSavedAt = String(draft.savedAt || "");
 
@@ -8768,6 +9255,7 @@ function restartToWelcomeMode() {
   state.budget = createEmptyBudgetModel();
   state.recap = createEmptyRecapModel();
   state.recapFilters = createEmptyRecapFilters();
+  state.cardTracker = createDefaultCardTrackerModel({ language: getCurrentLanguage() });
 
   if (refs.searchInput) {
     refs.searchInput.value = "";
@@ -9519,6 +10007,7 @@ function resetBudgetStateForInvalidWorkbook(fileName) {
   state.budget = createEmptyBudgetModel();
   state.recap = createEmptyRecapModel();
   state.recapFilters = createEmptyRecapFilters();
+  state.cardTracker = createDefaultCardTrackerModel({ language: getCurrentLanguage() });
   refs.searchInput.value = "";
   refs.fileInput.value = "";
   setLastAction("Import attendu : fichier Excel valide, export Journalier ou classeur complet BUDEGETAPP.");
@@ -10207,6 +10696,9 @@ function buildRecurringTemplateFromRecord(record) {
 }
 
 async function saveRecurringTemplateFromRecord(record, options = {}) {
+  const showToast = options.showToast !== false;
+  const showToastAction = options.showToastAction !== false;
+
   if (!canCreateRecurringTemplateFromRecord(record)) {
     setLastAction(t("transactions.recurringUnavailable"));
     return "";
@@ -10240,15 +10732,17 @@ async function saveRecurringTemplateFromRecord(record, options = {}) {
     `le modèle récurrent ${displayLabel || nextTemplate.label}`
   );
 
-  showAppToast(createdMessage, 5200, {
-    actionLabel: t("recurring.openTemplatesModal"),
-    onAction: () => {
-      openRecurringTemplatesModal();
-    },
-  });
+  if (showToast) {
+    showAppToast(createdMessage, 5200, showToastAction ? {
+      actionLabel: t("recurring.openTemplatesModal"),
+      onAction: () => {
+        openRecurringTemplatesAfterTransactionModalClose();
+      },
+    } : {});
+  }
 
   if (options.openRecurringModal) {
-    openRecurringTemplatesModal();
+    openRecurringTemplatesAfterTransactionModalClose();
   }
 
   return createdMessage;
@@ -10730,6 +11224,13 @@ function onToolbarActionRequested() {
   startCreateMode();
 }
 
+function onAndroidFormCloseRequested() {
+  clearFormFeedbackTimer();
+  setFormFeedback("");
+  resetEditor();
+  void updateCloudPresenceTrack();
+}
+
 function resetEditor() {
   state.editorMode = "create";
   state.editingIndex = null;
@@ -10753,8 +11254,247 @@ function onEditorCancelRequested() {
   void updateCloudPresenceTrack();
 }
 
+function resolveCardTrackerFieldTarget(field) {
+  const person = findCardTrackerPerson(field?.dataset?.personId);
+  if (!person) {
+    return null;
+  }
+
+  const fieldName = String(field?.dataset?.cardLedgerField || "").trim();
+  if (!fieldName) {
+    return null;
+  }
+
+  if (fieldName === "person-name") {
+    return { fieldName, person, card: null };
+  }
+
+  const card = findCardTrackerCard(person, field?.dataset?.cardId);
+  if (!card) {
+    return null;
+  }
+
+  return { fieldName, person, card };
+}
+
+function refreshCardTrackerComputedValues() {
+  if (state.appTab !== APP_TAB_CARDS || !refs.cardsGrid) {
+    return;
+  }
+
+  getCardTrackerPeople().forEach((person) => {
+    const totalLabel = formatCurrency(getCardTrackerPersonTotal(person));
+    const countLabel = buildCardTrackerCardCountLabel(Array.isArray(person.cards) ? person.cards.length : 0);
+
+    refs.cardsGrid
+      .querySelectorAll(`[data-card-ledger-person-total="${person.id}"], [data-card-ledger-person-footer-total="${person.id}"]`)
+      .forEach((node) => {
+        node.textContent = totalLabel;
+      });
+
+    refs.cardsGrid
+      .querySelectorAll(`[data-card-ledger-person-count="${person.id}"]`)
+      .forEach((node) => {
+        node.textContent = countLabel;
+      });
+
+    (Array.isArray(person.cards) ? person.cards : []).forEach((card) => {
+      const statementDate = getCardTrackerStatementDate(card);
+      refs.cardsGrid
+        .querySelectorAll(`[data-card-ledger-statement-date="${card.id}"]`)
+        .forEach((node) => {
+          node.value = statementDate;
+        });
+    });
+  });
+
+  const balanceNode = refs.cardsGrid.querySelector("[data-card-ledger-balance]");
+  if (balanceNode) {
+    balanceNode.textContent = formatCurrency(getCardTrackerBalance());
+  }
+}
+
+function onCardTrackerAction(event) {
+  if (state.appTab !== APP_TAB_CARDS) {
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-card-ledger-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  event.preventDefault();
+  ensureCardTrackerState();
+
+  const action = String(actionButton.dataset.cardLedgerAction || "").trim();
+  const personId = String(actionButton.dataset.personId || "").trim();
+  const cardId = String(actionButton.dataset.cardId || "").trim();
+
+  if (action === "add-person") {
+    state.cardTracker.people.push(createCardTrackerPerson({
+      cards: [createCardTrackerCard()],
+    }, state.cardTracker.people.length, {
+      language: getCurrentLanguage(),
+    }));
+    persistDraftIfPossible();
+    setLastAction(t("cardTracker.personAdded"));
+    renderCards();
+    void queueCardTrackerCloudSync();
+    return;
+  }
+
+  if (action === "reset-template") {
+    if (!window.confirm(t("cardTracker.confirmResetTemplate"))) {
+      return;
+    }
+
+    state.cardTracker = createDefaultCardTrackerModel({ language: getCurrentLanguage() });
+    persistDraftIfPossible();
+    setLastAction(t("cardTracker.templateResetDone"));
+    renderCards();
+    void queueCardTrackerCloudSync();
+    return;
+  }
+
+  const person = findCardTrackerPerson(personId);
+  if (!person) {
+    return;
+  }
+
+  if (action === "add-card") {
+    person.cards.push(createCardTrackerCard());
+    persistDraftIfPossible();
+    setLastAction(t("cardTracker.cardAdded"));
+    renderCards();
+    void queueCardTrackerCloudSync();
+    return;
+  }
+
+  if (action === "remove-person") {
+    if (!window.confirm(t("cardTracker.confirmRemovePerson"))) {
+      return;
+    }
+
+    state.cardTracker.people = state.cardTracker.people.filter((entry) => entry.id !== person.id);
+    persistDraftIfPossible();
+    setLastAction(t("cardTracker.personRemoved"));
+    renderCards();
+    void queueCardTrackerCloudSync();
+    return;
+  }
+
+  if (action === "remove-card") {
+    if (!window.confirm(t("cardTracker.confirmRemoveCard"))) {
+      return;
+    }
+
+    person.cards = person.cards.filter((entry) => entry.id !== cardId);
+    persistDraftIfPossible();
+    setLastAction(t("cardTracker.cardRemoved"));
+    renderCards();
+    void queueCardTrackerCloudSync();
+  }
+}
+
+function onCardTrackerInput(event) {
+  if (state.appTab !== APP_TAB_CARDS) {
+    return;
+  }
+
+  const field = event.target.closest("[data-card-ledger-field]");
+  if (!field) {
+    return;
+  }
+
+  const target = resolveCardTrackerFieldTarget(field);
+  if (!target) {
+    return;
+  }
+
+  const value = String(field.value ?? "");
+  switch (target.fieldName) {
+    case "person-name":
+      target.person.name = value;
+      break;
+    case "card-label":
+      target.card.label = value;
+      break;
+    case "due":
+      target.card.due = value;
+      break;
+    case "due-date":
+      target.card.dueDate = value;
+      break;
+    case "note":
+      target.card.note = value;
+      break;
+    default:
+      return;
+  }
+
+  refreshCardTrackerComputedValues();
+  persistDraftIfPossible();
+  void queueCardTrackerCloudSync();
+}
+
+function queueCardTrackerCloudSync() {
+  if (!canUseSupabaseCloud()) {
+    return Promise.resolve();
+  }
+
+  return enqueueCloudSync(() => publishLocalBudgetToSupabase());
+}
+
+function onCardTrackerChange(event) {
+  if (state.appTab !== APP_TAB_CARDS) {
+    return;
+  }
+
+  const field = event.target.closest("[data-card-ledger-field]");
+  if (!field) {
+    return;
+  }
+
+  const target = resolveCardTrackerFieldTarget(field);
+  if (!target) {
+    return;
+  }
+
+  if (target.fieldName === "person-name") {
+    target.person.name = String(target.person.name || "").trim() || getCardTrackerDefaultPersonName(
+      state.cardTracker.people.findIndex((person) => person.id === target.person.id),
+      getCurrentLanguage()
+    );
+    field.value = target.person.name;
+  }
+
+  if (target.fieldName === "card-label") {
+    target.card.label = String(target.card.label || "").trim();
+    field.value = target.card.label;
+  }
+
+  if (target.fieldName === "note") {
+    target.card.note = String(target.card.note || "").trim();
+    field.value = target.card.note;
+  }
+
+  if (target.fieldName === "due") {
+    target.card.due = normalizeCardTrackerAmount(target.card.due);
+    field.value = target.card.due;
+  }
+
+  if (target.fieldName === "due-date") {
+    target.card.dueDate = normalizeCardTrackerDueDate(target.card.dueDate);
+    field.value = target.card.dueDate;
+  }
+
+  refreshCardTrackerComputedValues();
+  persistDraftIfPossible();
+}
+
 function onCardAction(event) {
-  if (state.activeView !== JOURNAL_SHEET_NAME) {
+  if (state.appTab !== APP_TAB_TRANSACTIONS || state.activeView !== JOURNAL_SHEET_NAME) {
     return;
   }
 
@@ -13060,6 +13800,10 @@ function renderAppTabs() {
       title: t("tab.recurring.title"),
       description: t("tab.recurring.description"),
     },
+    [APP_TAB_CARDS]: {
+      title: t("tab.cards.title"),
+      description: t("tab.cards.description"),
+    },
     [APP_TAB_ANALYSIS]: {
       title: t("tab.analysis.title"),
       description: t("tab.analysis.description"),
@@ -13075,10 +13819,12 @@ function renderAppTabs() {
   const showTransactions = state.appTab === APP_TAB_TRANSACTIONS;
   const showForm = state.appTab === APP_TAB_FORM;
   const showRecurring = state.appTab === APP_TAB_RECURRING;
+  const showCards = state.appTab === APP_TAB_CARDS;
   const showAnalysis = state.appTab === APP_TAB_ANALYSIS;
   const showDashboard = state.appTab === APP_TAB_DASHBOARD;
   const showWelcome = shouldShowWelcomeScreen();
-  const showWideContent = !showShare && (showDashboard || showPlan || showForm || showRecurring || showAnalysis || showTransactions);
+  const showWideContent = !showShare && (showDashboard || showPlan || showForm || showRecurring || showCards || showAnalysis || showTransactions);
+  const androidFormScreen = isAndroidFullscreenFormActive() && !showWelcome;
 
   refs.appTabTitle.textContent = currentMeta.title;
   refs.appTabDescription.textContent = currentMeta.description;
@@ -13094,11 +13840,16 @@ function renderAppTabs() {
   refs.appNav.classList.toggle("hidden", showWelcome);
   refs.toolbar.classList.toggle("hidden", showWelcome);
   refs.cloudPanel.classList.toggle("hidden", !showShare || showWelcome);
-  refs.statusStrip.classList.toggle("hidden", showShare || showPlan || showWelcome);
+  refs.statusStrip.classList.toggle("hidden", showShare || showPlan || showCards || showWelcome);
   refs.layout.classList.toggle("hidden", showShare || showWelcome);
   refs.layout.classList.toggle("layout-wide", showWideContent);
   refs.editorArea.classList.toggle("hidden", !(showForm || showPlan));
   refs.cardsArea.classList.toggle("hidden", showShare || showForm || showPlan);
+  document.body.classList.toggle("android-form-screen-open", androidFormScreen);
+  if (refs.androidFormClose) {
+    refs.androidFormClose.textContent = t("form.closeScreen");
+    refs.androidFormClose.classList.toggle("hidden", !androidFormScreen);
+  }
 }
 
 function syncRecapFilters() {
@@ -13193,6 +13944,13 @@ function renderSectionHeading() {
     return;
   }
 
+  if (state.appTab === APP_TAB_CARDS) {
+    refs.cardsKicker.textContent = t("cards.kickerCards");
+    refs.cardsTitle.textContent = t("cards.titleCards");
+    refs.cardsCaption.textContent = t("cards.captionCards");
+    return;
+  }
+
   if (state.activeView === RECAP_SHEET_NAME) {
     refs.cardsKicker.textContent = t("cards.kickerRecap");
     refs.cardsTitle.textContent = t("cards.titleRecap");
@@ -13224,6 +13982,7 @@ function renderControls() {
   const planEditing = planTab && state.planEditing;
   const formTab = state.appTab === APP_TAB_FORM;
   const recurringTab = state.appTab === APP_TAB_RECURRING;
+  const cardsTab = state.appTab === APP_TAB_CARDS;
   const transactionTab = state.appTab === APP_TAB_TRANSACTIONS;
   const draft = readStoredDraft();
   const hasStoredDraft = Boolean(draft && draft.mode === "budget" && Array.isArray(draft.rows));
@@ -13236,7 +13995,7 @@ function renderControls() {
   }
 
   refs.searchField?.classList.toggle("hidden", dashboardTab);
-  refs.searchInput.disabled = !hasBudget || dashboardTab || shareTab || formTab || planTab || recurringTab;
+  refs.searchInput.disabled = !hasBudget || dashboardTab || shareTab || formTab || planTab || recurringTab || cardsTab;
   refs.searchInput.placeholder = recapActive
     ? t("toolbar.searchPlaceholderRecap")
     : analysisActive
@@ -13277,9 +14036,9 @@ function renderControls() {
   refs.restartButton.disabled = busy;
   refs.restartButton.title = t("toolbar.restartTitle");
   refs.filePickerField.classList.toggle("hidden", !shareTab);
-  refs.searchField.classList.toggle("hidden", dashboardTab || shareTab || formTab || planTab || recurringTab);
-  refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab);
-  refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab);
+  refs.searchField.classList.toggle("hidden", dashboardTab || shareTab || formTab || planTab || recurringTab || cardsTab);
+  refs.recapYearField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab || cardsTab);
+  refs.recapMonthField.classList.toggle("hidden", !hasBudget || shareTab || formTab || planTab || recurringTab || cardsTab);
   refs.recapRangeField.classList.add("hidden");
   refs.recapYearSelect.disabled = !hasBudget || !availableYears.length;
   refs.recapMonthSelect.disabled = !hasBudget || !availableMonths.length;
@@ -13664,6 +14423,7 @@ function renderCards() {
   refs.recapView.innerHTML = "";
   refs.cardsGrid.classList.remove("recurring-mode");
   refs.cardsGrid.classList.remove("journal-mode");
+  refs.cardsGrid.classList.remove("card-ledger-mode");
 
   if (state.mode !== "budget") {
     refs.cardsGrid.classList.remove("hidden");
@@ -13680,6 +14440,11 @@ function renderCards() {
 
   if (state.appTab === APP_TAB_RECURRING) {
     renderRecurringWorkspace();
+    return;
+  }
+
+  if (state.appTab === APP_TAB_CARDS) {
+    renderCardTrackerWorkspace();
     return;
   }
 
@@ -13758,6 +14523,160 @@ function renderRecurringWorkspace() {
   hub.appendChild(renderRecurringAllPanel());
   hub.appendChild(renderRecurringTemplatesLauncher());
   refs.cardsGrid.appendChild(hub);
+}
+
+function renderCardTrackerWorkspace() {
+  refs.cardsGrid.classList.remove("hidden");
+  refs.recapView.classList.add("hidden");
+  refs.cardsGrid.classList.remove("compact-mode");
+  refs.cardsGrid.classList.remove("journal-mode");
+  refs.cardsGrid.classList.add("card-ledger-mode");
+  refs.cardsEmpty.classList.add("hidden");
+
+  const people = getCardTrackerPeople();
+  const balance = getCardTrackerBalance();
+  const panel = document.createElement("section");
+  panel.className = "recurring-panel card-ledger-panel";
+  panel.innerHTML = `
+    <div class="recurring-panel-head card-ledger-head">
+      <div>
+        <span class="section-kicker">${escapeHtml(t("cardTracker.kicker"))}</span>
+        <h3>${escapeHtml(t("cardTracker.title"))}</h3>
+        <p>${escapeHtml(t("cardTracker.description"))}</p>
+      </div>
+      <div class="recurring-panel-toolbar">
+        <button type="button" class="button ghost" data-card-ledger-action="reset-template">${escapeHtml(t("cardTracker.resetTemplate"))}</button>
+        <button type="button" class="button primary" data-card-ledger-action="add-person">${escapeHtml(t("cardTracker.addPerson"))}</button>
+      </div>
+    </div>
+    <div class="card-ledger-people">
+      ${people.length ? people.map((person) => buildCardTrackerPersonMarkup(person)).join("") : `<div class="card-ledger-empty">${escapeHtml(t("cardTracker.empty"))}</div>`}
+    </div>
+    <div class="card-ledger-balance">
+      <span>${escapeHtml(t("cardTracker.balance"))}</span>
+      <strong data-card-ledger-balance>${escapeHtml(formatCurrency(balance))}</strong>
+    </div>
+  `;
+  refs.cardsGrid.appendChild(panel);
+}
+
+function buildCardTrackerPersonMarkup(person) {
+  const cardCount = Array.isArray(person.cards) ? person.cards.length : 0;
+  const total = getCardTrackerPersonTotal(person);
+
+  return `
+    <section class="card-ledger-person" data-card-ledger-person="${escapeHtml(person.id)}">
+      <div class="card-ledger-person-head">
+        <div class="card-ledger-person-copy">
+          <input
+            type="text"
+            class="card-ledger-person-name"
+            value="${escapeHtml(person.name)}"
+            placeholder="${escapeHtml(t("cardTracker.personPlaceholder"))}"
+            data-card-ledger-field="person-name"
+            data-person-id="${escapeHtml(person.id)}"
+          >
+          <div class="card-ledger-person-meta">
+            <span data-card-ledger-person-count="${escapeHtml(person.id)}">${escapeHtml(buildCardTrackerCardCountLabel(cardCount))}</span>
+            <strong data-card-ledger-person-total="${escapeHtml(person.id)}">${escapeHtml(formatCurrency(total))}</strong>
+          </div>
+        </div>
+        <div class="card-ledger-person-actions">
+          <button type="button" class="button ghost" data-card-ledger-action="add-card" data-person-id="${escapeHtml(person.id)}">${escapeHtml(t("cardTracker.addCard"))}</button>
+          <button type="button" class="card-action delete" data-card-ledger-action="remove-person" data-person-id="${escapeHtml(person.id)}" aria-label="${escapeHtml(t("cardTracker.removePerson"))}">X</button>
+        </div>
+      </div>
+      <div class="card-ledger-table-shell">
+        <table class="card-ledger-table">
+          <thead>
+            <tr>
+              <th>${escapeHtml(t("cardTracker.cardColumn"))}</th>
+              <th>${escapeHtml(t("cardTracker.dueColumn"))}</th>
+              <th>${escapeHtml(t("cardTracker.dueDateColumn"))}</th>
+              <th>${escapeHtml(t("cardTracker.statementDateColumn"))}</th>
+              <th>${escapeHtml(t("cardTracker.noteColumn"))}</th>
+              <th>${escapeHtml(t("cardTracker.actionsColumn"))}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cardCount ? person.cards.map((card) => buildCardTrackerCardRowMarkup(person.id, card)).join("") : `
+              <tr>
+                <td colspan="6" class="card-ledger-empty-row">${escapeHtml(t("cardTracker.noCards"))}</td>
+              </tr>
+            `}
+          </tbody>
+          <tfoot>
+            <tr class="card-ledger-total-row">
+              <td colspan="5">${escapeHtml(t("cardTracker.total"))}</td>
+              <td data-card-ledger-person-footer-total="${escapeHtml(person.id)}">${escapeHtml(formatCurrency(total))}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function buildCardTrackerCardRowMarkup(personId, card) {
+  const statementDate = getCardTrackerStatementDate(card);
+  return `
+    <tr data-card-ledger-card="${escapeHtml(card.id)}">
+      <td>
+        <input
+          type="text"
+          value="${escapeHtml(card.label)}"
+          placeholder="${escapeHtml(t("cardTracker.cardPlaceholder"))}"
+          data-card-ledger-field="card-label"
+          data-person-id="${escapeHtml(personId)}"
+          data-card-id="${escapeHtml(card.id)}"
+        >
+      </td>
+      <td>
+        <input
+          type="text"
+          inputmode="decimal"
+          value="${escapeHtml(card.due)}"
+          placeholder="${escapeHtml(t("cardTracker.amountPlaceholder"))}"
+          data-card-ledger-field="due"
+          data-person-id="${escapeHtml(personId)}"
+          data-card-id="${escapeHtml(card.id)}"
+        >
+      </td>
+      <td>
+        <input
+          type="date"
+          value="${escapeHtml(card.dueDate || "")}"
+          data-card-ledger-field="due-date"
+          data-person-id="${escapeHtml(personId)}"
+          data-card-id="${escapeHtml(card.id)}"
+        >
+      </td>
+      <td>
+        <input
+          type="date"
+          class="card-ledger-derived-field"
+          value="${escapeHtml(statementDate)}"
+          title="${escapeHtml(t("cardTracker.statementAuto"))}"
+          data-card-ledger-statement-date="${escapeHtml(card.id)}"
+          readonly
+          tabindex="-1"
+        >
+      </td>
+      <td>
+        <input
+          type="text"
+          value="${escapeHtml(card.note)}"
+          placeholder="${escapeHtml(t("cardTracker.notePlaceholder"))}"
+          data-card-ledger-field="note"
+          data-person-id="${escapeHtml(personId)}"
+          data-card-id="${escapeHtml(card.id)}"
+        >
+      </td>
+      <td class="card-ledger-action-cell">
+        <button type="button" class="card-action delete" data-card-ledger-action="remove-card" data-person-id="${escapeHtml(personId)}" data-card-id="${escapeHtml(card.id)}" aria-label="${escapeHtml(t("cardTracker.removeCard"))}">X</button>
+      </td>
+    </tr>
+  `;
 }
 
 function renderJournalCompactRows(filteredRows, english) {
@@ -17813,7 +18732,11 @@ function openRecurringOccurrenceEditorModal(occurrence) {
   });
 }
 
-function openRecurringTemplatesModal() {
+function openRecurringTemplatesModal(options = {}) {
+  if (!options.skipTransactionClose) {
+    closeTransactionDetailsModal();
+  }
+
   if (recurringTemplatesModal) {
     refreshRecurringTemplatesModal();
     recurringTemplatesModal.querySelector("[data-recurring-action='create-new'], [data-recurring-action='use'], [data-recurring-setting]")?.focus?.();

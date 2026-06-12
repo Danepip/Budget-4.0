@@ -2661,6 +2661,10 @@ textarea {
   margin-bottom: 22px;
 }
 
+.editor-close-button {
+  display: none;
+}
+
 .form-fields {
   display: grid;
   gap: 14px;
@@ -3183,7 +3187,7 @@ textarea {
 .recurring-occurrence-modal {
   position: fixed;
   inset: 0;
-  z-index: 85;
+  z-index: 90;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -6118,6 +6122,80 @@ body.native-android .shell-status {
   background: rgba(232, 245, 241, 0.84);
 }
 
+body.native-android.android-form-screen-open {
+  overflow: hidden;
+}
+
+body.native-android.android-form-screen-open .editor-area {
+  position: fixed;
+  inset: 0;
+  z-index: 94;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  overflow: auto;
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+}
+
+body.native-android.android-form-screen-open #record-form {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 120px);
+}
+
+body.native-android.android-form-screen-open .editor-heading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  margin: -4px 0 18px;
+  padding: 4px 0 12px;
+  background: linear-gradient(180deg, var(--panel-strong), rgba(255, 255, 255, 0));
+}
+
+body.native-android.android-form-screen-open .editor-heading > div {
+  min-width: 0;
+}
+
+body.native-android.android-form-screen-open .editor-heading .section-caption {
+  grid-column: 1 / -1;
+  max-width: none;
+  margin-top: 0;
+}
+
+body.native-android.android-form-screen-open .editor-close-button {
+  display: inline-flex;
+  min-height: 46px;
+  padding-inline: 16px;
+  margin-left: auto;
+}
+
+body.native-android.android-form-screen-open .form-fields {
+  flex: 1 1 auto;
+}
+
+body.native-android.android-form-screen-open .form-actions {
+  position: static !important;
+  bottom: auto !important;
+  z-index: auto;
+  padding-top: 0;
+  margin-top: 18px;
+  background: none !important;
+}
+
+body.native-android.android-form-screen-open .form-actions .button {
+  min-height: 50px;
+}
+
 body.native-android.android-large-phone .page-shell {
   width: min(100%, calc(100% - 14px));
   margin: 8px auto 20px;
@@ -6311,4 +6389,222 @@ body.native-android.android-wide-layout .analysis-transactions-dialog,
 body.native-android.android-wide-layout .budget-plan-group-dialog,
 body.native-android.android-wide-layout .category-manager-dialog {
   max-width: 1180px;
+}
+
+.cards-grid.card-ledger-mode {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card-ledger-panel {
+  gap: 20px;
+}
+
+.card-ledger-head h3 {
+  margin: 6px 0 10px;
+}
+
+.card-ledger-head p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.card-ledger-people {
+  display: grid;
+  gap: 16px;
+}
+
+.card-ledger-person {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--field-border);
+  background: var(--soft-card);
+  box-shadow: var(--soft-card-shadow);
+}
+
+.card-ledger-person-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.card-ledger-person-copy {
+  display: grid;
+  gap: 10px;
+  flex: 1 1 320px;
+  min-width: min(320px, 100%);
+}
+
+.card-ledger-person-name,
+.card-ledger-table input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 16px;
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.card-ledger-person-name::placeholder,
+.card-ledger-table input::placeholder {
+  color: var(--field-placeholder);
+}
+
+.card-ledger-derived-field {
+  background: color-mix(in srgb, var(--field-bg) 78%, var(--teal-soft) 22%);
+  color: var(--muted);
+  cursor: default;
+}
+
+.card-ledger-derived-field:focus {
+  outline: none;
+}
+
+.card-ledger-person-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.card-ledger-person-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.card-ledger-person-meta strong {
+  color: var(--ink);
+  font-size: 1.08rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-ledger-person-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.card-ledger-table-shell {
+  overflow-x: auto;
+}
+
+.card-ledger-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.card-ledger-table th,
+.card-ledger-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.card-ledger-table th {
+  background: var(--table-head-bg);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-ledger-table tbody td {
+  background: var(--table-bg);
+}
+
+.card-ledger-table tbody tr:hover td {
+  background: var(--table-hover-bg);
+}
+
+.card-ledger-empty-row {
+  text-align: center;
+  color: var(--muted);
+}
+
+.card-ledger-action-cell {
+  text-align: right;
+}
+
+.card-ledger-total-row td {
+  background: var(--table-total-bg);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.card-ledger-total-row td:last-child {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.card-ledger-empty {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px dashed var(--empty-border);
+  background: var(--empty-bg);
+  color: var(--muted);
+}
+
+.card-ledger-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid var(--field-border);
+  background: linear-gradient(180deg, rgba(215, 239, 233, 0.6), rgba(255, 216, 198, 0.34));
+}
+
+.card-ledger-balance span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-ledger-balance strong {
+  color: var(--ink);
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-theme="dark"] .card-ledger-balance {
+  background: linear-gradient(180deg, rgba(32, 72, 68, 0.5), rgba(56, 34, 25, 0.44));
+}
+
+@media (max-width: 960px) {
+  .card-ledger-person-head {
+    flex-direction: column;
+  }
+
+  .card-ledger-person-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .card-ledger-person {
+    padding: 16px;
+  }
+
+  .card-ledger-table {
+    min-width: 680px;
+  }
+
+  .card-ledger-balance {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
