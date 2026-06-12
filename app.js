@@ -14709,7 +14709,10 @@ function renderCardTrackerWorkspace() {
       </div>
     </div>
     <div class="card-ledger-people">
-      ${people.length ? people.map((person) => buildCardTrackerPersonMarkup(person)).join("") : `<div class="card-ledger-empty">${escapeHtml(t("cardTracker.empty"))}</div>`}
+      ${people.length ? people.map((person) => buildCardTrackerPersonMarkup(person, {
+        readOnly: true,
+        showInlineActions: false
+      })).join("") : `<div class="card-ledger-empty">${escapeHtml(t("cardTracker.empty"))}</div>`}
     </div>
     <div class="card-ledger-balance">
       <span>${escapeHtml(t("cardTracker.balance"))}</span>
@@ -14721,12 +14724,16 @@ function renderCardTrackerWorkspace() {
 
 function buildCardTrackerPersonMarkup(person, options = {}) {
   const showEditButton = options.showEditButton !== false;
+  const showInlineActions = options.showInlineActions !== false;
+  const readOnly = options.readOnly === true;
   const extraClass = options.modal ? " card-ledger-person-modal" : "";
   const cardCount = Array.isArray(person.cards) ? person.cards.length : 0;
   const total = getCardTrackerPersonTotal(person);
+  const disabledAttr = readOnly ? " disabled aria-readonly=\"true\"" : "";
+  const readOnlyAttr = readOnly ? " data-card-ledger-readonly=\"true\"" : "";
 
   return `
-    <section class="card-ledger-person${extraClass}" data-card-ledger-person="${escapeHtml(person.id)}">
+    <section class="card-ledger-person${extraClass}" data-card-ledger-person="${escapeHtml(person.id)}"${readOnlyAttr}>
       <div class="card-ledger-person-head">
         <div class="card-ledger-person-copy">
           <input
@@ -14736,6 +14743,7 @@ function buildCardTrackerPersonMarkup(person, options = {}) {
             placeholder="${escapeHtml(t("cardTracker.personPlaceholder"))}"
             data-card-ledger-field="person-name"
             data-person-id="${escapeHtml(person.id)}"
+            ${disabledAttr}
           >
           <div class="card-ledger-person-meta">
             <span data-card-ledger-person-count="${escapeHtml(person.id)}">${escapeHtml(buildCardTrackerCardCountLabel(cardCount))}</span>
@@ -14744,8 +14752,8 @@ function buildCardTrackerPersonMarkup(person, options = {}) {
         </div>
         <div class="card-ledger-person-actions">
           ${showEditButton ? `<button type="button" class="button secondary" data-card-ledger-action="edit-person" data-person-id="${escapeHtml(person.id)}">${escapeHtml(t("cardTracker.editPerson"))}</button>` : ""}
-          <button type="button" class="button ghost" data-card-ledger-action="add-card" data-person-id="${escapeHtml(person.id)}">${escapeHtml(t("cardTracker.addCard"))}</button>
-          <button type="button" class="card-action delete" data-card-ledger-action="remove-person" data-person-id="${escapeHtml(person.id)}" aria-label="${escapeHtml(t("cardTracker.removePerson"))}">X</button>
+          ${showInlineActions ? `<button type="button" class="button ghost" data-card-ledger-action="add-card" data-person-id="${escapeHtml(person.id)}">${escapeHtml(t("cardTracker.addCard"))}</button>` : ""}
+          ${showInlineActions ? `<button type="button" class="card-action delete" data-card-ledger-action="remove-person" data-person-id="${escapeHtml(person.id)}" aria-label="${escapeHtml(t("cardTracker.removePerson"))}">X</button>` : ""}
         </div>
       </div>
       <div class="card-ledger-table-shell">
@@ -14761,7 +14769,10 @@ function buildCardTrackerPersonMarkup(person, options = {}) {
             </tr>
           </thead>
           <tbody>
-            ${cardCount ? person.cards.map((card) => buildCardTrackerCardRowMarkup(person.id, card)).join("") : `
+            ${cardCount ? person.cards.map((card) => buildCardTrackerCardRowMarkup(person.id, card, {
+              readOnly,
+              showInlineActions
+            })).join("") : `
               <tr>
                 <td colspan="6" class="card-ledger-empty-row">${escapeHtml(t("cardTracker.noCards"))}</td>
               </tr>
@@ -14779,8 +14790,11 @@ function buildCardTrackerPersonMarkup(person, options = {}) {
   `;
 }
 
-function buildCardTrackerCardRowMarkup(personId, card) {
+function buildCardTrackerCardRowMarkup(personId, card, options = {}) {
+  const readOnly = options.readOnly === true;
+  const showInlineActions = options.showInlineActions !== false;
   const statementDate = getCardTrackerStatementDate(card);
+  const disabledAttr = readOnly ? " disabled aria-readonly=\"true\"" : "";
   return `
     <tr data-card-ledger-card="${escapeHtml(card.id)}">
       <td>
@@ -14791,6 +14805,7 @@ function buildCardTrackerCardRowMarkup(personId, card) {
           data-card-ledger-field="card-label"
           data-person-id="${escapeHtml(personId)}"
           data-card-id="${escapeHtml(card.id)}"
+          ${disabledAttr}
         >
       </td>
       <td>
@@ -14802,6 +14817,7 @@ function buildCardTrackerCardRowMarkup(personId, card) {
           data-card-ledger-field="due"
           data-person-id="${escapeHtml(personId)}"
           data-card-id="${escapeHtml(card.id)}"
+          ${disabledAttr}
         >
       </td>
       <td>
@@ -14811,6 +14827,7 @@ function buildCardTrackerCardRowMarkup(personId, card) {
           data-card-ledger-field="due-date"
           data-person-id="${escapeHtml(personId)}"
           data-card-id="${escapeHtml(card.id)}"
+          ${disabledAttr}
         >
       </td>
       <td>
@@ -14822,6 +14839,7 @@ function buildCardTrackerCardRowMarkup(personId, card) {
           data-card-ledger-statement-date="${escapeHtml(card.id)}"
           readonly
           tabindex="-1"
+          ${readOnly ? " disabled aria-readonly=\"true\"" : ""}
         >
       </td>
       <td>
@@ -14832,10 +14850,11 @@ function buildCardTrackerCardRowMarkup(personId, card) {
           data-card-ledger-field="note"
           data-person-id="${escapeHtml(personId)}"
           data-card-id="${escapeHtml(card.id)}"
+          ${disabledAttr}
         >
       </td>
       <td class="card-ledger-action-cell">
-        <button type="button" class="card-action delete" data-card-ledger-action="remove-card" data-person-id="${escapeHtml(personId)}" data-card-id="${escapeHtml(card.id)}" aria-label="${escapeHtml(t("cardTracker.removeCard"))}">X</button>
+        ${showInlineActions ? `<button type="button" class="card-action delete" data-card-ledger-action="remove-card" data-person-id="${escapeHtml(personId)}" data-card-id="${escapeHtml(card.id)}" aria-label="${escapeHtml(t("cardTracker.removeCard"))}">X</button>` : ""}
       </td>
     </tr>
   `;

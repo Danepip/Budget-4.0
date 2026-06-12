@@ -6465,6 +6465,15 @@ body.native-android.android-wide-layout .category-manager-dialog {
   color: var(--field-placeholder);
 }
 
+.card-ledger-person[data-card-ledger-readonly="true"] .card-ledger-person-name:disabled,
+.card-ledger-person[data-card-ledger-readonly="true"] .card-ledger-table input:disabled {
+  opacity: 1;
+  cursor: default;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--field-bg) 88%, var(--panel) 12%);
+  -webkit-text-fill-color: var(--ink);
+}
+
 .card-ledger-derived-field {
   background: color-mix(in srgb, var(--field-bg) 78%, var(--teal-soft) 22%);
   color: var(--muted);
