@@ -280,6 +280,9 @@ const UI_STRINGS = {
     "cardTracker.actionsColumn": "Action",
     "cardTracker.total": "Total",
     "cardTracker.balance": "Balance",
+    "cardTracker.editPerson": "Éditer",
+    "cardTracker.editorTitle": "Modifier les cartes · {name}",
+    "cardTracker.editorDescription": "Ajustez ici la personne, ses cartes, les montants et les dates sans quitter l'onglet Cartes.",
     "cardTracker.removePerson": "Supprimer la personne",
     "cardTracker.removeCard": "Supprimer la carte",
     "cardTracker.personPlaceholder": "Nom de la personne",
@@ -766,6 +769,9 @@ const UI_STRINGS = {
     "cardTracker.actionsColumn": "Action",
     "cardTracker.total": "Total",
     "cardTracker.balance": "Balance",
+    "cardTracker.editPerson": "Edit",
+    "cardTracker.editorTitle": "Edit cards · {name}",
+    "cardTracker.editorDescription": "Adjust the person, cards, amounts, and dates here without leaving the Cards tab.",
     "cardTracker.removePerson": "Remove person",
     "cardTracker.removeCard": "Remove card",
     "cardTracker.personPlaceholder": "Person name",
@@ -1507,6 +1513,7 @@ let recurringOccurrencesHistoryModal = null;
 let recurringTemplatesModal = null;
 let analysisTransactionsModal = null;
 let transactionDetailsModal = null;
+let cardTrackerEditorModal = null;
 let analysisHoverTooltip = null;
 let activeAnalysisHoverTarget = null;
 let appToastActionHandler = null;
@@ -5259,6 +5266,10 @@ function syncActiveViewForCurrentTab() {
 function setAppTab(nextTab) {
   const normalizedTab = normalizeAppTab(nextTab);
   state.appTab = normalizedTab;
+
+  if (normalizedTab !== APP_TAB_CARDS) {
+    closeCardTrackerEditorModal();
+  }
 
   if (normalizedTab !== APP_TAB_PLAN) {
     state.planEditing = false;
@@ -11282,36 +11293,167 @@ function refreshCardTrackerComputedValues() {
     return;
   }
 
+  const roots = [refs.cardsGrid, cardTrackerEditorModal].filter(Boolean);
   getCardTrackerPeople().forEach((person) => {
     const totalLabel = formatCurrency(getCardTrackerPersonTotal(person));
     const countLabel = buildCardTrackerCardCountLabel(Array.isArray(person.cards) ? person.cards.length : 0);
 
-    refs.cardsGrid
-      .querySelectorAll(`[data-card-ledger-person-total="${person.id}"], [data-card-ledger-person-footer-total="${person.id}"]`)
-      .forEach((node) => {
-        node.textContent = totalLabel;
-      });
+    roots.forEach((root) => {
+      root
+        .querySelectorAll(`[data-card-ledger-person-total="${person.id}"], [data-card-ledger-person-footer-total="${person.id}"]`)
+        .forEach((node) => {
+          node.textContent = totalLabel;
+        });
 
-    refs.cardsGrid
-      .querySelectorAll(`[data-card-ledger-person-count="${person.id}"]`)
-      .forEach((node) => {
-        node.textContent = countLabel;
-      });
+      root
+        .querySelectorAll(`[data-card-ledger-person-count="${person.id}"]`)
+        .forEach((node) => {
+          node.textContent = countLabel;
+        });
+    });
 
     (Array.isArray(person.cards) ? person.cards : []).forEach((card) => {
       const statementDate = getCardTrackerStatementDate(card);
-      refs.cardsGrid
-        .querySelectorAll(`[data-card-ledger-statement-date="${card.id}"]`)
-        .forEach((node) => {
-          node.value = statementDate;
-        });
+      roots.forEach((root) => {
+        root
+          .querySelectorAll(`[data-card-ledger-statement-date="${card.id}"]`)
+          .forEach((node) => {
+            node.value = statementDate;
+          });
+      });
     });
   });
 
-  const balanceNode = refs.cardsGrid.querySelector("[data-card-ledger-balance]");
-  if (balanceNode) {
-    balanceNode.textContent = formatCurrency(getCardTrackerBalance());
+  roots.forEach((root) => {
+    const balanceNode = root.querySelector("[data-card-ledger-balance]");
+    if (balanceNode) {
+      balanceNode.textContent = formatCurrency(getCardTrackerBalance());
+    }
+  });
+}
+
+function syncCardTrackerFieldMirrors(field, normalizedValue = field?.value ?? "") {
+  const fieldName = String(field?.dataset?.cardLedgerField || "").trim();
+  const personId = String(field?.dataset?.personId || "").trim();
+  const cardId = String(field?.dataset?.cardId || "").trim();
+  if (!fieldName || !personId) {
+    return;
   }
+
+  const selector = cardId
+    ? `[data-card-ledger-field="${fieldName}"][data-person-id="${personId}"][data-card-id="${cardId}"]`
+    : `[data-card-ledger-field="${fieldName}"][data-person-id="${personId}"]`;
+  [refs.cardsGrid, cardTrackerEditorModal]
+    .filter(Boolean)
+    .forEach((root) => {
+      root.querySelectorAll(selector).forEach((node) => {
+        if (node !== field) {
+          node.value = normalizedValue;
+        }
+      });
+    });
+}
+
+function closeCardTrackerEditorModal() {
+  if (cardTrackerEditorModal?.remove) {
+    cardTrackerEditorModal.remove();
+  }
+  cardTrackerEditorModal = null;
+}
+
+function refreshCardTrackerEditorModal() {
+  if (!cardTrackerEditorModal) {
+    return;
+  }
+
+  const personId = String(cardTrackerEditorModal.dataset.personId || "").trim();
+  const person = findCardTrackerPerson(personId);
+  if (!person) {
+    closeCardTrackerEditorModal();
+    return;
+  }
+
+  const body = cardTrackerEditorModal.querySelector("[data-card-ledger-editor-body]");
+  const title = cardTrackerEditorModal.querySelector("[data-card-ledger-editor-title]");
+  if (title) {
+    title.textContent = t("cardTracker.editorTitle", {
+      name: person.name || t("cardTracker.personPlaceholder"),
+    });
+  }
+
+  if (body) {
+    body.innerHTML = buildCardTrackerPersonMarkup(person, {
+      showEditButton: false,
+      modal: true,
+    });
+  }
+
+  refreshCardTrackerComputedValues();
+}
+
+function openCardTrackerEditorModal(personId) {
+  const person = findCardTrackerPerson(personId);
+  if (!person) {
+    return;
+  }
+
+  if (cardTrackerEditorModal && String(cardTrackerEditorModal.dataset.personId || "").trim() === person.id) {
+    refreshCardTrackerEditorModal();
+    cardTrackerEditorModal.querySelector("[data-card-ledger-field='person-name'], [data-card-ledger-field='card-label']")?.focus();
+    return;
+  }
+
+  closeCardTrackerEditorModal();
+
+  const overlay = document.createElement("div");
+  overlay.className = "recurring-occurrence-modal card-ledger-editor-modal";
+  overlay.dataset.personId = person.id;
+  overlay.innerHTML = `
+    <div class="recurring-occurrence-dialog recurring-templates-dialog card-ledger-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="card-ledger-editor-title">
+      <div class="recurring-occurrence-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(t("cardTracker.kicker"))}</p>
+          <h3 id="card-ledger-editor-title" data-card-ledger-editor-title>${escapeHtml(t("cardTracker.editorTitle", {
+            name: person.name || t("cardTracker.personPlaceholder"),
+          }))}</h3>
+          <p>${escapeHtml(t("cardTracker.editorDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-card-ledger-editor-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div data-card-ledger-editor-body></div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const closeAction = event.target.closest("[data-card-ledger-editor-action='close']");
+    if (event.target === overlay || closeAction) {
+      closeCardTrackerEditorModal();
+      return;
+    }
+
+    onCardTrackerAction(event);
+  });
+
+  overlay.addEventListener("input", (event) => {
+    onCardTrackerInput(event);
+  });
+
+  overlay.addEventListener("change", (event) => {
+    onCardTrackerChange(event);
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeCardTrackerEditorModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  cardTrackerEditorModal = overlay;
+  refreshCardTrackerEditorModal();
+  queueMicrotask(() => {
+    cardTrackerEditorModal?.querySelector("[data-card-ledger-field='person-name'], [data-card-ledger-field='card-label']")?.focus();
+  });
 }
 
 function onCardTrackerAction(event) {
@@ -11340,6 +11482,7 @@ function onCardTrackerAction(event) {
     persistDraftIfPossible();
     setLastAction(t("cardTracker.personAdded"));
     renderCards();
+    refreshCardTrackerEditorModal();
     void queueCardTrackerCloudSync();
     return;
   }
@@ -11353,6 +11496,7 @@ function onCardTrackerAction(event) {
     persistDraftIfPossible();
     setLastAction(t("cardTracker.templateResetDone"));
     renderCards();
+    refreshCardTrackerEditorModal();
     void queueCardTrackerCloudSync();
     return;
   }
@@ -11362,11 +11506,17 @@ function onCardTrackerAction(event) {
     return;
   }
 
+  if (action === "edit-person") {
+    openCardTrackerEditorModal(person.id);
+    return;
+  }
+
   if (action === "add-card") {
     person.cards.push(createCardTrackerCard());
     persistDraftIfPossible();
     setLastAction(t("cardTracker.cardAdded"));
     renderCards();
+    refreshCardTrackerEditorModal();
     void queueCardTrackerCloudSync();
     return;
   }
@@ -11380,6 +11530,7 @@ function onCardTrackerAction(event) {
     persistDraftIfPossible();
     setLastAction(t("cardTracker.personRemoved"));
     renderCards();
+    refreshCardTrackerEditorModal();
     void queueCardTrackerCloudSync();
     return;
   }
@@ -11393,6 +11544,7 @@ function onCardTrackerAction(event) {
     persistDraftIfPossible();
     setLastAction(t("cardTracker.cardRemoved"));
     renderCards();
+    refreshCardTrackerEditorModal();
     void queueCardTrackerCloudSync();
   }
 }
@@ -11433,6 +11585,7 @@ function onCardTrackerInput(event) {
       return;
   }
 
+  syncCardTrackerFieldMirrors(field, value);
   refreshCardTrackerComputedValues();
   persistDraftIfPossible();
   void queueCardTrackerCloudSync();
@@ -11467,29 +11620,35 @@ function onCardTrackerChange(event) {
       getCurrentLanguage()
     );
     field.value = target.person.name;
+    syncCardTrackerFieldMirrors(field, target.person.name);
   }
 
   if (target.fieldName === "card-label") {
     target.card.label = String(target.card.label || "").trim();
     field.value = target.card.label;
+    syncCardTrackerFieldMirrors(field, target.card.label);
   }
 
   if (target.fieldName === "note") {
     target.card.note = String(target.card.note || "").trim();
     field.value = target.card.note;
+    syncCardTrackerFieldMirrors(field, target.card.note);
   }
 
   if (target.fieldName === "due") {
     target.card.due = normalizeCardTrackerAmount(target.card.due);
     field.value = target.card.due;
+    syncCardTrackerFieldMirrors(field, target.card.due);
   }
 
   if (target.fieldName === "due-date") {
     target.card.dueDate = normalizeCardTrackerDueDate(target.card.dueDate);
     field.value = target.card.dueDate;
+    syncCardTrackerFieldMirrors(field, target.card.dueDate);
   }
 
   refreshCardTrackerComputedValues();
+  refreshCardTrackerEditorModal();
   persistDraftIfPossible();
 }
 
@@ -14560,12 +14719,14 @@ function renderCardTrackerWorkspace() {
   refs.cardsGrid.appendChild(panel);
 }
 
-function buildCardTrackerPersonMarkup(person) {
+function buildCardTrackerPersonMarkup(person, options = {}) {
+  const showEditButton = options.showEditButton !== false;
+  const extraClass = options.modal ? " card-ledger-person-modal" : "";
   const cardCount = Array.isArray(person.cards) ? person.cards.length : 0;
   const total = getCardTrackerPersonTotal(person);
 
   return `
-    <section class="card-ledger-person" data-card-ledger-person="${escapeHtml(person.id)}">
+    <section class="card-ledger-person${extraClass}" data-card-ledger-person="${escapeHtml(person.id)}">
       <div class="card-ledger-person-head">
         <div class="card-ledger-person-copy">
           <input
@@ -14582,6 +14743,7 @@ function buildCardTrackerPersonMarkup(person) {
           </div>
         </div>
         <div class="card-ledger-person-actions">
+          ${showEditButton ? `<button type="button" class="button secondary" data-card-ledger-action="edit-person" data-person-id="${escapeHtml(person.id)}">${escapeHtml(t("cardTracker.editPerson"))}</button>` : ""}
           <button type="button" class="button ghost" data-card-ledger-action="add-card" data-person-id="${escapeHtml(person.id)}">${escapeHtml(t("cardTracker.addCard"))}</button>
           <button type="button" class="card-action delete" data-card-ledger-action="remove-person" data-person-id="${escapeHtml(person.id)}" aria-label="${escapeHtml(t("cardTracker.removePerson"))}">X</button>
         </div>

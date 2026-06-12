@@ -6399,6 +6399,10 @@ body.native-android.android-wide-layout .category-manager-dialog {
   gap: 20px;
 }
 
+.card-ledger-editor-dialog {
+  width: min(1180px, 100%);
+}
+
 .card-ledger-head h3 {
   margin: 6px 0 10px;
 }
@@ -6422,6 +6426,11 @@ body.native-android.android-wide-layout .category-manager-dialog {
   border: 1px solid var(--field-border);
   background: var(--soft-card);
   box-shadow: var(--soft-card-shadow);
+}
+
+.card-ledger-person-modal {
+  border-color: var(--line);
+  box-shadow: none;
 }
 
 .card-ledger-person-head {
