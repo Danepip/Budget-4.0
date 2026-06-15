@@ -250,6 +250,46 @@ textarea {
   color: var(--accent-deep);
 }
 
+.section-kicker-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.section-kicker-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ghost-border);
+  background: var(--ghost-bg);
+  box-shadow: var(--soft-card-shadow);
+  color: var(--accent-deep);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.section-kicker-badge-action {
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.section-kicker-badge-action:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.section-kicker-badge-action:focus-visible {
+  outline: 2px solid var(--secondary-start);
+  outline-offset: 2px;
+}
+
 .hero h1,
 .section-heading h2 {
   margin: 0;
@@ -3397,6 +3437,26 @@ textarea {
   border: 1px dashed rgba(24, 51, 59, 0.16);
   color: var(--muted);
   text-align: center;
+}
+
+.recurring-today-snapshot-dialog {
+  width: min(920px, 100%);
+}
+
+.recurring-today-snapshot-summary strong {
+  font-size: 1rem;
+}
+
+.recurring-today-snapshot-grid {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+
+.recurring-today-snapshot-card-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .analysis-transactions-modal {

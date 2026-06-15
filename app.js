@@ -499,6 +499,15 @@ const UI_STRINGS = {
     "recurring.allExpenseTotal": "Dépenses prévues",
     "recurring.allSavingsTotal": "Épargne prévue",
     "recurring.allDifferenceTotal": "Différence prévue",
+    "recurring.todaySnapshotOpen": "Projection",
+    "recurring.todaySnapshotTitle": "Projection · {month}",
+    "recurring.todaySnapshotDescription": "Cette synthèse combine les écritures déjà enregistrées dans Journalier et les récurrentes restantes du mois affiché.",
+    "recurring.todaySnapshotAsOf": "À la date du {date}",
+    "recurring.todaySnapshotMonth": "Mois affiché",
+    "recurring.todaySnapshotActualCount": "Écritures passées",
+    "recurring.todaySnapshotPlannedCount": "Récurrentes restantes",
+    "recurring.todaySnapshotActual": "Réel",
+    "recurring.todaySnapshotPlanned": "Prévu",
     "recurring.viewOccurrencesTitle": "Historique des occurrences",
     "recurring.viewOccurrencesDescription": "Retrouvez les occurrences en attente, déjà ajoutées ou ignorées pour cette règle récurrente.",
     "recurring.viewOccurrencesPending": "En attente",
@@ -988,6 +997,15 @@ const UI_STRINGS = {
     "recurring.allExpenseTotal": "Planned expenses",
     "recurring.allSavingsTotal": "Planned savings",
     "recurring.allDifferenceTotal": "Planned difference",
+    "recurring.todaySnapshotOpen": "Projection",
+    "recurring.todaySnapshotTitle": "Projection · {month}",
+    "recurring.todaySnapshotDescription": "This summary combines entries already recorded in Journalier with the remaining recurring items for the displayed month.",
+    "recurring.todaySnapshotAsOf": "As of {date}",
+    "recurring.todaySnapshotMonth": "Displayed month",
+    "recurring.todaySnapshotActualCount": "Past entries",
+    "recurring.todaySnapshotPlannedCount": "Remaining recurring",
+    "recurring.todaySnapshotActual": "Actual",
+    "recurring.todaySnapshotPlanned": "Planned",
     "recurring.viewOccurrencesTitle": "Occurrence history",
     "recurring.viewOccurrencesDescription": "Review pending, added, and ignored occurrences for this recurring rule.",
     "recurring.viewOccurrencesPending": "Pending",
@@ -1511,6 +1529,7 @@ let budgetPlanGroupEditorModal = null;
 let recurringOccurrenceEditorModal = null;
 let recurringOccurrencesHistoryModal = null;
 let recurringTemplatesModal = null;
+let recurringTodaySnapshotModal = null;
 let analysisTransactionsModal = null;
 let transactionDetailsModal = null;
 let cardTrackerEditorModal = null;
@@ -3336,6 +3355,128 @@ function buildRecurringAllOccurrences(monthKey) {
       sensitivity: "base",
     });
   });
+}
+
+function buildRecurringProjectedTotals(occurrences = []) {
+  const totals = (Array.isArray(occurrences) ? occurrences : []).reduce((snapshot, occurrence) => {
+    const value = Math.abs(roundCurrencyValue(parseAmount(occurrence?.value)));
+    if (!Number.isFinite(value) || value === 0) {
+      return snapshot;
+    }
+
+    if (occurrence?.flowType === "income") {
+      snapshot.income += value;
+      return snapshot;
+    }
+
+    if (occurrence?.flowType === "savings") {
+      snapshot.savings += value;
+      return snapshot;
+    }
+
+    snapshot.expenses += value;
+    return snapshot;
+  }, {
+    income: 0,
+    expenses: 0,
+    savings: 0,
+  });
+
+  const income = roundCurrencyValue(totals.income);
+  const expenses = roundCurrencyValue(totals.expenses);
+  const savings = roundCurrencyValue(totals.savings);
+  return {
+    income,
+    expenses,
+    savings,
+    cash: roundCurrencyValue(income - expenses - savings),
+  };
+}
+
+function buildRecurringTodaySnapshot(monthKey, cutoffDate = new Date().toISOString().slice(0, 10)) {
+  const normalizedMonthKey = normalizeRecurringBillsMonthKey(monthKey) || new Date().toISOString().slice(0, 7);
+  const normalizedCutoffDate = normalizeDateValue(cutoffDate) || new Date().toISOString().slice(0, 10);
+  const actualRows = state.budget.rows.filter((row) => {
+    const rowDate = normalizeDateValue(row?.Date);
+    return Boolean(
+      rowDate &&
+      rowDate.startsWith(`${normalizedMonthKey}-`) &&
+      compareRecurringOccurrenceDate(rowDate, normalizedCutoffDate) <= 0
+    );
+  });
+  const actualSnapshot = computeMetricSnapshot(buildActualAmountMap(actualRows));
+  const remainingOccurrences = buildRecurringAllOccurrences(normalizedMonthKey).filter((occurrence) => (
+    occurrence?.status !== "paid" &&
+    occurrence?.status !== "ignored"
+  ));
+  const plannedSnapshot = buildRecurringProjectedTotals(remainingOccurrences);
+  return {
+    monthKey: normalizedMonthKey,
+    monthLabel: formatMonthYearLabelFromIso(`${normalizedMonthKey}-01`) || normalizedMonthKey,
+    cutoffDate: normalizedCutoffDate,
+    actualCount: actualRows.length,
+    plannedCount: remainingOccurrences.length,
+    actualSnapshot,
+    plannedSnapshot,
+    combinedSnapshot: {
+      income: roundCurrencyValue(actualSnapshot.income + plannedSnapshot.income),
+      expenses: roundCurrencyValue(actualSnapshot.expenses + plannedSnapshot.expenses),
+      savings: roundCurrencyValue(actualSnapshot.totalSavings + plannedSnapshot.savings),
+      cash: roundCurrencyValue(actualSnapshot.cash + plannedSnapshot.cash),
+    },
+  };
+}
+
+function buildRecurringTodaySnapshotMetricRows(snapshot) {
+  return [
+    {
+      label: "Income",
+      total: snapshot?.combinedSnapshot?.income || 0,
+      actual: snapshot?.actualSnapshot?.income || 0,
+      planned: snapshot?.plannedSnapshot?.income || 0,
+      signed: false,
+    },
+    {
+      label: "Expenses",
+      total: snapshot?.combinedSnapshot?.expenses || 0,
+      actual: snapshot?.actualSnapshot?.expenses || 0,
+      planned: snapshot?.plannedSnapshot?.expenses || 0,
+      signed: false,
+    },
+    {
+      label: "Total Savings",
+      total: snapshot?.combinedSnapshot?.savings || 0,
+      actual: snapshot?.actualSnapshot?.totalSavings || 0,
+      planned: snapshot?.plannedSnapshot?.savings || 0,
+      signed: false,
+    },
+    {
+      label: "Cash",
+      total: snapshot?.combinedSnapshot?.cash || 0,
+      actual: snapshot?.actualSnapshot?.cash || 0,
+      planned: snapshot?.plannedSnapshot?.cash || 0,
+      signed: true,
+    },
+  ];
+}
+
+function createRecurringTodaySnapshotMetricCardMarkup(row) {
+  const meta = getBudgetSummaryCardMeta(row.label);
+  const iconKey = getMetricIconKey(row.label);
+  const iconMarkup = getMetricIconMarkup(row.label);
+  const totalLabel = row.signed ? formatSignedCurrency(row.total) : formatCurrency(row.total);
+  const actualLabel = row.signed ? formatSignedCurrency(row.actual) : formatCurrency(row.actual);
+  const plannedLabel = row.signed ? formatSignedCurrency(row.planned) : formatCurrency(row.planned);
+  return `
+    <article class="budget-summary-card tone-${escapeHtml(meta.tone)}">
+      <div class="budget-summary-head">
+        ${iconMarkup ? `<span class="budget-summary-icon recap-metric-icon recap-metric-icon-${escapeHtml(iconKey)}" aria-hidden="true">${iconMarkup}</span>` : ""}
+        <span class="budget-summary-title">${escapeHtml(meta.title)}</span>
+      </div>
+      <strong class="budget-summary-amount">${escapeHtml(totalLabel)}</strong>
+      <span class="recurring-today-snapshot-card-note">${escapeHtml(`${t("recurring.todaySnapshotActual")} ${actualLabel} · ${t("recurring.todaySnapshotPlanned")} ${plannedLabel}`)}</span>
+    </article>
+  `;
 }
 
 function buildRecurringBillsDayTooltip(isoDate, dayOccurrences = []) {
@@ -5532,6 +5673,7 @@ function bindEvents() {
   refs.cardsGrid.addEventListener("input", onRecurringReviewDraftChanged);
   refs.cardsGrid.addEventListener("change", onRecurringReviewDraftChanged);
   refs.transactionsViewToggle?.addEventListener("click", onTransactionsViewToggleClicked);
+  refs.cardsKicker?.addEventListener("click", onCardsHeadingActionClicked);
   refs.settingTheme.addEventListener("change", onThemeSettingChanged);
   refs.settingAutoRestore.addEventListener("change", onAutoRestoreSettingChanged);
   refs.settingLanguage.addEventListener("change", onLanguageSettingChanged);
@@ -5782,6 +5924,20 @@ function onTransactionsViewToggleClicked(event) {
   persistUiSettings();
   renderCards();
   renderControls();
+}
+
+function onCardsHeadingActionClicked(event) {
+  const button = event.target.closest("[data-cards-heading-action]");
+  if (!button) {
+    return;
+  }
+
+  const action = String(button.dataset.cardsHeadingAction || "").trim();
+  if (action !== "open-projection") {
+    return;
+  }
+
+  openRecurringTodaySnapshotModal(getCurrentProjectionMonthKey());
 }
 
 function onAnalysisInteraction(event) {
@@ -13798,6 +13954,7 @@ function applyBudgetRowsToWorkbook(workbook, budgetModel) {
 function renderAll() {
   closeRecurringOccurrenceEditorModal();
   closeRecurringOccurrencesHistoryModal();
+  closeRecurringTodaySnapshotModal();
   renderStaticUiText();
   syncActiveViewForCurrentTab();
   renderAppTabs();
@@ -14088,43 +14245,67 @@ function createRecapMonthOptionButton(value, label, active) {
   return button;
 }
 
+function renderCardsKicker(label, { showProjection = false } = {}) {
+  if (!refs.cardsKicker) {
+    return;
+  }
+
+  refs.cardsKicker.classList.toggle("section-kicker-group", showProjection);
+
+  if (!showProjection) {
+    refs.cardsKicker.textContent = label;
+    return;
+  }
+
+  refs.cardsKicker.innerHTML = `
+    <span class="section-kicker-badge">${escapeHtml(label)}</span>
+    <button
+      type="button"
+      class="section-kicker-badge section-kicker-badge-action"
+      data-cards-heading-action="open-projection"
+    >
+      ${escapeHtml(t("recurring.todaySnapshotOpen"))}
+    </button>
+  `;
+}
+
 function renderSectionHeading() {
   if (state.appTab === APP_TAB_PLAN) {
-    refs.cardsKicker.textContent = t("cards.kickerBudget");
+    renderCardsKicker(t("cards.kickerBudget"));
     refs.cardsTitle.textContent = t("cards.titlePlanVsActual");
     refs.cardsCaption.textContent = t("cards.captionPlanVsActual");
     return;
   }
 
   if (state.appTab === APP_TAB_RECURRING) {
-    refs.cardsKicker.textContent = t("cards.kickerRecurring");
+    renderCardsKicker(t("cards.kickerRecurring"));
     refs.cardsTitle.textContent = t("cards.titleRecurring");
     refs.cardsCaption.textContent = t("cards.captionRecurring");
     return;
   }
 
   if (state.appTab === APP_TAB_CARDS) {
-    refs.cardsKicker.textContent = t("cards.kickerCards");
+    renderCardsKicker(t("cards.kickerCards"));
     refs.cardsTitle.textContent = t("cards.titleCards");
     refs.cardsCaption.textContent = t("cards.captionCards");
     return;
   }
 
   if (state.activeView === RECAP_SHEET_NAME) {
-    refs.cardsKicker.textContent = t("cards.kickerRecap");
+    renderCardsKicker(t("cards.kickerRecap"), { showProjection: true });
     refs.cardsTitle.textContent = t("cards.titleRecap");
     refs.cardsCaption.textContent = t("cards.captionRecap");
     return;
   }
 
   if (state.activeView === ANALYSIS_VIEW_NAME) {
-    refs.cardsKicker.textContent = t("cards.kickerAnalysis");
+    renderCardsKicker(t("cards.kickerAnalysis"));
     refs.cardsTitle.textContent = t("cards.titleAnalysis");
     refs.cardsCaption.textContent = t("cards.captionAnalysis");
     return;
   }
 
-  refs.cardsKicker.textContent = t("cards.kickerJournal");
+  renderCardsKicker(t("cards.kickerJournal"));
   refs.cardsTitle.textContent = t("cards.titleJournal");
   refs.cardsCaption.textContent = t("cards.captionJournal");
 }
@@ -14262,6 +14443,19 @@ function renderTransactionsViewToggle(isVisible) {
       </button>
     `).join("")}
   `;
+}
+
+function getCurrentProjectionMonthKey() {
+  const fallbackMonth = new Date().toISOString().slice(0, 7);
+  const selectedMonths = getSelectedRecapMonths();
+  const selectedYear = String(state.recapFilters?.year || "").trim();
+
+  if (state.appTab === APP_TAB_DASHBOARD && state.activeView === RECAP_SHEET_NAME &&
+      selectedYear && selectedYear !== "all" && selectedMonths.length === 1) {
+    return `${selectedYear}-${selectedMonths[0]}`;
+  }
+
+  return fallbackMonth;
 }
 
 function renderCloudPanel() {
@@ -17932,6 +18126,13 @@ function closeRecurringOccurrencesHistoryModal() {
   recurringOccurrencesHistoryModal = null;
 }
 
+function closeRecurringTodaySnapshotModal() {
+  if (recurringTodaySnapshotModal?.remove) {
+    recurringTodaySnapshotModal.remove();
+  }
+  recurringTodaySnapshotModal = null;
+}
+
 function closeRecurringTemplatesModal() {
   if (recurringTemplatesModal?.remove) {
     recurringTemplatesModal.remove();
@@ -19099,6 +19300,71 @@ function openRecurringOccurrencesHistoryModal(template) {
   recurringOccurrencesHistoryModal = overlay;
 }
 
+function openRecurringTodaySnapshotModal(monthKey = recurringAllMonthCursor) {
+  closeRecurringTodaySnapshotModal();
+
+  const english = getCurrentLanguage() === "en";
+  const snapshot = buildRecurringTodaySnapshot(monthKey);
+  const overlay = document.createElement("div");
+  overlay.className = "recurring-occurrence-modal recurring-today-snapshot-modal";
+  overlay.innerHTML = `
+    <div class="recurring-occurrence-dialog recurring-history-dialog recurring-today-snapshot-dialog" role="dialog" aria-modal="true" aria-labelledby="recurring-today-snapshot-title">
+      <div class="recurring-occurrence-head recurring-history-head">
+        <div>
+          <p class="section-kicker">${escapeHtml(english ? "Recurring transactions" : "Transactions récurrentes")}</p>
+          <h3 id="recurring-today-snapshot-title">${escapeHtml(t("recurring.todaySnapshotTitle", {
+            month: snapshot.monthLabel,
+          }))}</h3>
+          <p>${escapeHtml(t("recurring.todaySnapshotDescription"))}</p>
+        </div>
+        <button type="button" class="button ghost" data-recurring-today-action="close">${escapeHtml(t("categories.close"))}</button>
+      </div>
+      <div class="recurring-occurrence-summary recurring-history-summary recurring-today-snapshot-summary">
+        <strong>${escapeHtml(t("recurring.todaySnapshotAsOf", {
+          date: formatDateForDisplay(snapshot.cutoffDate) || snapshot.cutoffDate,
+        }))}</strong>
+        <span>${escapeHtml(snapshot.monthLabel)}</span>
+      </div>
+      <div class="recurring-history-stats recurring-today-snapshot-stats">
+        <article class="recurring-history-stat">
+          <span>${escapeHtml(t("recurring.todaySnapshotMonth"))}</span>
+          <strong>${escapeHtml(snapshot.monthLabel)}</strong>
+        </article>
+        <article class="recurring-history-stat">
+          <span>${escapeHtml(t("recurring.todaySnapshotActualCount"))}</span>
+          <strong>${escapeHtml(String(snapshot.actualCount))}</strong>
+        </article>
+        <article class="recurring-history-stat">
+          <span>${escapeHtml(t("recurring.todaySnapshotPlannedCount"))}</span>
+          <strong>${escapeHtml(String(snapshot.plannedCount))}</strong>
+        </article>
+      </div>
+      <div class="budget-summary-grid recurring-today-snapshot-grid">
+        ${buildRecurringTodaySnapshotMetricRows(snapshot).map((row) => createRecurringTodaySnapshotMetricCardMarkup(row)).join("")}
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-recurring-today-action]");
+    if (event.target === overlay || action?.dataset.recurringTodayAction === "close") {
+      closeRecurringTodaySnapshotModal();
+    }
+  });
+
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeRecurringTodaySnapshotModal();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  recurringTodaySnapshotModal = overlay;
+  queueMicrotask(() => {
+    recurringTodaySnapshotModal?.querySelector("[data-recurring-today-action='close']")?.focus();
+  });
+}
+
 function renderValueField(value) {
   const wrapper = document.createElement("div");
   wrapper.className = "field-card";
@@ -19252,25 +19518,11 @@ function renderRecurringAllPanel() {
 
   const occurrences = buildRecurringAllOccurrences(monthKey);
   syncRecurringAllSelectedDateForMonth(monthKey, occurrences);
-  const projectedIncomeTotal = roundCurrencyValue(
-    occurrences.reduce((sum, occurrence) => {
-      const value = Math.abs(roundCurrencyValue(parseAmount(occurrence?.value)));
-      return occurrence?.flowType === "income" ? sum + value : sum;
-    }, 0)
-  );
-  const projectedExpenseTotal = roundCurrencyValue(
-    occurrences.reduce((sum, occurrence) => {
-      const value = Math.abs(roundCurrencyValue(parseAmount(occurrence?.value)));
-      return occurrence?.flowType === "expense" ? sum + value : sum;
-    }, 0)
-  );
-  const projectedSavingsTotal = roundCurrencyValue(
-    occurrences.reduce((sum, occurrence) => {
-      const value = Math.abs(roundCurrencyValue(parseAmount(occurrence?.value)));
-      return occurrence?.flowType === "savings" ? sum + value : sum;
-    }, 0)
-  );
-  const projectedDifferenceTotal = roundCurrencyValue(projectedIncomeTotal - projectedExpenseTotal - projectedSavingsTotal);
+  const projectedSnapshot = buildRecurringProjectedTotals(occurrences);
+  const projectedIncomeTotal = projectedSnapshot.income;
+  const projectedExpenseTotal = projectedSnapshot.expenses;
+  const projectedSavingsTotal = projectedSnapshot.savings;
+  const projectedDifferenceTotal = projectedSnapshot.cash;
   const calendarDays = buildRecurringAllCalendar(monthKey, occurrences);
   const selectedDate = normalizeDateValue(recurringAllSelectedDate);
   const selectedDateInMonth = selectedDate && selectedDate.startsWith(`${monthKey}-`) ? selectedDate : "";
