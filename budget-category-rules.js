@@ -1,4 +1,6 @@
 (function attachBudgetCategoryRules(globalScope) {
+  const ASSOCIATION_FEES_CATEGORY = "Association fees";
+
   const GROUP_ORDER = [
     "income",
     "savings",
@@ -286,7 +288,7 @@
     },
     {
       id: "association_fees",
-      labels: ["Association fees"],
+      labels: [ASSOCIATION_FEES_CATEGORY],
       parent: "dynamic",
       flowType: "dynamic",
       includeInIncome: false,
@@ -295,7 +297,7 @@
       includeInParentTotals: false,
       alertGroup: null,
       suggestionTags: ["special-case", "association-fees"],
-      notes: "Cas special: positif => Revenu, negatif => pas de parent mais compte dans Expenses.",
+      notes: "Cas special: positif => Revenu, negatif => Frais.",
       dynamicResolver: "associationFees",
     },
     {
@@ -872,23 +874,20 @@
     }
 
     if (Number.isFinite(amount) && amount < 0) {
-      const resolved = materializeResolvedRule(
+      return materializeResolvedRule(
         {
           ...baseRule,
-          parent: "",
+          parent: "fees",
           flowType: "expense",
           includeInIncome: false,
           includeInExpenses: true,
           includeInSavings: false,
-          includeInParentTotals: false,
-          alertGroup: null,
-          notes: "Association fees negatif: pas de parent, mais compte dans Expenses.",
+          includeInParentTotals: true,
+          alertGroup: "fees",
+          notes: "Association fees negatif: traite comme un frais.",
         },
         baseRule.labels[0]
       );
-      resolved.parentMeta = null;
-      resolved.parentLabel = "";
-      return resolved;
     }
 
     const neutralRule = materializeResolvedRule(

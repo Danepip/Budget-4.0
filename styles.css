@@ -4570,6 +4570,14 @@ body.native-android .category-autocomplete-panel-android {
   color: var(--muted);
 }
 
+.field-card.is-disabled {
+  opacity: 0.72;
+}
+
+.field-card.is-disabled select:disabled {
+  cursor: not-allowed;
+}
+
 .field-parent-meta {
   display: flex;
   align-items: center;

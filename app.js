@@ -7,6 +7,13 @@ const HISTORY_STACK_LIMIT = 20;
 const HISTORY_EVENT_LIMIT = 8;
 const MAX_RECURRING_OCCURRENCES_PER_TEMPLATE = 48;
 const MAX_RECURRING_TRACKED_KEYS = 180;
+const TRANSACTION_FUNDING_SOURCE_CASH = "cash";
+const TRANSACTION_FUNDING_SOURCE_SAVINGS = "savings";
+const SAVINGS_FUNDING_HELPER_ID_PREFIX = "savings-funding:";
+const SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX = "Retrait épargne (auto)";
+const ASSOCIATION_FEES_CATEGORY = "Association fees";
+const ASSOCIATION_FEES_INCOME_PLAN_LABEL = "Association fees - revenu";
+const ASSOCIATION_FEES_EXPENSE_PLAN_LABEL = "Association fees - depense";
 
 const JOURNAL_SHEET_NAME = "Journalier";
 const RECAP_SHEET_NAME = "Récapitulatif";
@@ -77,10 +84,15 @@ const UI_STRINGS = {
     "transactions.detailsCategory": "Catégorie",
     "transactions.detailsParent": "Grande catégorie",
     "transactions.detailsAmount": "Montant",
+    "transactions.detailsFundingSource": "Source des fonds",
+    "transactions.detailsFundingSourceCash": "Cash / compte",
+    "transactions.detailsFundingSourceSavings": "Épargne",
     "transactions.detailsSource": "Source",
     "transactions.useAsRecurring": "Utiliser comme modèle récurrent",
     "transactions.openRecurringAfterCreate": "Ouvrir les récurrentes",
     "transactions.recurringUnavailable": "Cette transaction doit contenir une catégorie et un montant pour devenir un modèle récurrent.",
+    "transactions.helperEditBlocked": "Cette ligne d'ajustement d'épargne est générée automatiquement. Modifiez la dépense principale.",
+    "transactions.helperDeleteBlocked": "Cette ligne d'ajustement d'épargne est générée automatiquement. Supprimez la dépense principale.",
     "tab.form.title": "Formulaire",
     "tab.form.description": "Un espace dédié à la création et à la modification d'une transaction, sans distraction autour.",
     "tab.recurring.title": "Transactions récurrentes",
@@ -338,6 +350,11 @@ const UI_STRINGS = {
     "form.editingCloud": "Mode cloud partagé : chaque enregistrement met à jour vos vues locales et synchronise Supabase.",
     "form.editingLocal": "Mode autonome local : vos catégories, récapitulatifs et graphiques se mettent à jour à chaque enregistrement.",
     "form.manageCategories": "Gérer les catégories",
+    "form.fundingSourceLabel": "Payé depuis",
+    "form.fundingSourceCash": "Cash / compte",
+    "form.fundingSourceSavings": "Épargne",
+    "form.fundingSourceHint": "Choisissez Épargne pour une dépense négative financée par vos économies. L'app ajuste alors le mouvement pour éviter un double effet sur le cash.",
+    "form.fundingSourceHintDisabled": "Disponible seulement pour une dépense négative.",
     "plans.managerKicker": "Plans budgétaires",
     "plans.managerTitle": "Plusieurs budgets planifiés",
     "plans.managerDescription": "Chaque plan garde sa propre plage de dates. Le plan actif pilote cette vue locale pour vos tests.",
@@ -575,10 +592,15 @@ const UI_STRINGS = {
     "transactions.detailsCategory": "Category",
     "transactions.detailsParent": "Main category",
     "transactions.detailsAmount": "Amount",
+    "transactions.detailsFundingSource": "Funding source",
+    "transactions.detailsFundingSourceCash": "Cash / account",
+    "transactions.detailsFundingSourceSavings": "Savings",
     "transactions.detailsSource": "Source",
     "transactions.useAsRecurring": "Use as recurring template",
     "transactions.openRecurringAfterCreate": "Open recurring templates",
     "transactions.recurringUnavailable": "This transaction must include a category and amount to become a recurring template.",
+    "transactions.helperEditBlocked": "This savings adjustment line is generated automatically. Edit the main expense instead.",
+    "transactions.helperDeleteBlocked": "This savings adjustment line is generated automatically. Delete the main expense instead.",
     "tab.form.title": "Form",
     "tab.form.description": "A dedicated space to create and edit a transaction without distractions.",
     "tab.recurring.title": "Recurring transactions",
@@ -836,6 +858,11 @@ const UI_STRINGS = {
     "form.editingCloud": "Shared cloud mode: each save updates your local views and syncs with Supabase.",
     "form.editingLocal": "Local standalone mode: your categories, recaps, and charts update every time you save.",
     "form.manageCategories": "Manage categories",
+    "form.fundingSourceLabel": "Paid from",
+    "form.fundingSourceCash": "Cash / account",
+    "form.fundingSourceSavings": "Savings",
+    "form.fundingSourceHint": "Choose Savings for a negative expense funded by your savings. The app adjusts the movement to avoid a double effect on cash.",
+    "form.fundingSourceHintDisabled": "Available only for a negative expense.",
     "plans.managerKicker": "Budget plans",
     "plans.managerTitle": "Multiple planned budgets",
     "plans.managerDescription": "Each plan keeps its own date range. The active plan drives this local test view.",
@@ -2320,6 +2347,12 @@ function sanitizeHistoryEntry(rawEntry) {
       : [],
     previousRecord: rawEntry?.previousRecord ? sanitizeBudgetRow(rawEntry.previousRecord) : null,
     nextRecord: rawEntry?.nextRecord ? sanitizeBudgetRow(rawEntry.nextRecord) : null,
+    previousRecords: Array.isArray(rawEntry?.previousRecords)
+      ? rawEntry.previousRecords.map((record) => sanitizeBudgetRow(record)).filter((record) => record.__id)
+      : [],
+    nextRecords: Array.isArray(rawEntry?.nextRecords)
+      ? rawEntry.nextRecords.map((record) => sanitizeBudgetRow(record)).filter((record) => record.__id)
+      : [],
     index: Number.isInteger(rawEntry?.index) ? rawEntry.index : null,
     recurringKeys: Array.isArray(rawEntry?.recurringKeys)
       ? rawEntry.recurringKeys.map((key) => String(key || "").trim()).filter(Boolean)
@@ -2402,7 +2435,7 @@ function buildLocalStarterCategories(planTemplate = buildLocalStarterPlanTemplat
   const seen = new Set();
 
   planTemplate
-    .filter((row) => !isDerivedPlanLabel(row.label))
+    .filter((row) => !isDerivedPlanLabel(row.label) && !isAssociationFeesPlanOnlyLabel(row.label))
     .forEach((row) => {
       const label = String(row.label || "").trim();
       const key = normalizeHeaderName(label);
@@ -2414,8 +2447,8 @@ function buildLocalStarterCategories(planTemplate = buildLocalStarterPlanTemplat
       seen.add(key);
     });
 
-  if (!seen.has("association fees")) {
-    categories.push("Association fees");
+  if (!seen.has(normalizeHeaderName(ASSOCIATION_FEES_CATEGORY))) {
+    categories.push(ASSOCIATION_FEES_CATEGORY);
   }
 
   return categories;
@@ -2588,6 +2621,14 @@ function inferPlanGroupFromLabel(label) {
     return "income";
   }
 
+  if (normalized === normalizeHeaderName(ASSOCIATION_FEES_INCOME_PLAN_LABEL)) {
+    return "income";
+  }
+
+  if (normalized === normalizeHeaderName(ASSOCIATION_FEES_EXPENSE_PLAN_LABEL)) {
+    return "expenses";
+  }
+
   if (normalized === "savings" || normalized === "savings for seasonal exp.") {
     return "savings";
   }
@@ -2633,6 +2674,91 @@ function getReferenceBudgetCanonicalKey(label) {
   return item?.canonical || normalizeHeaderName(label);
 }
 
+function isAssociationFeesBaseLabel(label) {
+  return normalizeHeaderName(label) === normalizeHeaderName(ASSOCIATION_FEES_CATEGORY);
+}
+
+function isAssociationFeesIncomePlanLabel(label) {
+  return normalizeHeaderName(label) === normalizeHeaderName(ASSOCIATION_FEES_INCOME_PLAN_LABEL);
+}
+
+function isAssociationFeesExpensePlanLabel(label) {
+  return normalizeHeaderName(label) === normalizeHeaderName(ASSOCIATION_FEES_EXPENSE_PLAN_LABEL);
+}
+
+function isAssociationFeesPlanOnlyLabel(label) {
+  return isAssociationFeesIncomePlanLabel(label) || isAssociationFeesExpensePlanLabel(label);
+}
+
+function createAssociationFeesPlanRow(label, group, sourceRow = null) {
+  return {
+    label,
+    plan: sourceRow ? normalizeAmountValue(sourceRow.plan) : "0",
+    period: sourceRow ? normalizePlanPeriod(sourceRow.period) : DEFAULT_PLAN_PERIOD,
+    group,
+  };
+}
+
+function ensureAssociationFeesPlanRows(rows) {
+  const normalizedRows = (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      ...row,
+      label: String(row?.label || "").trim(),
+      plan: normalizeAmountValue(row?.plan),
+      period: normalizePlanPeriod(row?.period),
+      group: normalizePlanGroup(row?.group, row?.label),
+    }))
+    .filter((row) => row.label);
+  const baseRows = normalizedRows.filter((row) => isAssociationFeesBaseLabel(row.label));
+  const incomeRow = normalizedRows.find((row) => isAssociationFeesIncomePlanLabel(row.label)) || null;
+  const expenseRow = normalizedRows.find((row) => isAssociationFeesExpensePlanLabel(row.label)) || null;
+  const otherRows = normalizedRows.filter(
+    (row) => !isAssociationFeesBaseLabel(row.label) && !isAssociationFeesPlanOnlyLabel(row.label)
+  );
+
+  if (baseRows.length) {
+    const preservedBaseRows = baseRows.map((row) => ({ ...row }));
+    const primaryBaseRow = preservedBaseRows[0];
+    const currentBaseAmount = parseAmount(primaryBaseRow?.plan);
+    const incomeAmount = parseAmount(incomeRow?.plan);
+    const expenseAmount = parseAmount(expenseRow?.plan);
+    const mergedAmount =
+      (Number.isFinite(incomeAmount) ? incomeAmount : 0) -
+      (Number.isFinite(expenseAmount) ? Math.abs(expenseAmount) : 0);
+
+    if (!Number.isFinite(currentBaseAmount) || Math.abs(currentBaseAmount) < 0.0001) {
+      if (Math.abs(mergedAmount) > 0.0001) {
+        primaryBaseRow.plan = normalizeAmountValue(mergedAmount);
+        primaryBaseRow.group = mergedAmount > 0 ? "income" : "expenses";
+        primaryBaseRow.period = normalizePlanPeriod(incomeRow?.period || expenseRow?.period || primaryBaseRow.period);
+      }
+    }
+
+    return [...otherRows, ...preservedBaseRows];
+  }
+
+  if (!incomeRow && !expenseRow) {
+    return normalizedRows;
+  }
+
+  const incomeAmount = parseAmount(incomeRow?.plan);
+  const expenseAmount = parseAmount(expenseRow?.plan);
+  const mergedAmount =
+    (Number.isFinite(incomeAmount) ? incomeAmount : 0) -
+    (Number.isFinite(expenseAmount) ? Math.abs(expenseAmount) : 0);
+  const sourceRow = incomeRow || expenseRow;
+
+  return [
+    ...otherRows,
+    {
+      label: ASSOCIATION_FEES_CATEGORY,
+      plan: normalizeAmountValue(mergedAmount),
+      period: normalizePlanPeriod(sourceRow?.period),
+      group: mergedAmount > 0 ? "income" : mergedAmount < 0 ? "expenses" : "neutral",
+    },
+  ];
+}
+
 function createReferenceBudgetResolvedRule(item, label) {
   const parentMeta = getBudgetFraCategoryMeta(item.parent);
   const includeInIncome = item.parent === "income";
@@ -2666,18 +2792,232 @@ function createReferenceBudgetResolvedRule(item, label) {
   };
 }
 
+function normalizeTransactionFundingSource(value) {
+  return String(value || "").trim().toLowerCase() === TRANSACTION_FUNDING_SOURCE_SAVINGS
+    ? TRANSACTION_FUNDING_SOURCE_SAVINGS
+    : TRANSACTION_FUNDING_SOURCE_CASH;
+}
+
+function getSavingsFundingAdjustmentLabel(categoryLabel = "") {
+  const normalizedCategory = String(categoryLabel || "").trim();
+  return normalizedCategory
+    ? `${SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX} · ${normalizedCategory}`
+    : SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX;
+}
+
+function buildSavingsFundingAdjustmentId(primaryRecordId) {
+  const normalizedPrimaryId = String(primaryRecordId || "").trim();
+  return normalizedPrimaryId ? `${SAVINGS_FUNDING_HELPER_ID_PREFIX}${normalizedPrimaryId}` : createId();
+}
+
+function isSavingsFundingAdjustmentId(recordId) {
+  return String(recordId || "").trim().startsWith(SAVINGS_FUNDING_HELPER_ID_PREFIX);
+}
+
+function extractSavingsFundingPrimaryRecordId(recordId) {
+  if (!isSavingsFundingAdjustmentId(recordId)) {
+    return "";
+  }
+
+  return String(recordId || "").trim().slice(SAVINGS_FUNDING_HELPER_ID_PREFIX.length).trim();
+}
+
+function isSavingsFundingAdjustmentCategory(label) {
+  return normalizeHeaderName(label).startsWith(normalizeHeaderName(SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX));
+}
+
+function extractSavingsFundingLinkedCategory(label) {
+  const rawLabel = String(label || "").trim();
+  if (!isSavingsFundingAdjustmentCategory(rawLabel)) {
+    return "";
+  }
+
+  const segments = rawLabel.split("·");
+  if (segments.length < 2) {
+    return "";
+  }
+
+  return segments.slice(1).join("·").trim();
+}
+
+function isSavingsFundingAdjustmentRecord(record) {
+  return Boolean(
+    record &&
+    (isSavingsFundingAdjustmentId(record.__id) || isSavingsFundingAdjustmentCategory(record.Categories))
+  );
+}
+
+function isSyntheticBudgetHelperCategory(label) {
+  return isSavingsFundingAdjustmentCategory(label);
+}
+
+function isTransactionEligibleForSavingsFunding(categoryLabel, amountValue) {
+  const normalizedCategory = String(categoryLabel || "").trim();
+  const amount = parseAmount(amountValue);
+  if (!normalizedCategory || !Number.isFinite(amount) || amount === 0 || isSyntheticBudgetHelperCategory(normalizedCategory)) {
+    return false;
+  }
+
+  const rule = getResolvedBudgetCategoryRule(normalizedCategory, "", amount);
+  if (rule.includeInIncome) {
+    return false;
+  }
+
+  return rule.includeInExpenses && amount < 0;
+}
+
+function buildSavingsFundingAdjustmentRecord(primaryRecord) {
+  const primaryId = String(primaryRecord?.__id || "").trim();
+  const date = normalizeDateValue(primaryRecord?.Date);
+  const category = String(primaryRecord?.Categories || "").trim();
+  const amount = parseAmount(primaryRecord?.Value);
+  if (!primaryId || !date || !category || !Number.isFinite(amount) || amount >= 0) {
+    return null;
+  }
+
+  return sanitizeBudgetRow({
+    __id: buildSavingsFundingAdjustmentId(primaryId),
+    Date: date,
+    Categories: getSavingsFundingAdjustmentLabel(category),
+    Value: normalizeAmountValue(Math.abs(amount)),
+    FundingSource: TRANSACTION_FUNDING_SOURCE_SAVINGS,
+  });
+}
+
+function findSavingsFundingAdjustmentRecord(primaryRecord, rows = state.budget.rows) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const record = typeof primaryRecord === "string"
+    ? sourceRows.find((entry) => String(entry?.__id || "").trim() === String(primaryRecord || "").trim()) || null
+    : primaryRecord;
+  const primaryId = String(record?.__id || primaryRecord || "").trim();
+  if (!primaryId) {
+    return null;
+  }
+
+  const directMatch = sourceRows.find((entry) => String(entry?.__id || "").trim() === buildSavingsFundingAdjustmentId(primaryId));
+  if (directMatch) {
+    return directMatch;
+  }
+
+  if (!record) {
+    return null;
+  }
+
+  const targetDate = normalizeDateValue(record.Date);
+  const targetAmount = normalizeAmountValue(Math.abs(parseAmount(record.Value)));
+  const targetCategoryKey = normalizeHeaderName(record.Categories);
+  const primaryIndex = sourceRows.findIndex((entry) => String(entry?.__id || "").trim() === primaryId);
+  const candidates = sourceRows
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => {
+      if (!isSavingsFundingAdjustmentRecord(entry)) {
+        return false;
+      }
+
+      return normalizeDateValue(entry.Date) === targetDate
+        && normalizeAmountValue(entry.Value) === targetAmount
+        && normalizeHeaderName(extractSavingsFundingLinkedCategory(entry.Categories)) === targetCategoryKey;
+    });
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  if (primaryIndex < 0) {
+    return candidates[0].entry;
+  }
+
+  candidates.sort((left, right) => Math.abs(left.index - primaryIndex) - Math.abs(right.index - primaryIndex));
+  return candidates[0].entry;
+}
+
+function shouldUseSavingsFundingForRecord(record, rows = state.budget.rows) {
+  if (!record || isSavingsFundingAdjustmentRecord(record)) {
+    return false;
+  }
+
+  const amount = parseAmount(record?.Value);
+  const category = String(record?.Categories || "").trim();
+  if (!isTransactionEligibleForSavingsFunding(category, amount)) {
+    return false;
+  }
+
+  if (normalizeTransactionFundingSource(record?.FundingSource) === TRANSACTION_FUNDING_SOURCE_SAVINGS) {
+    return true;
+  }
+
+  return Boolean(findSavingsFundingAdjustmentRecord(record, rows));
+}
+
+function reconcileSavingsFundingAdjustments(rows = state.budget.rows) {
+  const sourceRows = Array.isArray(rows) ? rows.map((row) => sanitizeBudgetRow(row)) : [];
+  const nextRows = [];
+
+  sourceRows.forEach((row) => {
+    if (isSavingsFundingAdjustmentRecord(row)) {
+      return;
+    }
+
+    const fundingSource = shouldUseSavingsFundingForRecord(row, sourceRows)
+      ? TRANSACTION_FUNDING_SOURCE_SAVINGS
+      : TRANSACTION_FUNDING_SOURCE_CASH;
+    const nextRow = sanitizeBudgetRow({
+      ...row,
+      FundingSource: fundingSource,
+    });
+
+    nextRows.push(nextRow);
+
+    if (fundingSource === TRANSACTION_FUNDING_SOURCE_SAVINGS) {
+      const adjustmentRecord = buildSavingsFundingAdjustmentRecord(nextRow);
+      if (adjustmentRecord) {
+        nextRows.push(adjustmentRecord);
+      }
+    }
+  });
+
+  return nextRows;
+}
+
+function getTransactionFundingSource(record, rows = state.budget.rows) {
+  if (!record) {
+    return TRANSACTION_FUNDING_SOURCE_CASH;
+  }
+
+  if (isSavingsFundingAdjustmentRecord(record)) {
+    return TRANSACTION_FUNDING_SOURCE_SAVINGS;
+  }
+
+  if (normalizeTransactionFundingSource(record?.FundingSource) === TRANSACTION_FUNDING_SOURCE_SAVINGS) {
+    return TRANSACTION_FUNDING_SOURCE_SAVINGS;
+  }
+
+  if (findSavingsFundingAdjustmentRecord(record, rows)) {
+    return TRANSACTION_FUNDING_SOURCE_SAVINGS;
+  }
+
+  const amount = parseAmount(record?.Value);
+  return TRANSACTION_FUNDING_SOURCE_CASH;
+}
+
+function getTransactionFundingSourceLabel(source) {
+  return normalizeTransactionFundingSource(source) === TRANSACTION_FUNDING_SOURCE_SAVINGS
+    ? t("transactions.detailsFundingSourceSavings")
+    : t("transactions.detailsFundingSourceCash");
+}
+
 function buildAvailableFormCategories() {
   const planRows = resolvePlanTemplate(state.recap.planTemplate)
-    .filter((row) => !isDerivedPlanLabel(row.label));
+    .filter((row) => !isDerivedPlanLabel(row.label) && !isSyntheticBudgetHelperCategory(row.label) && !isAssociationFeesPlanOnlyLabel(row.label));
 
   if (planRows.length) {
-    return buildBudgetFraPlanEditorGroups(planRows)
+    const groupedCategories = buildBudgetFraPlanEditorGroups(planRows)
       .map((group) => {
         const seen = new Set();
         const items = group.rows
           .map((row) => String(row.label || "").trim())
           .filter((label) => {
-            if (!label) {
+            if (!label || isSyntheticBudgetHelperCategory(label) || isAssociationFeesPlanOnlyLabel(label)) {
               return false;
             }
 
@@ -2697,13 +3037,43 @@ function buildAvailableFormCategories() {
         };
       })
       .filter((group) => group.items.length);
+    const seenKeys = new Set(
+      groupedCategories
+        .flatMap((group) => group.items)
+        .map((label) => normalizeHeaderName(label))
+        .filter(Boolean)
+    );
+    const extraItems = Array.from(
+      new Set(
+        state.budget.categories
+          .map((category) => String(category || "").trim())
+          .filter((category) => category && !isSyntheticBudgetHelperCategory(category) && !isAssociationFeesPlanOnlyLabel(category))
+      )
+    ).filter((category) => {
+      const key = normalizeHeaderName(category);
+      if (!key || seenKeys.has(key)) {
+        return false;
+      }
+      seenKeys.add(key);
+      return true;
+    });
+
+    if (extraItems.length) {
+      groupedCategories.push({
+        key: "extra",
+        label: isEnglishUi() ? "Additional categories" : "Categories supplementaires",
+        items: extraItems,
+      });
+    }
+
+    return groupedCategories;
   }
 
   const fallbackItems = Array.from(
     new Set(
       state.budget.categories
         .map((category) => String(category || "").trim())
-        .filter(Boolean)
+        .filter((category) => category && !isSyntheticBudgetHelperCategory(category))
     )
   );
 
@@ -2718,7 +3088,7 @@ function getAvailableFormCategoryCount() {
 
 function ensureBudgetCategoryAvailable(category) {
   const label = String(category || "").trim();
-  if (!label) {
+  if (!label || isSyntheticBudgetHelperCategory(label)) {
     return;
   }
 
@@ -4262,8 +4632,61 @@ async function addRecurringOccurrencesToBudget(occurrences, options = {}) {
   });
 }
 
+function createManualBudgetResolvedRule(label, parentKey, flowType, notes = "") {
+  const parentMeta = getBudgetFraCategoryMeta(parentKey);
+  const alertEligibleParents = new Set(BUDGET_FRA_RULES.map((rule) => rule.key));
+  const normalizedFlowType = flowType === "income" || flowType === "savings" ? flowType : "expense";
+  return {
+    id: `manual-${normalizeHeaderName(label)}`,
+    normalizedKey: normalizeHeaderName(label),
+    canonicalKey: normalizeHeaderName(label),
+    label: String(label || "").trim(),
+    parent: parentKey,
+    parentMeta,
+    parentLabel: parentMeta?.label || "",
+    flowType: normalizedFlowType,
+    includeInIncome: normalizedFlowType === "income",
+    includeInExpenses: normalizedFlowType === "expense",
+    includeInSavings: normalizedFlowType === "savings",
+    includeInParentTotals: true,
+    alertGroup: alertEligibleParents.has(parentKey) ? parentKey : null,
+    suggestionTags: ["manual-category", parentKey],
+    notes,
+  };
+}
+
 function getResolvedBudgetCategoryRule(label, planGroup = "", amountValue = null) {
   const amount = parseAmount(amountValue);
+  if (isSavingsFundingAdjustmentCategory(label)) {
+    const parentKey = "savings";
+    const parentMeta = getBudgetFraCategoryMeta(parentKey);
+    return {
+      id: "synthetic-savings-funding-adjustment",
+      normalizedKey: normalizeHeaderName(label),
+      canonicalKey: normalizeHeaderName(SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX),
+      label: String(label || "").trim() || SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX,
+      parent: parentKey,
+      parentMeta,
+      parentLabel: parentMeta?.label || "",
+      flowType: "savings",
+      includeInIncome: false,
+      includeInExpenses: false,
+      includeInSavings: true,
+      includeInParentTotals: true,
+      alertGroup: parentKey,
+      suggestionTags: ["synthetic-category", parentKey],
+      notes: "Ligne technique générée automatiquement quand une dépense est payée depuis l'épargne.",
+    };
+  }
+
+  if (isAssociationFeesBaseLabel(label)) {
+    if (Number.isFinite(amount)) {
+      return amount >= 0
+        ? createManualBudgetResolvedRule(label, "income", "income", "Association fees positive traitee comme un revenu.")
+        : createManualBudgetResolvedRule(label, "fees", "expense", "Association fees negative traitee comme une depense.");
+    }
+  }
+
   const assignment = getBudgetCategoryAssignment(label);
   if (assignment) {
     const parentKey = assignment.groupKey;
@@ -4352,12 +4775,9 @@ function inferBudgetFraCategory(label, planGroup = "", amountValue = null) {
     return "debt";
   }
 
-  if (normalized === "association fees") {
+  if (isAssociationFeesBaseLabel(label)) {
     if (Number.isFinite(amount)) {
-      return amount >= 0 ? "income" : "";
-    }
-    if (normalizedPlanGroup === "income") {
-      return "income";
+      return amount >= 0 ? "income" : "fees";
     }
     return "";
   }
@@ -4830,8 +5250,10 @@ function buildBudgetFraGroupTotals(actualMap) {
     }
     let contribution = 0;
 
-    if (rule.includeInIncome || rule.includeInSavings) {
+    if (rule.includeInIncome) {
       contribution = Math.abs(normalizedAmount);
+    } else if (rule.includeInSavings) {
+      contribution = getSavingsContributionAmount(normalizedAmount, label, rule);
     } else if (rule.includeInExpenses) {
       contribution = getExpenseContributionAmount(normalizedAmount);
     }
@@ -5184,7 +5606,7 @@ function stripAutoCalculatedPlanRows(rows) {
 function resolvePlanTemplate(rows = state.recap.planTemplate) {
   const seededRows = Array.isArray(rows) && rows.length ? rows : createFallbackPlanTemplate();
   const mergedRows = mergeReferenceBudgetTemplateRows(seededRows);
-  const normalizedRows = dedupePlanTemplateRows(migrateLegacyIncomePlanRows(mergedRows)).map((row) => ({
+  const normalizedRows = dedupePlanTemplateRows(ensureAssociationFeesPlanRows(migrateLegacyIncomePlanRows(mergedRows))).map((row) => ({
     ...row,
     group: normalizePlanGroup(row.group, row.label),
   }));
@@ -6290,10 +6712,15 @@ function buildJournalRowSearchHaystack(row) {
 function getFilteredBudgetRowsForQuery(query, options = {}) {
   const normalizedQuery = String(query || "").trim().toLowerCase();
   const limitToRecapPeriod = options.limitToRecapPeriod !== false;
+  const includeSystemRows = options.includeSystemRows === true;
 
   return state.budget.rows
     .map((row, index) => ({ row, index }))
     .filter(({ row }) => {
+      if (!includeSystemRows && isSavingsFundingAdjustmentRecord(row)) {
+        return false;
+      }
+
       if (limitToRecapPeriod && hasActiveRecapPeriodFilter() && !matchesRecapPeriod(row)) {
         return false;
       }
@@ -6666,6 +7093,7 @@ function openTransactionDetailsModal(index) {
   const parentLabel = getBudgetFraCategoryLabel(row.Categories || "", "", row.Value) || (english ? "No main category" : "Aucune grande catégorie");
   const dateLabel = formatDateForDisplay(row.Date) || (english ? "No date" : "Sans date");
   const amountLabel = formatCurrency(row.Value) || row.Value || "-";
+  const fundingSourceLabel = getTransactionFundingSourceLabel(getTransactionFundingSource(row));
   const sourceLabel = english ? "Journal sheet" : "Feuille Journalier";
   const recurringDisabled = canCreateRecurringTemplateFromRecord(row) ? "" : "disabled";
 
@@ -6699,6 +7127,10 @@ function openTransactionDetailsModal(index) {
         <article class="analysis-transactions-stat">
           <span>${escapeHtml(t("transactions.detailsAmount"))}</span>
           <strong>${escapeHtml(amountLabel)}</strong>
+        </article>
+        <article class="analysis-transactions-stat">
+          <span>${escapeHtml(t("transactions.detailsFundingSource"))}</span>
+          <strong>${escapeHtml(fundingSourceLabel)}</strong>
         </article>
       </div>
       <div class="analysis-transactions-results">
@@ -6851,10 +7283,18 @@ function clonePlanTemplateRows(rows) {
 }
 
 function sanitizeBudgetPlanRows(rows) {
-  const sanitized = stripAutoCalculatedPlanRows(clonePlanTemplateRows(rows));
+  const sanitized = stripAutoCalculatedPlanRows(
+    dedupePlanTemplateRows(
+      ensureAssociationFeesPlanRows(migrateLegacyIncomePlanRows(clonePlanTemplateRows(rows)))
+    )
+  );
   return sanitized.length
     ? sanitized
-    : stripAutoCalculatedPlanRows(clonePlanTemplateRows(createFallbackPlanTemplate()));
+    : stripAutoCalculatedPlanRows(
+      dedupePlanTemplateRows(
+        ensureAssociationFeesPlanRows(clonePlanTemplateRows(createFallbackPlanTemplate()))
+      )
+    );
 }
 
 function getBudgetPlanFallbackYear() {
@@ -7155,6 +7595,12 @@ async function onUndoLastActionRequested() {
   if (entry.kind === "create-record" && entry.record?.__id) {
     state.budget.rows = state.budget.rows.filter((row) => row.__id !== entry.record.__id);
     actionLabel = `Creation annulee: ${entry.record.Categories || entry.record.Date || "transaction"}`;
+  } else if (entry.kind === "create-record-batch" && entry.records?.length) {
+    const deletedIds = new Set(entry.records.map((record) => record.__id).filter(Boolean));
+    state.budget.rows = state.budget.rows.filter((row) => !deletedIds.has(row.__id));
+    actionLabel = entry.records.length > 1
+      ? `${entry.records.length} transactions annulées`
+      : `Creation annulee: ${entry.records[0].Categories || entry.records[0].Date || "transaction"}`;
   } else if (entry.kind === "add-recurring-batch" && entry.records?.length) {
     const deletedIds = new Set(entry.records.map((record) => record.__id).filter(Boolean));
     state.budget.rows = state.budget.rows.filter((row) => !deletedIds.has(row.__id));
@@ -7180,10 +7626,27 @@ async function onUndoLastActionRequested() {
       state.budget.rows.splice(index, 1, sanitizeBudgetRow(entry.previousRecord));
     }
     actionLabel = `Modification annulee: ${entry.previousRecord.Categories || entry.previousRecord.Date || "transaction"}`;
+  } else if (entry.kind === "update-record-batch" && entry.previousRecords?.length) {
+    const currentIds = new Set([
+      ...entry.previousRecords.map((record) => record.__id),
+      ...entry.nextRecords.map((record) => record.__id),
+    ].filter(Boolean));
+    state.budget.rows = state.budget.rows.filter((row) => !currentIds.has(row.__id));
+    entry.previousRecords.forEach((record) => {
+      state.budget.rows.push(sanitizeBudgetRow(record));
+      ensureBudgetCategoryAvailable(record.Categories);
+    });
+    actionLabel = `Modification annulee: ${entry.previousRecords[0].Categories || entry.previousRecords[0].Date || "transaction"}`;
   } else if (entry.kind === "delete-record" && entry.record) {
     state.budget.rows.push(sanitizeBudgetRow(entry.record));
     ensureBudgetCategoryAvailable(entry.record.Categories);
     actionLabel = `Suppression annulee: ${entry.record.Categories || entry.record.Date || "transaction"}`;
+  } else if (entry.kind === "delete-record-batch" && entry.records?.length) {
+    entry.records.forEach((record) => {
+      state.budget.rows.push(sanitizeBudgetRow(record));
+      ensureBudgetCategoryAvailable(record.Categories);
+    });
+    actionLabel = `Suppression annulee: ${entry.records[0].Categories || entry.records[0].Date || "transaction"}`;
   } else if (entry.kind === "update-plan" && entry.previousTemplate?.length) {
     state.recap.available = true;
     replaceBudgetPlanRows(entry.planId || state.recap.activeBudgetPlanId, clonePlanTemplateRows(entry.previousTemplate));
@@ -8680,7 +9143,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     const cloudCategoryAssignments = parseSupabaseCategoryAssignmentsFromRows(categories || []);
     state.budget = {
       headers: ["Date", "Categories", "Value"],
-      categories: (categories || []).map((row) => String(row.name || "").trim()).filter(Boolean),
+      categories: (categories || []).map((row) => String(row.name || "").trim()).filter((name) => name && !isSyntheticBudgetHelperCategory(name)),
       rows: (transactions || [])
         .map((row) => sanitizeBudgetRow({
           __id: row.id,
@@ -8693,6 +9156,8 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       customGroups: categorySchemaOutdated ? preservedCustomGroups : cloudCustomGroups,
       categoryAssignments: categorySchemaOutdated ? preservedCategoryAssignments : cloudCategoryAssignments,
     };
+    state.budget.rows = reconcileSavingsFundingAdjustments(state.budget.rows);
+    sortBudgetRowsInPlace(state.budget.rows);
     const cloudPlans = budgetPlanSchemaOutdated
       ? (preservedPlans.length
         ? preservedPlans
@@ -8755,7 +9220,7 @@ function buildSupabaseCategoryPayload(spaceId) {
 
   state.budget.categories.forEach((category) => {
     const normalized = String(category || "").trim();
-    if (!normalized || categories.has(normalized)) {
+    if (!normalized || categories.has(normalized) || isSyntheticBudgetHelperCategory(normalized)) {
       return;
     }
 
@@ -8765,7 +9230,7 @@ function buildSupabaseCategoryPayload(spaceId) {
 
   state.budget.rows.forEach((row) => {
     const normalized = String(row.Categories || "").trim();
-    if (!normalized || categories.has(normalized)) {
+    if (!normalized || categories.has(normalized) || isSyntheticBudgetHelperCategory(normalized)) {
       return;
     }
 
@@ -9310,6 +9775,8 @@ function applyStoredDraft(draft) {
       ? draft.categoryAssignments.map((entry) => sanitizeBudgetCategoryAssignment(entry)).filter(Boolean)
       : [],
   };
+  state.budget.rows = reconcileSavingsFundingAdjustments(state.budget.rows);
+  sortBudgetRowsInPlace(state.budget.rows);
   state.recap = {
     available: Boolean(draft.recap?.available),
     snapshotDate: String(draft.recap?.snapshotDate || ""),
@@ -9703,7 +10170,7 @@ function buildImportedBudgetCategoryList(...sources) {
     .filter(Boolean)
     .forEach((category) => {
       const key = normalizeHeaderName(category);
-      if (!key || seen.has(key) || isDerivedPlanLabel(category)) {
+      if (!key || seen.has(key) || isDerivedPlanLabel(category) || isSyntheticBudgetHelperCategory(category) || isAssociationFeesPlanOnlyLabel(category)) {
         return;
       }
 
@@ -10673,6 +11140,7 @@ function captureCurrentTransactionFormSnapshot() {
     Date: String(document.getElementById("field-date")?.value || "").trim(),
     Categories: String(document.getElementById("field-categories")?.value || "").trim(),
     Value: String(document.getElementById("field-value")?.value || "").trim(),
+    FundingSource: normalizeTransactionFundingSource(document.getElementById("field-funding-source")?.value),
   };
 }
 
@@ -10680,6 +11148,7 @@ function applyTransactionFormSnapshot(snapshot) {
   const dateInput = document.getElementById("field-date");
   const categoryInput = document.getElementById("field-categories");
   const valueInput = document.getElementById("field-value");
+  const fundingSourceInput = document.getElementById("field-funding-source");
 
   if (dateInput) {
     dateInput.value = String(snapshot?.Date || "").trim();
@@ -10691,6 +11160,10 @@ function applyTransactionFormSnapshot(snapshot) {
 
   if (valueInput) {
     valueInput.value = String(snapshot?.Value || "").trim();
+  }
+
+  if (fundingSourceInput) {
+    fundingSourceInput.value = normalizeTransactionFundingSource(snapshot?.FundingSource);
   }
 
   refreshCategoryParentMeta();
@@ -10811,6 +11284,7 @@ function prepareTransactionFormForNextEntry(record = {}, feedbackMessage = "") {
     Date: normalizeDateValue(record?.Date) || "",
     Categories: "",
     Value: "",
+    FundingSource: TRANSACTION_FUNDING_SOURCE_CASH,
   });
 
   const categoryInput = document.getElementById("field-categories");
@@ -10842,7 +11316,7 @@ async function syncRecurringTemplatesIfNeeded(actionLabel, activityLabel = "les 
 function canCreateRecurringTemplateFromRecord(record) {
   const category = String(record?.Categories || "").trim();
   const value = String(record?.Value ?? "").trim();
-  return Boolean(category && value);
+  return Boolean(category && value && !isSavingsFundingAdjustmentRecord(record));
 }
 
 function buildRecurringTemplateFromRecord(record) {
@@ -11846,6 +12320,11 @@ function openEditor(index) {
     return;
   }
 
+  if (isSavingsFundingAdjustmentRecord(state.budget.rows[index])) {
+    showAppToast(t("transactions.helperEditBlocked"));
+    return;
+  }
+
   closeTransactionDetailsModal();
   state.editorMode = "edit";
   state.editingIndex = index;
@@ -11862,6 +12341,11 @@ async function deleteRecord(index) {
     return;
   }
 
+  if (isSavingsFundingAdjustmentRecord(target)) {
+    showAppToast(t("transactions.helperDeleteBlocked"));
+    return;
+  }
+
   const openTransactionDetailId = String(transactionDetailsModal?.dataset.entryId || "").trim();
   if (openTransactionDetailId && openTransactionDetailId === String(target.__id || "").trim()) {
     closeTransactionDetailsModal();
@@ -11874,27 +12358,49 @@ async function deleteRecord(index) {
     return;
   }
 
-  const removedRecord = sanitizeBudgetRow(target);
-  state.budget.rows.splice(index, 1);
+  const adjustmentRecord = findSavingsFundingAdjustmentRecord(target);
+  const removedRecords = [
+    sanitizeBudgetRow(target),
+    ...(adjustmentRecord ? [sanitizeBudgetRow(adjustmentRecord)] : []),
+  ];
+  const removedIds = new Set(removedRecords.map((record) => record.__id).filter(Boolean));
+  const removedIndices = state.budget.rows
+    .map((row, rowIndex) => (removedIds.has(row.__id) ? rowIndex : -1))
+    .filter((rowIndex) => rowIndex >= 0);
+  state.budget.rows = state.budget.rows.filter((row) => !removedIds.has(row.__id));
 
-  if (state.editingIndex === index) {
+  if (state.editingIndex !== null && removedIndices.includes(state.editingIndex)) {
     state.editingIndex = null;
     state.editorMode = "create";
-  } else if (state.editingIndex !== null && state.editingIndex > index) {
-    state.editingIndex -= 1;
+  } else if (state.editingIndex !== null) {
+    const removedBeforeEditing = removedIndices.filter((rowIndex) => rowIndex < state.editingIndex).length;
+    state.editingIndex = Math.max(0, state.editingIndex - removedBeforeEditing);
   }
 
   persistDraft();
   const actionLabel = `Transaction supprimee: ${title}`;
-  pushUndoEntry({
-    kind: "delete-record",
-    record: removedRecord,
-    index,
-  }, actionLabel);
+  pushUndoEntry(
+    removedRecords.length > 1
+      ? {
+        kind: "delete-record-batch",
+        records: removedRecords,
+        index,
+      }
+      : {
+        kind: "delete-record",
+        record: removedRecords[0],
+        index,
+      },
+    actionLabel
+  );
   setLastAction(actionLabel);
   renderAll();
   try {
-    await enqueueCloudSync(() => removeSingleTransactionFromSupabase(target.__id));
+    if (removedRecords.length > 1) {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+    } else {
+      await enqueueCloudSync(() => removeSingleTransactionFromSupabase(target.__id));
+    }
     await sendCloudActivityBroadcast("deleted", title);
   } catch (error) {
     console.error(error);
@@ -11925,7 +12431,9 @@ async function onSaveRecord(event) {
     Date: normalizeDateValue(formData.get("Date")),
     Categories: getInternalCategoryLabel(formData.get("Categories")),
     Value: normalizeAmountValue(formData.get("Value")),
+    FundingSource: TRANSACTION_FUNDING_SOURCE_CASH,
   };
+  const requestedFundingSource = normalizeTransactionFundingSource(formData.get("FundingSource"));
 
   if (!nextRecord.Date && !nextRecord.Categories && !nextRecord.Value) {
     setLastAction("Transaction vide ignorée");
@@ -11936,30 +12444,86 @@ async function onSaveRecord(event) {
   let actionLabel = "Transaction enregistrée";
   let collaborationLabel = "une transaction";
   const wasEditing = state.editorMode === "edit" && state.editingIndex !== null && state.budget.rows[state.editingIndex];
+  if (wasEditing && isSavingsFundingAdjustmentRecord(state.budget.rows[state.editingIndex])) {
+    showAppToast(t("transactions.helperEditBlocked"));
+    state.editingIndex = null;
+    state.editorMode = "create";
+    renderAll();
+    return;
+  }
+
+  if (wasEditing) {
+    nextRecord.__id = state.budget.rows[state.editingIndex].__id;
+  }
+
+  const fundingRule = getResolvedBudgetCategoryRule(nextRecord.Categories, "", nextRecord.Value);
+  const normalizedFundingSource = isTransactionEligibleForSavingsFunding(nextRecord.Categories, nextRecord.Value)
+    ? requestedFundingSource
+    : TRANSACTION_FUNDING_SOURCE_CASH;
+  nextRecord.FundingSource = normalizedFundingSource;
+  const nextAdjustmentRecord = normalizedFundingSource === TRANSACTION_FUNDING_SOURCE_SAVINGS && fundingRule.includeInExpenses
+    ? buildSavingsFundingAdjustmentRecord(nextRecord)
+    : null;
+  let requiresFullCloudPublish = false;
   if (wasEditing) {
     const previousRecord = sanitizeBudgetRow(state.budget.rows[state.editingIndex]);
-    nextRecord.__id = state.budget.rows[state.editingIndex].__id;
+    const previousAdjustmentRecord = findSavingsFundingAdjustmentRecord(previousRecord);
+    const previousRecords = [
+      previousRecord,
+      ...(previousAdjustmentRecord ? [sanitizeBudgetRow(previousAdjustmentRecord)] : []),
+    ];
     state.budget.rows[state.editingIndex] = nextRecord;
+    if (previousAdjustmentRecord) {
+      state.budget.rows = state.budget.rows.filter((row) => row.__id !== previousAdjustmentRecord.__id);
+    }
+    if (nextAdjustmentRecord) {
+      state.budget.rows.push(nextAdjustmentRecord);
+    }
     actionLabel = "Transaction mise à jour";
     collaborationLabel = `la transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
-    pushUndoEntry({
-      kind: "update-record",
-      previousRecord,
-      nextRecord,
-    }, actionLabel);
+    const nextRecords = [nextRecord, ...(nextAdjustmentRecord ? [nextAdjustmentRecord] : [])];
+    requiresFullCloudPublish = previousRecords.length > 1 || nextRecords.length > 1;
+    pushUndoEntry(
+      requiresFullCloudPublish
+        ? {
+          kind: "update-record-batch",
+          previousRecords,
+          nextRecords,
+        }
+        : {
+          kind: "update-record",
+          previousRecord,
+          nextRecord,
+        },
+      actionLabel
+    );
     setLastAction(actionLabel);
   } else {
     state.budget.rows.push(nextRecord);
+    if (nextAdjustmentRecord) {
+      state.budget.rows.push(nextAdjustmentRecord);
+    }
     actionLabel = "Nouvelle transaction ajoutée";
     collaborationLabel = `une transaction ${nextRecord.Categories || nextRecord.Date || ""}`.trim();
-    pushUndoEntry({
-      kind: "create-record",
-      record: nextRecord,
-    }, actionLabel);
+    const nextRecords = [nextRecord, ...(nextAdjustmentRecord ? [nextAdjustmentRecord] : [])];
+    requiresFullCloudPublish = nextRecords.length > 1;
+    pushUndoEntry(
+      requiresFullCloudPublish
+        ? {
+          kind: "create-record-batch",
+          records: nextRecords,
+        }
+        : {
+          kind: "create-record",
+          record: nextRecord,
+        },
+      actionLabel
+    );
     setLastAction(actionLabel);
   }
 
   ensureBudgetCategoryAvailable(nextRecord.Categories);
+  state.budget.rows = reconcileSavingsFundingAdjustments(state.budget.rows);
   sortBudgetRowsInPlace(state.budget.rows);
   state.editingIndex = null;
   state.editorMode = "create";
@@ -11971,7 +12535,11 @@ async function onSaveRecord(event) {
     prepareTransactionFormForNextEntry(nextRecord, actionLabel);
   }
   try {
-    await enqueueCloudSync(() => syncSingleTransactionToSupabase(nextRecord));
+    if (requiresFullCloudPublish) {
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+    } else {
+      await enqueueCloudSync(() => syncSingleTransactionToSupabase(nextRecord));
+    }
     await sendCloudActivityBroadcast("saved", collaborationLabel);
   } catch (error) {
     console.error(error);
@@ -15658,11 +16226,33 @@ function computeTotalIncome(actualMap) {
 
 function computeMetricSnapshot(actualMap) {
   const income = computeTotalIncome(actualMap);
-  const savings = Math.abs(getActualAmount(actualMap, "Savings"));
-  const seasonalSavings = Math.abs(getActualAmount(actualMap, "Savings for seasonal exp."));
-  const totalSavings = savings + seasonalSavings;
+  let savings = 0;
+  let seasonalSavings = 0;
+
+  actualMap.forEach((amount, key) => {
+    if (!Number.isFinite(amount) || amount === 0) {
+      return;
+    }
+
+    const label = findOriginalCategoryLabel(key);
+    const rule = getResolvedBudgetCategoryRule(label, "", amount);
+    if (!rule.includeInSavings) {
+      return;
+    }
+
+    if (normalizeHeaderName(label) === normalizeHeaderName("Savings for seasonal exp.")) {
+      seasonalSavings += getSavingsContributionAmount(amount, label, rule);
+      return;
+    }
+
+    savings += getSavingsContributionAmount(amount, label, rule);
+  });
+
+  savings = roundCurrencyValue(savings);
+  seasonalSavings = roundCurrencyValue(seasonalSavings);
+  const totalSavings = roundCurrencyValue(savings + seasonalSavings);
   const totalExpenses = computeTotalExpenses(actualMap);
-  const cash = income - totalSavings - totalExpenses;
+  const cash = roundCurrencyValue(income - totalSavings - totalExpenses);
 
   return {
     income,
@@ -16599,7 +17189,7 @@ function resolvePlanActualContext(label, rowGroup, actualMap, metrics) {
 
   if (rule.includeInSavings) {
     return {
-      actual: Math.max(0, roundCurrencyValue(sourceAmount)),
+      actual: roundCurrencyValue(getSavingsContributionAmount(sourceAmount, label, rule)),
       classifierAmount: sourceAmount,
       mode: "savings",
     };
@@ -16657,6 +17247,22 @@ function getExpenseContributionAmount(amount) {
   }
 
   return amount < 0 ? Math.abs(amount) : -amount;
+}
+
+function getSavingsContributionAmount(amount, label = "", rule = null) {
+  if (!Number.isFinite(amount) || amount === 0) {
+    return 0;
+  }
+
+  const resolvedRule = rule && typeof rule === "object"
+    ? rule
+    : getResolvedBudgetCategoryRule(label, "", amount);
+
+  if (isSavingsFundingAdjustmentCategory(label) || resolvedRule?.id === "synthetic-savings-funding-adjustment") {
+    return Math.abs(amount) * -1;
+  }
+
+  return Math.abs(amount);
 }
 
 function isIncomeOrSavingsKey(key) {
@@ -17659,6 +18265,7 @@ function renderEditor() {
   appendField(renderDateField(editingRow.Date));
   appendField(renderCategoryField(editingRow.Categories));
   appendField(renderValueField(editingRow.Value));
+  appendField(renderFundingSourceField(getTransactionFundingSource(editingRow)));
   renderFormFeedback(false);
 }
 
@@ -17796,10 +18403,11 @@ function renderRecurringReviewPanel(options = {}) {
 function refreshCategoryParentMeta() {
   const select = document.getElementById("field-categories");
   const parentChip = document.querySelector(".field-parent-chip");
-  const hint = document.querySelector(".field-hint");
+  const hint = document.querySelector("[data-field-category-hint='true']");
   const recurringSaveButton = document.querySelector("[data-recurring-action='save-current']");
 
   if (!select || !parentChip || !hint) {
+    syncTransactionFundingSourceFieldState();
     return;
   }
 
@@ -17820,6 +18428,27 @@ function refreshCategoryParentMeta() {
   if (recurringSaveButton) {
     recurringSaveButton.disabled = !canSaveCurrentTransactionAsRecurringTemplate();
   }
+  syncTransactionFundingSourceFieldState();
+}
+
+function syncTransactionFundingSourceFieldState() {
+  const fundingSourceInput = document.getElementById("field-funding-source");
+  const fundingSourceHint = document.querySelector("[data-funding-source-hint='true']");
+  if (!fundingSourceInput || !fundingSourceHint) {
+    return;
+  }
+
+  const categoryValue = getInternalCategoryLabel(String(document.getElementById("field-categories")?.value || "").trim());
+  const amountValue = String(document.getElementById("field-value")?.value || "").trim();
+  const eligible = isTransactionEligibleForSavingsFunding(categoryValue, amountValue);
+
+  if (!eligible) {
+    fundingSourceInput.value = TRANSACTION_FUNDING_SOURCE_CASH;
+  }
+
+  fundingSourceInput.disabled = !eligible;
+  fundingSourceInput.closest(".field-card")?.classList.toggle("is-disabled", !eligible);
+  fundingSourceHint.textContent = eligible ? t("form.fundingSourceHint") : t("form.fundingSourceHintDisabled");
 }
 
 function getAvailableFormCategoryDisplayLabels() {
@@ -18026,6 +18655,7 @@ function renderCategoryField(value) {
 
   const hint = document.createElement("p");
   hint.className = "field-hint";
+  hint.dataset.fieldCategoryHint = "true";
   categoryInput.addEventListener("input", refreshCategoryParentMeta);
   categoryInput.addEventListener("change", refreshCategoryParentMeta);
 
@@ -18089,9 +18719,9 @@ function hasBudgetCategoryLabel(label) {
 
   return state.budget.categories.some((entry) => normalizeHeaderName(entry) === normalized)
     || resolvePlanTemplate(state.recap.planTemplate)
-      .filter((row) => !isDerivedPlanLabel(row.label))
+      .filter((row) => !isDerivedPlanLabel(row.label) && !isSyntheticBudgetHelperCategory(row.label))
       .some((row) => normalizeHeaderName(row.label) === normalized)
-    || state.budget.rows.some((row) => normalizeHeaderName(row.Categories) === normalized);
+    || state.budget.rows.some((row) => !isSyntheticBudgetHelperCategory(row.Categories) && normalizeHeaderName(row.Categories) === normalized);
 }
 
 function closeCategoryManagerModal() {
@@ -18173,7 +18803,7 @@ function getCategoryManagerCategoryOptions() {
   return [...state.budget.categories]
     .map((label) => {
       const categoryLabel = String(label || "").trim();
-      if (!categoryLabel) {
+      if (!categoryLabel || isSyntheticBudgetHelperCategory(categoryLabel)) {
         return null;
       }
 
@@ -18231,7 +18861,9 @@ function updateBudgetCategoryLabelEverywhere(previousLabel, nextLabel, nextGroup
   state.budget.rows = state.budget.rows.map((row) => (
     normalizeHeaderName(row?.Categories) === previousKey
       ? { ...row, Categories: next }
-      : row
+      : isSavingsFundingAdjustmentCategory(row?.Categories) && normalizeHeaderName(extractSavingsFundingLinkedCategory(row?.Categories)) === previousKey
+        ? { ...row, Categories: getSavingsFundingAdjustmentLabel(next) }
+        : row
   ));
 
   const targetPlanGroup = getBudgetCustomGroupPlanMode(groupKey);
@@ -19425,6 +20057,33 @@ function renderValueField(value) {
   return wrapper;
 }
 
+function renderFundingSourceField(value = TRANSACTION_FUNDING_SOURCE_CASH) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "field-card";
+
+  const label = document.createElement("label");
+  label.setAttribute("for", "field-funding-source");
+  label.textContent = t("form.fundingSourceLabel");
+
+  const select = document.createElement("select");
+  select.id = "field-funding-source";
+  select.name = "FundingSource";
+  select.innerHTML = `
+    <option value="${TRANSACTION_FUNDING_SOURCE_CASH}">${escapeHtml(t("form.fundingSourceCash"))}</option>
+    <option value="${TRANSACTION_FUNDING_SOURCE_SAVINGS}">${escapeHtml(t("form.fundingSourceSavings"))}</option>
+  `;
+  select.value = normalizeTransactionFundingSource(value);
+  select.addEventListener("change", syncTransactionFundingSourceFieldState);
+
+  const hint = document.createElement("p");
+  hint.className = "field-hint";
+  hint.dataset.fundingSourceHint = "true";
+
+  wrapper.append(label, select, hint);
+  queueMicrotask(syncTransactionFundingSourceFieldState);
+  return wrapper;
+}
+
 function renderRecurringBillsPanel() {
   const section = document.createElement("section");
   section.className = "recurring-panel recurring-bills-panel";
@@ -19990,6 +20649,7 @@ const ENGLISH_CATEGORY_LABELS = new Map([
   ["Cotisations professionnelles", "Professional dues"],
   ["Cadeaux", "Gifts"],
   ["Dons", "Donations"],
+  [SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX, "Savings withdrawal (auto)"],
 ].map(([key, value]) => [normalizeHeaderName(key), value]));
 
 const INTERNAL_CATEGORY_LABEL_BY_ENGLISH = new Map(
@@ -20004,6 +20664,14 @@ function getDisplayCategoryLabel(label) {
 
   if (!isEnglishUi()) {
     return rawLabel;
+  }
+
+  if (isSavingsFundingAdjustmentCategory(rawLabel)) {
+    const linkedCategory = extractSavingsFundingLinkedCategory(rawLabel);
+    const linkedDisplayLabel = linkedCategory ? getDisplayCategoryLabel(linkedCategory) : "";
+    return linkedDisplayLabel
+      ? `${ENGLISH_CATEGORY_LABELS.get(normalizeHeaderName(SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX))} · ${linkedDisplayLabel}`
+      : ENGLISH_CATEGORY_LABELS.get(normalizeHeaderName(SAVINGS_FUNDING_ADJUSTMENT_CATEGORY_PREFIX)) || rawLabel;
   }
 
   const normalized = normalizeHeaderName(rawLabel);
@@ -20241,6 +20909,7 @@ function sanitizeBudgetRow(row) {
     Date: normalizeDateValue(row?.Date),
     Categories: String(row?.Categories ?? "").trim(),
     Value: normalizeAmountValue(row?.Value),
+    FundingSource: normalizeTransactionFundingSource(row?.FundingSource),
   };
 }
 
