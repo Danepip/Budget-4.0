@@ -9028,6 +9028,37 @@ async function publishLocalBudgetToSupabase() {
   }
 }
 
+async function fetchAllSupabaseRows(createQuery) {
+  const pageSize = 500;
+  const rows = [];
+  let expectedCount = null;
+
+  while (true) {
+    const { data, error, count } = await createQuery()
+      .range(rows.length, rows.length + pageSize - 1);
+    if (error) {
+      return { data: null, error };
+    }
+    if (!Array.isArray(data)) {
+      return { data: null, error: new Error("Réponse cloud invalide. Réessayez le chargement.") };
+    }
+    if (Number.isFinite(count)) {
+      expectedCount = count;
+    }
+    if (!data.length) {
+      return expectedCount !== null && rows.length < expectedCount
+        ? { data: null, error: new Error("Chargement cloud incomplet. Réessayez le chargement.") }
+        : { data: rows, error: null };
+    }
+
+    rows.push(...data);
+    if (expectedCount !== null && rows.length >= expectedCount) {
+      return { data: rows, error: null };
+    }
+    // A short page may be the server's row cap, not the end of the history.
+  }
+}
+
 async function loadBudgetFromSupabase(spaceId, options = {}) {
   if (!supabaseClient || !spaceId) {
     return;
@@ -9058,13 +9089,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
         .order("label", { ascending: true }),
-      supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_transactions")
-        .select("id, entry_date, category, amount, sort_order")
+        .select("id, entry_date, category, amount, sort_order", { count: "exact" })
         .eq("space_id", spaceId)
         .order("sort_order", { ascending: true })
         .order("entry_date", { ascending: true })
-        .order("created_at", { ascending: true }),
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })),
       supabaseClient
         .from("budget_recurring_templates")
         .select("*")
