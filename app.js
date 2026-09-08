@@ -1540,6 +1540,8 @@ let supabaseAuthSubscription = null;
 let supabaseRealtimeChannel = null;
 let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
+let safeCloudWriteQueue = Promise.resolve();
+let cloudLoadGeneration = 0;
 let recurringSupabaseSchemaReady = true;
 let categorySupabaseSchemaReady = true;
 let budgetPlanSupabaseSchemaReady = true;
@@ -2798,6 +2800,11 @@ function normalizeTransactionFundingSource(value) {
     : TRANSACTION_FUNDING_SOURCE_CASH;
 }
 
+function getExplicitTransactionFundingSource(record) {
+  const source = String(record?.FundingSource || "").trim().toLowerCase();
+  return [TRANSACTION_FUNDING_SOURCE_CASH, TRANSACTION_FUNDING_SOURCE_SAVINGS].includes(source) ? source : "";
+}
+
 function getSavingsFundingAdjustmentLabel(categoryLabel = "") {
   const normalizedCategory = String(categoryLabel || "").trim();
   return normalizedCategory
@@ -2884,54 +2891,65 @@ function buildSavingsFundingAdjustmentRecord(primaryRecord) {
   });
 }
 
-function findSavingsFundingAdjustmentRecord(primaryRecord, rows = state.budget.rows) {
+function buildSavingsFundingAdjustmentLinks(rows) {
   const sourceRows = Array.isArray(rows) ? rows : [];
-  const record = typeof primaryRecord === "string"
-    ? sourceRows.find((entry) => String(entry?.__id || "").trim() === String(primaryRecord || "").trim()) || null
-    : primaryRecord;
-  const primaryId = String(record?.__id || primaryRecord || "").trim();
-  if (!primaryId) {
-    return null;
-  }
+  const indexedRows = sourceRows.map((record, index) => ({ record, index }));
+  const primaryRows = indexedRows.filter(({ record }) => record?.__id && !isSavingsFundingAdjustmentRecord(record));
+  const primaryIds = new Set(primaryRows.map(({ record }) => String(record.__id).trim()));
+  const adjustments = indexedRows.filter(({ record }) => isSavingsFundingAdjustmentRecord(record));
+  const links = new Map();
+  const legacyAdjustments = [];
 
-  const directMatch = sourceRows.find((entry) => String(entry?.__id || "").trim() === buildSavingsFundingAdjustmentId(primaryId));
-  if (directMatch) {
-    return directMatch;
-  }
+  // Reserve ID-based links first, even when their owner was switched to cash.
+  adjustments.forEach(({ record, index }) => {
+    const primaryId = extractSavingsFundingPrimaryRecordId(record.__id);
+    if (primaryId && primaryIds.has(primaryId)) {
+      links.set(primaryId, record);
+    } else {
+      legacyAdjustments.push({ record, index });
+    }
+  });
 
-  if (!record) {
-    return null;
-  }
+  const matchKey = (date, category, amount) => JSON.stringify([
+    normalizeDateValue(date), normalizeHeaderName(category), normalizeAmountValue(Math.abs(parseAmount(amount))),
+  ]);
+  const candidatesByKey = new Map();
+  primaryRows.forEach(({ record, index }) => {
+    const id = String(record.__id).trim();
+    if (links.has(id) || getExplicitTransactionFundingSource(record) === TRANSACTION_FUNDING_SOURCE_CASH
+      || !isTransactionEligibleForSavingsFunding(record.Categories, record.Value)) {
+      return;
+    }
+    const key = matchKey(record.Date, record.Categories, record.Value);
+    const candidates = candidatesByKey.get(key) || [];
+    candidates.push({ record, index });
+    candidatesByKey.set(key, candidates);
+  });
 
-  const targetDate = normalizeDateValue(record.Date);
-  const targetAmount = normalizeAmountValue(Math.abs(parseAmount(record.Value)));
-  const targetCategoryKey = normalizeHeaderName(record.Categories);
-  const primaryIndex = sourceRows.findIndex((entry) => String(entry?.__id || "").trim() === primaryId);
-  const candidates = sourceRows
-    .map((entry, index) => ({ entry, index }))
-    .filter(({ entry }) => {
-      if (!isSavingsFundingAdjustmentRecord(entry)) {
-        return false;
+  // Excel imports may replace IDs. Pair their remaining helper rows one-to-one.
+  legacyAdjustments.forEach(({ record, index }) => {
+    const key = matchKey(record.Date, extractSavingsFundingLinkedCategory(record.Categories), record.Value);
+    const candidates = candidatesByKey.get(key) || [];
+    const match = candidates.reduce((closest, candidate) => {
+      if (links.has(String(candidate.record.__id).trim())) {
+        return closest;
       }
+      return !closest || Math.abs(candidate.index - index) < Math.abs(closest.index - index) ? candidate : closest;
+    }, null);
+    if (match) {
+      links.set(String(match.record.__id).trim(), record);
+    }
+  });
 
-      return normalizeDateValue(entry.Date) === targetDate
-        && normalizeAmountValue(entry.Value) === targetAmount
-        && normalizeHeaderName(extractSavingsFundingLinkedCategory(entry.Categories)) === targetCategoryKey;
-    });
-
-  if (!candidates.length) {
-    return null;
-  }
-
-  if (primaryIndex < 0) {
-    return candidates[0].entry;
-  }
-
-  candidates.sort((left, right) => Math.abs(left.index - primaryIndex) - Math.abs(right.index - primaryIndex));
-  return candidates[0].entry;
+  return links;
 }
 
-function shouldUseSavingsFundingForRecord(record, rows = state.budget.rows) {
+function findSavingsFundingAdjustmentRecord(primaryRecord, rows = state.budget.rows) {
+  const primaryId = String(typeof primaryRecord === "string" ? primaryRecord : primaryRecord?.__id || "").trim();
+  return primaryId ? buildSavingsFundingAdjustmentLinks(rows).get(primaryId) || null : null;
+}
+
+function shouldUseSavingsFundingForRecord(record, rows = state.budget.rows, adjustmentLinks = null) {
   if (!record || isSavingsFundingAdjustmentRecord(record)) {
     return false;
   }
@@ -2942,15 +2960,17 @@ function shouldUseSavingsFundingForRecord(record, rows = state.budget.rows) {
     return false;
   }
 
-  if (normalizeTransactionFundingSource(record?.FundingSource) === TRANSACTION_FUNDING_SOURCE_SAVINGS) {
-    return true;
+  const explicitSource = getExplicitTransactionFundingSource(record);
+  if (explicitSource) {
+    return explicitSource === TRANSACTION_FUNDING_SOURCE_SAVINGS;
   }
 
-  return Boolean(findSavingsFundingAdjustmentRecord(record, rows));
+  return (adjustmentLinks || buildSavingsFundingAdjustmentLinks(rows)).has(String(record.__id || "").trim());
 }
 
 function reconcileSavingsFundingAdjustments(rows = state.budget.rows) {
   const sourceRows = Array.isArray(rows) ? rows.map((row) => sanitizeBudgetRow(row)) : [];
+  const adjustmentLinks = buildSavingsFundingAdjustmentLinks(sourceRows);
   const nextRows = [];
 
   sourceRows.forEach((row) => {
@@ -2958,7 +2978,7 @@ function reconcileSavingsFundingAdjustments(rows = state.budget.rows) {
       return;
     }
 
-    const fundingSource = shouldUseSavingsFundingForRecord(row, sourceRows)
+    const fundingSource = shouldUseSavingsFundingForRecord(row, sourceRows, adjustmentLinks)
       ? TRANSACTION_FUNDING_SOURCE_SAVINGS
       : TRANSACTION_FUNDING_SOURCE_CASH;
     const nextRow = sanitizeBudgetRow({
@@ -2988,16 +3008,9 @@ function getTransactionFundingSource(record, rows = state.budget.rows) {
     return TRANSACTION_FUNDING_SOURCE_SAVINGS;
   }
 
-  if (normalizeTransactionFundingSource(record?.FundingSource) === TRANSACTION_FUNDING_SOURCE_SAVINGS) {
-    return TRANSACTION_FUNDING_SOURCE_SAVINGS;
-  }
-
-  if (findSavingsFundingAdjustmentRecord(record, rows)) {
-    return TRANSACTION_FUNDING_SOURCE_SAVINGS;
-  }
-
-  const amount = parseAmount(record?.Value);
-  return TRANSACTION_FUNDING_SOURCE_CASH;
+  return shouldUseSavingsFundingForRecord(record, rows)
+    ? TRANSACTION_FUNDING_SOURCE_SAVINGS
+    : TRANSACTION_FUNDING_SOURCE_CASH;
 }
 
 function getTransactionFundingSourceLabel(source) {
@@ -5720,6 +5733,10 @@ function createEmptyCloudState() {
     alerts: createDefaultBudgetAlertSettings(),
     lastPulledAt: "",
     lastPushedAt: "",
+    syncBaseline: null,
+    saveError: "",
+    pendingDeletedIds: [],
+    writeInFlight: false,
   };
 }
 
@@ -7560,10 +7577,10 @@ function canUndoLastAction() {
   return Array.isArray(state.history.undoStack) && state.history.undoStack.length > 0;
 }
 
-async function syncAfterUndo(actionLabel) {
+async function syncAfterUndo(actionLabel, deletedTransactionIds = []) {
   if (canUseSupabaseCloud()) {
     try {
-      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase({ deletedTransactionIds }));
     } catch (error) {
       console.error(error);
       setLastAction(`${actionLabel} - sync cloud en echec`);
@@ -7578,6 +7595,7 @@ async function syncAfterUndo(actionLabel) {
 }
 
 async function onUndoLastActionRequested() {
+  const previousIds = state.budget.rows.map(row => row.__id);
   if (!canUndoLastAction()) {
     setLastAction("Aucune action recente a annuler.");
     renderAll();
@@ -7664,7 +7682,7 @@ async function onUndoLastActionRequested() {
   recordHistoryEvent(actionLabel);
   setLastAction(actionLabel);
   renderAll();
-  await syncAfterUndo(actionLabel);
+  await syncAfterUndo(actionLabel, previousIds.filter(id => !state.budget.rows.some(row => row.__id === id)));
 }
 
 function hasSupabaseSession() {
@@ -8575,6 +8593,7 @@ async function onCloudCreateSpaceRequested() {
     });
 
     if (ensureLocalBudgetDataReady()) {
+      await loadBudgetFromSupabase(state.cloud.space.id, { initializeEmpty: true });
       await publishLocalBudgetToSupabase();
     } else {
       setCloudStatus(`Espace partagé créé : ${state.cloud.space.name}. Chargez ou restaurez un budget local, puis cliquez sur Publier local.`);
@@ -8630,6 +8649,7 @@ async function onCloudJoinSpaceRequested() {
       await loadBudgetFromSupabase(state.cloud.space.id, {
         silent: true,
         preserveLastAction: true,
+        discardLocal: true,
       });
     } else {
       await attachToCurrentCloudSpace({
@@ -8662,7 +8682,11 @@ async function onCloudPublishRequested() {
     return;
   }
 
-  await publishLocalBudgetToSupabase();
+  try {
+    await publishLocalBudgetToSupabase();
+  } catch (_error) {
+    // The shared writer displays the error and preserves the local draft.
+  }
 }
 
 async function onCloudRefreshRequested() {
@@ -8674,7 +8698,9 @@ async function onCloudRefreshRequested() {
 
   try {
     setCloudBusy(true);
-    await loadBudgetFromSupabase(state.cloud.space.id);
+    if (!window.confirm("Recharger le cloud ? Les donnees locales visibles seront remplacees. Exportez-les d'abord si elles contiennent des saisies non synchronisees. Une copie de secours locale sera conservee.")) return;
+    const loaded = await loadBudgetFromSupabase(state.cloud.space.id, { discardLocal: true });
+    if (!loaded) return;
     setLastAction("Budget recharge depuis Supabase.");
   } catch (error) {
     console.error(error);
@@ -8826,203 +8852,107 @@ function stopSupabaseRealtime() {
   supabaseRealtimeChannel = null;
 }
 
-async function publishLocalBudgetToSupabase() {
-  if (!canUseSupabaseCloud()) {
-    return;
+function buildCloudSnapshot(spaceId) {
+  return BUDGET_CLOUD_SYNC.canonicalSnapshot({
+    budget_transactions: buildSupabaseTransactionPayload(spaceId),
+    budget_categories: buildSupabaseCategoryPayload(spaceId),
+    budget_category_groups: buildSupabaseCategoryGroupPayload(spaceId),
+    budget_plan_rows: buildSupabasePlanPayload(spaceId),
+    budget_recurring_templates: buildSupabaseRecurringTemplatePayload(spaceId),
+    budget_card_tracker_state: [buildSupabaseCardTrackerPayload(spaceId)],
+  });
+}
+
+function hasUnsyncedCloudChanges() {
+  const baseline = state.cloud.syncBaseline;
+  if (state.cloud.saveError) return true;
+  if (!baseline || baseline.spaceId !== state.cloud.space.id) return false;
+  return BUDGET_CLOUD_SYNC.hasChanges(baseline.local, buildCloudSnapshot(baseline.spaceId));
+}
+
+function preserveCloudRecoveryCopy(reason) {
+  const draft = readStoredDraft();
+  if (!draft?.rows?.length) return;
+  const key = STORAGE_KEY + "-recovery-v1";
+  const copies = JSON.parse(localStorage.getItem(key) || "[]");
+  const signature = JSON.stringify([draft.rows, draft.recap, draft.recurringTemplates, draft.cardTracker]);
+  if (copies.some(copy => JSON.stringify([copy.draft.rows, copy.draft.recap, copy.draft.recurringTemplates, copy.draft.cardTracker]) === signature)) return;
+  const recoveryDraft = { ...draft, cloud: { ...draft.cloud, syncBaseline: null } };
+  const next = { savedAt: new Date().toISOString(), reason, draft: recoveryDraft };
+  // Always retain the richest history, as well as the most recent recovery copies.
+  const richest = [...copies, next].sort((a, b) => b.draft.rows.length - a.draft.rows.length)[0];
+  const retained = [richest, ...[next, ...copies].filter(copy => copy !== richest)].slice(0, 3);
+  localStorage.setItem(key, JSON.stringify(retained));
+}
+
+async function requireSafeCloudSync() {
+  const { data, error } = await supabaseClient.rpc("budget_sync_capabilities");
+  if (error || data?.version !== 1 || data?.atomic !== true || data?.legacy_writes_blocked !== true) {
+    throw new Error("Synchronisation bloquee : activez supabase/safe-sync-v1.sql dans Supabase. Vos modifications restent locales.");
   }
+}
 
+async function readSafeCloudRevision(spaceId) {
+  const { data, error } = await supabaseClient.rpc("budget_sync_revision", { target_space_id: spaceId });
+  if (error) throw error;
+  if (!/^\d+$/.test(String(data))) throw new Error("Version cloud invalide. Chargement annule.");
+  return String(data);
+}
+
+function publishLocalBudgetToSupabase(options = {}) {
+  const spaceId = state.cloud.space.id;
+  state.cloud.pendingDeletedIds = [...new Set([...(state.cloud.pendingDeletedIds || []), ...(options.deletedTransactionIds || [])])];
+  // Also serialize calls not originating from enqueueCloudSync.
+  const run = safeCloudWriteQueue.then(() => saveBudgetChangesToSupabase(spaceId, options));
+  safeCloudWriteQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function saveBudgetChangesToSupabase(spaceId, options = {}) {
+  if (!canUseSupabaseCloud()) return;
   try {
+    if (spaceId !== state.cloud.space.id) throw new Error("Espace modifie pendant la sauvegarde. Publication annulee.");
     setCloudBusy(true);
-    setCloudStatus(`Publication en cours vers ${state.cloud.space.name || "l'espace partage"}...`);
-    renderAll();
-
-    const spaceId = state.cloud.space.id;
-    const categoriesPayload = buildSupabaseCategoryPayload(spaceId);
-    const categoryGroupsPayload = buildSupabaseCategoryGroupPayload(spaceId);
-    const planPayload = buildSupabasePlanPayload(spaceId);
-    const legacyPlanPayload = buildLegacySupabasePlanPayload(spaceId);
-    const recurringTemplatesPayload = buildSupabaseRecurringTemplatePayload(spaceId);
-    const cardTrackerPayload = buildSupabaseCardTrackerPayload(spaceId);
-    const transactionsPayload = buildSupabaseTransactionPayload(spaceId);
-    let recurringSchemaOutdated = false;
-    let categorySchemaOutdated = false;
-    let budgetPlanSchemaOutdated = false;
-    let cardTrackerSchemaOutdated = false;
-
-    let query = supabaseClient.from("budget_transactions").delete();
-    let { error } = await query.eq("space_id", spaceId);
-    if (error) {
-      throw error;
+    state.cloud.writeInFlight = true;
+    setCloudStatus("Synchronisation securisee en cours...");
+    const baseline = state.cloud.syncBaseline;
+    if (!baseline || baseline.spaceId !== spaceId) {
+      throw new Error("Publication bloquee : chargez d'abord une copie cloud verifiee. Exportez vos donnees locales avant de recharger.");
     }
-
-    query = supabaseClient.from("budget_categories").delete();
-    ({ error } = await query.eq("space_id", spaceId));
-    if (error) {
-      throw error;
-    }
-
-    query = supabaseClient.from("budget_category_groups").delete();
-    ({ error } = await query.eq("space_id", spaceId));
-    if (error) {
-      if (isSupabaseCategorySchemaMissing(error)) {
-        categorySchemaOutdated = true;
-      } else {
-        throw error;
+    await requireSafeCloudSync();
+    if (spaceId !== state.cloud.space.id) throw new Error("Espace modifie. Publication annulee.");
+    const snapshot = buildCloudSnapshot(spaceId);
+    const deletedTransactionIds = [...new Set([...(state.cloud.pendingDeletedIds || []), ...(options.deletedTransactionIds || [])])];
+    state.cloud.pendingDeletedIds = deletedTransactionIds;
+    const changes = BUDGET_CLOUD_SYNC.buildChanges(baseline.local, snapshot, baseline.remote, { deletedTransactionIds });
+    persistDraft();
+    preserveCloudRecoveryCopy("Avant sauvegarde cloud");
+    if (changes.length) {
+      const { data, error } = await supabaseClient.rpc("save_budget_changes", { target_space_id: spaceId, changes });
+      if (error) throw error;
+      if (data?.version !== 1 || !Array.isArray(data.changes) || data.changes.length !== changes.length) {
+        throw new Error("Reponse de sauvegarde invalide. Copie locale conservee; reessayez la synchronisation.");
       }
+      if (spaceId !== state.cloud.space.id) return;
+      state.cloud.syncBaseline = {
+        spaceId, local: snapshot,
+        remote: BUDGET_CLOUD_SYNC.applyChanges(baseline.remote, data.changes),
+      };
+      state.cloud.lastPushedAt = data.saved_at || new Date().toISOString();
     }
-
-    query = supabaseClient.from("budget_plan_rows").delete();
-    ({ error } = await query.eq("space_id", spaceId));
-    if (error) {
-      throw error;
-    }
-
-    query = supabaseClient.from("budget_recurring_templates").delete();
-    ({ error } = await query.eq("space_id", spaceId));
-    if (error) {
-      if (isSupabaseRecurringSchemaMissing(error)) {
-        recurringSchemaOutdated = true;
-      } else {
-        throw error;
-      }
-    }
-
-    if (!categorySchemaOutdated && categoryGroupsPayload.length) {
-      ({ error } = await supabaseClient.from("budget_category_groups").insert(categoryGroupsPayload));
-      if (error) {
-        if (isSupabaseCategorySchemaMissing(error)) {
-          categorySchemaOutdated = true;
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    if (categoriesPayload.length) {
-      ({ error } = await supabaseClient.from("budget_categories").insert(categoriesPayload));
-      if (error) {
-        const fallbackPayload = stripCategoryAssignmentsFromPayload(categoriesPayload);
-        if (!isSupabaseCategorySchemaMissing(error) || !fallbackPayload.length) {
-          throw error;
-        }
-
-        categorySchemaOutdated = true;
-        ({ error } = await supabaseClient.from("budget_categories").insert(fallbackPayload));
-        if (error) {
-          throw error;
-        }
-      }
-    }
-
-    if (planPayload.length || legacyPlanPayload.length) {
-      ({ error } = await supabaseClient.from("budget_plan_rows").insert(planPayload));
-      if (error) {
-        if (isSupabaseBudgetPlanSchemaMissing(error)) {
-          budgetPlanSchemaOutdated = true;
-          let legacyError = null;
-          let fallbackPayload = stripBudgetPlanMetadataFromPayload(legacyPlanPayload);
-
-          if (fallbackPayload.length) {
-            ({ error: legacyError } = await supabaseClient.from("budget_plan_rows").insert(fallbackPayload));
-            if (legacyError) {
-              const periodFallbackPayload = stripPlanPeriodsFromPayload(fallbackPayload);
-              const missingPeriodColumn =
-                periodFallbackPayload.length &&
-                /plan_period|column .*plan_period|schema cache/i.test(
-                  `${legacyError?.message || ""} ${legacyError?.details || ""} ${legacyError?.hint || ""}`
-                );
-
-              if (!missingPeriodColumn) {
-                throw legacyError;
-              }
-
-              ({ error: legacyError } = await supabaseClient.from("budget_plan_rows").insert(periodFallbackPayload));
-              if (legacyError) {
-                throw legacyError;
-              }
-            }
-          }
-        } else {
-          const fallbackPayload = stripPlanPeriodsFromPayload(planPayload);
-          const missingPeriodColumn =
-            fallbackPayload.length &&
-            /plan_period|column .*plan_period|schema cache/i.test(
-              `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`
-            );
-
-          if (!missingPeriodColumn) {
-            throw error;
-          }
-
-          ({ error } = await supabaseClient.from("budget_plan_rows").insert(fallbackPayload));
-          if (error) {
-            throw error;
-          }
-        }
-      }
-    }
-
-    if (!recurringSchemaOutdated && recurringTemplatesPayload.length) {
-      ({ error } = await supabaseClient.from("budget_recurring_templates").upsert(recurringTemplatesPayload, {
-        onConflict: "space_id,template_id",
-      }));
-      if (error) {
-        if (isSupabaseRecurringSchemaMissing(error)) {
-          recurringSchemaOutdated = true;
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    ({ error } = await supabaseClient.from("budget_card_tracker_state").upsert([cardTrackerPayload], {
-      onConflict: "space_id",
-    }));
-    if (error) {
-      if (isSupabaseCardTrackerSchemaMissing(error)) {
-        cardTrackerSchemaOutdated = true;
-      } else {
-        throw error;
-      }
-    }
-
-    if (transactionsPayload.length) {
-      ({ error } = await supabaseClient.from("budget_transactions").upsert(transactionsPayload));
-      if (error) {
-        throw error;
-      }
-    }
-
-    state.cloud.lastPushedAt = new Date().toISOString();
-    recurringSupabaseSchemaReady = !recurringSchemaOutdated;
-    categorySupabaseSchemaReady = !categorySchemaOutdated;
-    budgetPlanSupabaseSchemaReady = !budgetPlanSchemaOutdated;
-    cardTrackerSupabaseSchemaReady = !cardTrackerSchemaOutdated;
-    stopSupabaseRealtime();
-    startSupabaseRealtime(spaceId);
-    const schemaWarnings = [
-      categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
-      recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
-      budgetPlanSchemaOutdated ? buildBudgetPlanSchemaWarningMessage() : "",
-      cardTrackerSchemaOutdated ? buildCardTrackerSchemaWarningMessage() : "",
-    ].filter(Boolean).join(" ");
-    const successMessage = schemaWarnings
-      ? `Budget publie vers ${state.cloud.space.name}. ${schemaWarnings}`
-      : `Budget publie vers ${state.cloud.space.name}.`;
-    setCloudStatus(successMessage);
-    setLastAction(
-      [categorySchemaOutdated, recurringSchemaOutdated, budgetPlanSchemaOutdated, cardTrackerSchemaOutdated].filter(Boolean).length
-        ? `Données locales publiees vers ${state.cloud.space.name} - certaines données partagées restent sur l'ancien schéma`
-        : `Données locales publiees vers ${state.cloud.space.name}`
-    );
-    persistDraftIfPossible();
-    void maybeSendBudgetAlertEmails("publication cloud");
+    state.cloud.pendingDeletedIds = [];
+    state.cloud.saveError = "";
+    setCloudStatus("Modifications confirmees par Supabase.");
+    persistDraft();
   } catch (error) {
     console.error(error);
-    const message = describeSupabaseError(error, "La publication vers Supabase a echoue.");
-    setCloudStatus(message);
-    setLastAction(message);
+    state.cloud.saveError = error?.message || "Synchronisation echouee. Copie locale conservee.";
+    setCloudStatus(state.cloud.saveError);
+    setLastAction(state.cloud.saveError);
+    persistDraftIfPossible();
+    throw error;
   } finally {
+    state.cloud.writeInFlight = false;
     setCloudBusy(false);
     renderAll();
   }
@@ -9043,6 +8973,9 @@ async function fetchAllSupabaseRows(createQuery) {
       return { data: null, error: new Error("Réponse cloud invalide. Réessayez le chargement.") };
     }
     if (Number.isFinite(count)) {
+      if (expectedCount !== null && count !== expectedCount) {
+        return { data: null, error: new Error("Le cloud a change pendant le chargement. Reessayez.") };
+      }
       expectedCount = count;
     }
     if (!data.length) {
@@ -9052,6 +8985,9 @@ async function fetchAllSupabaseRows(createQuery) {
     }
 
     rows.push(...data);
+    if (expectedCount !== null && rows.length > expectedCount) {
+      return { data: null, error: new Error("Nombre de lignes cloud incoherent. Reessayez.") };
+    }
     if (expectedCount !== null && rows.length >= expectedCount) {
       return { data: rows, error: null };
     }
@@ -9064,51 +9000,85 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     return;
   }
 
+  const generation = ++cloudLoadGeneration;
+  if (state.cloud.writeInFlight || (!options.discardLocal && !options.initializeEmpty && hasUnsyncedCloudChanges())) {
+    setCloudStatus("Rechargement suspendu : des modifications locales attendent leur synchronisation.");
+    return false;
+  }
+  const startingSnapshot = buildCloudSnapshot(spaceId);
   try {
+    await requireSafeCloudSync();
+    const cloudRevision = await readSafeCloudRevision(spaceId);
     if (!options.silent) {
       setCloudStatus("Chargement des données cloud...");
       renderAll();
     }
 
     const [{ data: categories, error: categoriesError }, { data: categoryGroups, error: categoryGroupsError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult, cardTrackerResult] = await Promise.all([
-      supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_categories")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
-        .order("name", { ascending: true }),
-      supabaseClient
+        .order("name", { ascending: true })),
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_category_groups")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
-        .order("label", { ascending: true }),
-      supabaseClient
+        .order("label", { ascending: true }).order("group_key", { ascending: true })),
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_plan_rows")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
-        .order("label", { ascending: true }),
+        .order("label", { ascending: true }).order("plan_id", { ascending: true })),
       fetchAllSupabaseRows(() => supabaseClient
         .from("budget_transactions")
-        .select("id, entry_date, category, amount, sort_order", { count: "exact" })
+        .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("sort_order", { ascending: true })
         .order("entry_date", { ascending: true })
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })),
-      supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_recurring_templates")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true }),
+        .order("created_at", { ascending: true }).order("template_id", { ascending: true })),
       supabaseClient
         .from("budget_card_tracker_state")
         .select("*")
         .eq("space_id", spaceId)
         .maybeSingle(),
     ]);
+    for (const error of [categoriesError, categoryGroupsError, planError, transactionsError, recurringResult?.error, cardTrackerResult?.error]) {
+      if (error) throw error;
+    }
+    if (cloudRevision !== await readSafeCloudRevision(spaceId)) {
+      throw new Error("Les donnees cloud ont change pendant le chargement. Copie locale conservee; reessayez.");
+    }
+    if (generation !== cloudLoadGeneration || spaceId !== state.cloud.space.id || state.cloud.writeInFlight ||
+        BUDGET_CLOUD_SYNC.hasChanges(startingSnapshot, buildCloudSnapshot(spaceId))) return false;
+    const remoteSnapshot = BUDGET_CLOUD_SYNC.canonicalSnapshot({
+      budget_categories: categories, budget_category_groups: categoryGroups, budget_plan_rows: planRows,
+      budget_transactions: transactions, budget_recurring_templates: recurringResult.data,
+      budget_card_tracker_state: cardTrackerResult.data ? [cardTrackerResult.data] : [],
+    });
+    BUDGET_CLOUD_SYNC.buildChanges(remoteSnapshot, remoteSnapshot, remoteSnapshot);
+    if (options.initializeEmpty) {
+      if (Object.values(remoteSnapshot).some(rows => rows.length)) throw new Error("L'espace n'est pas vide. Initialisation annulee.");
+      state.cloud.syncBaseline = { spaceId, remote: remoteSnapshot, local: BUDGET_CLOUD_SYNC.canonicalSnapshot() };
+      return true;
+    }
+    if (!options.discardLocal && state.cloud.syncBaseline?.spaceId !== spaceId) {
+      const remoteRows = new Map(remoteSnapshot.budget_transactions.map(row => [row.id, row]));
+      if (startingSnapshot.budget_transactions.some(row => BUDGET_CLOUD_SYNC.stableStringify(row) !== BUDGET_CLOUD_SYNC.stableStringify(remoteRows.get(row.id)))) {
+        throw new Error("Historique local absent ou different du cloud. Rechargement bloque pour proteger vos donnees. Exportez votre copie locale avant toute restauration.");
+      }
+    }
+    preserveCloudRecoveryCopy("Avant rechargement cloud");
     let recurringSchemaOutdated = false;
     let categorySchemaOutdated = false;
     let budgetPlanSchemaOutdated = false;
@@ -9182,6 +9152,7 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
           Date: row.entry_date,
           Categories: row.category,
           Value: normalizeAmountValue(row.amount),
+          FundingSource: row.funding_source,
       }))
         .filter((row) => !isIgnoredBudgetTransactionRow(row)),
       clearEndRow: START_ROW + (transactions?.length || 0) + 8,
@@ -9216,6 +9187,9 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       persistRecurringTemplatesIfPossible();
     }
     state.cloud.lastPulledAt = new Date().toISOString();
+    state.cloud.syncBaseline = { spaceId, remote: remoteSnapshot, local: buildCloudSnapshot(spaceId) };
+    state.cloud.saveError = "";
+    state.cloud.pendingDeletedIds = [];
 
     if (!options.preserveLastAction) {
       setLastAction(`Budget charge depuis ${state.cloud.space.name || "Supabase"}`);
@@ -9236,12 +9210,11 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     persistDraft();
     startSupabaseRealtime(spaceId);
     renderAll();
+    return true;
   } catch (error) {
     console.error(error);
-    if (!options.silent) {
-      setCloudStatus("Le chargement des données cloud a échoué.");
-      renderAll();
-    }
+    setCloudStatus(error?.message || "Le chargement des donnees cloud a echoue. Copie locale conservee.");
+    renderAll();
     throw error;
   }
 }
@@ -9506,99 +9479,25 @@ function parseSupabaseBudgetPlans(rows = [], fallbackName = "") {
 
 function buildSupabaseTransactionPayload(spaceId) {
   return state.budget.rows
+    .filter(row => !isSavingsFundingAdjustmentRecord(row))
     .map((row, index) => ({
       id: String(row.__id || createId()),
       space_id: spaceId,
       entry_date: normalizeDateValue(row.Date) || null,
       category: String(row.Categories || "").trim(),
       amount: Number.isFinite(parseAmount(row.Value)) ? parseAmount(row.Value) : null,
+      funding_source: getExplicitTransactionFundingSource(row) || "cash",
       sort_order: index,
     }))
     .filter((row) => row.category || Number.isFinite(row.amount) || row.entry_date);
 }
 
-async function syncSingleTransactionToSupabase(record) {
-  if (!canUseSupabaseCloud()) {
-    return;
-  }
-
-  const categoryName = String(record.Categories || "").trim();
-
-  if (categoryName) {
-    const knownCategories = buildSupabaseCategoryPayload(state.cloud.space.id);
-    const targetCategory = knownCategories.find((row) => row.name === categoryName) || {
-      space_id: state.cloud.space.id,
-      name: categoryName,
-      group_key: String(getBudgetCategoryAssignment(categoryName)?.groupKey || "").trim() || null,
-      position: knownCategories.length,
-    };
-
-    let { error: categoryError } = await supabaseClient
-      .from("budget_categories")
-      .upsert(targetCategory, {
-        onConflict: "space_id,name",
-      });
-
-    if (categoryError) {
-      if (!isSupabaseCategorySchemaMissing(categoryError)) {
-        throw categoryError;
-      }
-
-      categorySupabaseSchemaReady = false;
-      ({ error: categoryError } = await supabaseClient
-        .from("budget_categories")
-        .upsert(stripCategoryAssignmentsFromPayload([targetCategory])[0], {
-          onConflict: "space_id,name",
-        }));
-
-      if (categoryError) {
-        throw categoryError;
-      }
-    }
-  }
-
-  const payload = {
-    id: String(record.__id || createId()),
-    space_id: state.cloud.space.id,
-    entry_date: normalizeDateValue(record.Date) || null,
-    category: categoryName,
-    amount: Number.isFinite(parseAmount(record.Value)) ? parseAmount(record.Value) : null,
-    sort_order: Math.max(0, state.budget.rows.findIndex((row) => row.__id === record.__id)),
-  };
-
-  const { error } = await supabaseClient
-    .from("budget_transactions")
-    .upsert(payload);
-
-  if (error) {
-    throw error;
-  }
-
-  state.cloud.lastPushedAt = new Date().toISOString();
-  setCloudStatus(`Dernière transaction synchronisée vers ${state.cloud.space.name || "Supabase"}.`);
-  persistDraftIfPossible();
-  void maybeSendBudgetAlertEmails("transaction");
+async function syncSingleTransactionToSupabase(_record) {
+  return publishLocalBudgetToSupabase();
 }
 
 async function removeSingleTransactionFromSupabase(recordId) {
-  if (!canUseSupabaseCloud()) {
-    return;
-  }
-
-  const { error } = await supabaseClient
-    .from("budget_transactions")
-    .delete()
-    .eq("space_id", state.cloud.space.id)
-    .eq("id", String(recordId || ""));
-
-  if (error) {
-    throw error;
-  }
-
-  state.cloud.lastPushedAt = new Date().toISOString();
-  setCloudStatus(`Suppression synchronisee vers ${state.cloud.space.name || "Supabase"}.`);
-  persistDraftIfPossible();
-  void maybeSendBudgetAlertEmails("suppression");
+  return publishLocalBudgetToSupabase({ deletedTransactionIds: [String(recordId || "")] });
 }
 
 function buildBudgetAlertRows() {
@@ -9772,6 +9671,9 @@ function persistDraft() {
       alerts: state.cloud.alerts,
       lastPulledAt: state.cloud.lastPulledAt,
       lastPushedAt: state.cloud.lastPushedAt,
+      syncBaseline: state.cloud.syncBaseline,
+      saveError: state.cloud.saveError,
+      pendingDeletedIds: state.cloud.pendingDeletedIds,
     },
     recurringTemplates: state.recurringTemplates,
     recapFilters: state.recapFilters,
@@ -9845,6 +9747,9 @@ function applyStoredDraft(draft) {
   state.cloud.alerts = sanitizeBudgetAlertSettings(draft.cloud?.alerts);
   state.cloud.lastPulledAt = String(draft.cloud?.lastPulledAt || state.cloud.lastPulledAt || "");
   state.cloud.lastPushedAt = String(draft.cloud?.lastPushedAt || state.cloud.lastPushedAt || "");
+  state.cloud.syncBaseline = draft.cloud?.syncBaseline || null;
+  state.cloud.saveError = String(draft.cloud?.saveError || "");
+  state.cloud.pendingDeletedIds = Array.isArray(draft.cloud?.pendingDeletedIds) ? draft.cloud.pendingDeletedIds : [];
   state.recurringTemplates = Array.isArray(draft.recurringTemplates)
     ? draft.recurringTemplates.map((template) => sanitizeRecurringTemplate(template)).filter(Boolean)
     : state.recurringTemplates;
@@ -12429,7 +12334,7 @@ async function deleteRecord(index) {
   renderAll();
   try {
     if (removedRecords.length > 1) {
-      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase({ deletedTransactionIds: [...removedIds] }));
     } else {
       await enqueueCloudSync(() => removeSingleTransactionFromSupabase(target.__id));
     }
@@ -12555,8 +12460,16 @@ async function onSaveRecord(event) {
   }
 
   ensureBudgetCategoryAvailable(nextRecord.Categories);
+  const previousAdjustments = new Map(state.budget.rows
+    .filter(isSavingsFundingAdjustmentRecord)
+    .map((row) => [row.__id, JSON.stringify(row)]));
   state.budget.rows = reconcileSavingsFundingAdjustments(state.budget.rows);
+  const nextAdjustments = state.budget.rows.filter(isSavingsFundingAdjustmentRecord);
+  // Publish helper cleanup too, otherwise a stale cloud row could restore the withdrawal.
+  requiresFullCloudPublish ||= previousAdjustments.size !== nextAdjustments.length
+    || nextAdjustments.some((row) => previousAdjustments.get(row.__id) !== JSON.stringify(row));
   sortBudgetRowsInPlace(state.budget.rows);
+  persistDraft();
   state.editingIndex = null;
   state.editorMode = "create";
   if (wasEditing) {
@@ -15245,7 +15158,11 @@ function renderDraftStatus() {
     : "";
 
   if (canUseSupabaseCloud()) {
-    refs.draftStatus.textContent = t("draft.cloud", { suffix });
+    refs.draftStatus.textContent = state.cloud.saveError
+      ? `Sauvegarde cloud non confirmee : ${state.cloud.saveError}`
+      : hasUnsyncedCloudChanges() || !state.cloud.syncBaseline
+        ? "Copie locale conservee. Synchronisation cloud en attente."
+        : `Copie cloud chargee ou sauvegardee : ${formatDraftSavedAt([state.cloud.lastPushedAt, state.cloud.lastPulledAt].filter(Boolean).sort().pop())}.`;
     return;
   }
 
@@ -20941,7 +20858,8 @@ function sanitizeBudgetRow(row) {
     Date: normalizeDateValue(row?.Date),
     Categories: String(row?.Categories ?? "").trim(),
     Value: normalizeAmountValue(row?.Value),
-    FundingSource: normalizeTransactionFundingSource(row?.FundingSource),
+    // A missing legacy/cloud source can be inferred; an explicit cash choice cannot.
+    FundingSource: getExplicitTransactionFundingSource(row),
   };
 }
 
@@ -20950,7 +20868,11 @@ function createId() {
     return window.crypto.randomUUID();
   }
 
-  return `record-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function setLastAction(message) {
