@@ -1562,6 +1562,7 @@ let recurringTodaySnapshotModal = null;
 let analysisTransactionsModal = null;
 let transactionDetailsModal = null;
 let cardTrackerEditorModal = null;
+let cloudMergeModal = null;
 let analysisHoverTooltip = null;
 let activeAnalysisHoverTarget = null;
 let appToastActionHandler = null;
@@ -5736,6 +5737,8 @@ function createEmptyCloudState() {
     syncBaseline: null,
     saveError: "",
     pendingDeletedIds: [],
+    pendingMerge: null,
+    mergePreviewOpen: false,
     writeInFlight: false,
   };
 }
@@ -5910,6 +5913,7 @@ function cacheDom() {
   refs.cloudCreateSpaceButton = document.getElementById("cloud-create-space");
   refs.cloudJoinSpaceButton = document.getElementById("cloud-join-space");
   refs.cloudPushButton = document.getElementById("cloud-push");
+  refs.cloudMergeButton = document.getElementById("cloud-merge");
   refs.cloudPullButton = document.getElementById("cloud-pull");
   refs.cloudSpaceHint = document.getElementById("cloud-space-hint");
   refs.cloudPanel = document.getElementById("workspace-cloud");
@@ -6051,6 +6055,7 @@ function bindEvents() {
   refs.cloudPushButton.addEventListener("click", () => {
     void onCloudPublishRequested();
   });
+  refs.cloudMergeButton.addEventListener("click", () => { void onCloudMergeRequested(); });
   refs.cloudPullButton.addEventListener("click", () => {
     void onCloudRefreshRequested();
   });
@@ -8690,6 +8695,7 @@ async function onCloudPublishRequested() {
 }
 
 async function onCloudRefreshRequested() {
+  if (state.cloud.mergePreviewOpen) return;
   if (!canUseSupabaseCloud()) {
     setLastAction("Connectez-vous et choisissez un espace cloud avant de recharger.");
     renderAll();
@@ -8863,9 +8869,206 @@ function buildCloudSnapshot(spaceId) {
   });
 }
 
+function cloudMergeText(fr, en) {
+  return isEnglishUi() ? en : fr;
+}
+
+function describeCloudMergeRow(table, row) {
+  if (table === "budget_transactions") {
+    const source = row.funding_source === "savings" ? cloudMergeText("Épargne", "Savings") : "Cash";
+    return `${row.entry_date || "?"} | ${row.category} | ${formatCurrency(row.amount)} | ${source}`;
+  }
+  const names = {
+    budget_categories: cloudMergeText("Catégorie", "Category"),
+    budget_category_groups: cloudMergeText("Grande catégorie", "Category group"),
+    budget_plan_rows: cloudMergeText("Budget planifié", "Planned budget"),
+    budget_recurring_templates: cloudMergeText("Récurrente", "Recurring template"),
+    budget_card_tracker_state: cloudMergeText("Cartes", "Cards"),
+  };
+  return `${names[table]} | ${row.name || row.label || ""}${row.plan_name ? ` | ${row.plan_name}` : ""}`;
+}
+
+function closeCloudMergeModal() {
+  cloudMergeModal?.remove();
+  cloudMergeModal = null;
+  state.cloud.mergePreviewOpen = false;
+  renderAll();
+  refs.cloudMergeButton?.focus();
+}
+
+async function onCloudMergeRequested() {
+  if (!canUseSupabaseCloud() || state.cloud.syncBusy || state.cloud.mergePreviewOpen) return;
+  const spaceId = state.cloud.space.id;
+  try {
+    if (state.cloud.pendingDeletedIds?.length) throw new Error("Publiez les suppressions en attente avant une fusion.");
+    state.cloud.mergePreviewOpen = true;
+    ++cloudLoadGeneration;
+    setCloudBusy(true);
+    persistDraft();
+    preserveCloudRecoveryCopy("Avant apercu de fusion");
+    const local = buildCloudSnapshot(spaceId);
+    const { snapshot: remote, revision } = await fetchSafeCloudSnapshot(spaceId);
+    if (spaceId !== state.cloud.space.id || BUDGET_CLOUD_SYNC.hasChanges(local, buildCloudSnapshot(spaceId))) {
+      throw new Error("La copie locale ou l'espace a change. Reouvrez l'apercu.");
+    }
+    openCloudMergeModal({ spaceId, revision, plan: BUDGET_CLOUD_SYNC.planMerge(local, remote) });
+  } catch (error) {
+    state.cloud.mergePreviewOpen = false;
+    setCloudStatus(error?.message || "Apercu de fusion indisponible. Copie locale conservee.");
+  } finally {
+    setCloudBusy(false);
+    renderAll();
+  }
+}
+
+function openCloudMergeModal(preview) {
+  const { plan } = preview;
+  const decisions = {};
+  const overlay = document.createElement("div");
+  overlay.className = "recurring-occurrence-modal cloud-merge-modal";
+  const renderItem = item => {
+    const options = item.existing
+      ? [["", cloudMergeText("Choisir pour cette différence", "Choose for this difference")], ["keep", cloudMergeText("Conserver la version cloud", "Keep the cloud version")], ["local", cloudMergeText("Remplacer par la version locale", "Replace with the local version")]]
+      : [
+        ...(item.candidates.length ? [["", cloudMergeText("Vérifier la correspondance", "Check the possible match")]] : []),
+        ["local", cloudMergeText("Ajouter comme élément distinct", "Add as a separate item")],
+        ["keep", cloudMergeText("Ne pas importer cette ligne", "Do not import this row")],
+        ...item.candidates.map(row => [`match:${row.id}`, `${cloudMergeText("Même transaction : garder le cloud", "Same transaction: keep cloud")} | ${describeCloudMergeRow(item.table, row)} | ID ${row.id}`]),
+      ];
+    return `<article class="cloud-merge-item">
+      <strong>${escapeHtml(describeCloudMergeRow(item.table, item.row))}</strong>
+      ${item.candidates.length ? `<p>${escapeHtml(cloudMergeText("Date, catégorie et montant similaires ne prouvent pas un doublon. Une correspondance conserve aussi le choix Cash/Épargne du cloud.", "Similar date, category and amount do not prove a duplicate. A match also keeps the cloud funding source."))}</p>` : ""}
+      <details><summary>${escapeHtml(cloudMergeText("Détails à comparer", "Details to compare"))}</summary>
+        <p>${escapeHtml(cloudMergeText("Copie locale", "Local copy"))}</p><pre>${escapeHtml(JSON.stringify(item.row, null, 2))}</pre>
+        ${item.existing ? `<p>Cloud</p><pre>${escapeHtml(JSON.stringify(item.existing, null, 2))}</pre>` : ""}
+      </details>
+      <label class="control-field"><span>${escapeHtml(cloudMergeText("Action", "Action"))}</span>
+        <select data-merge-choice="${item.index}">${options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("")}</select>
+      </label></article>`;
+  };
+  const review = plan.items.filter(item => item.existing || item.candidates.length);
+  const additions = plan.items.filter(item => !item.existing && !item.candidates.length);
+  overlay.innerHTML = `<div class="recurring-occurrence-dialog recurring-templates-dialog" role="dialog" aria-modal="true" aria-labelledby="cloud-merge-title">
+    <div class="recurring-occurrence-head"><div><p class="section-kicker">Supabase</p>
+      <h3 id="cloud-merge-title">${escapeHtml(cloudMergeText("Fusionner sans supprimer l'historique", "Merge without deleting history"))}</h3>
+      <p>${escapeHtml(state.cloud.space.name)} | ${plan.local.budget_transactions.length} ${cloudMergeText("transactions locales", "local transactions")} | ${plan.remote.budget_transactions.length} cloud</p>
+    </div><button type="button" class="button ghost" data-merge-close>${cloudMergeText("Annuler", "Cancel")}</button></div>
+    <p>${cloudMergeText("Les lignes absentes de l'Excel restent dans le cloud. Les différences demandent un choix explicite. Vérifiez les ajouts avant de confirmer, notamment si plusieurs plans ont des noms semblables.", "Rows absent from Excel stay in the cloud. Differences require an explicit choice. Review additions before confirming, especially plans with similar names.")}</p>
+    <p>${cloudMergeText("Après confirmation, la vue locale affichera le résultat fusionné. Les lignes ignorées ne seront pas dans cette vue : conservez votre Excel d'origine.", "After confirmation, the local view will show the merged result. Ignored rows will not be in this view: keep your original Excel file.")}</p>
+    <div class="cloud-merge-tools">
+      <button type="button" class="button secondary" data-merge-matches>${cloudMergeText("Utiliser les correspondances uniques identiques", "Use unique identical matches")}</button>
+      <button type="button" class="button ghost" data-merge-settings>${cloudMergeText("Conserver les réglages cloud en conflit", "Keep conflicting cloud settings")}</button>
+    </div>
+    <h4>${cloudMergeText("Correspondances et différences", "Matches and differences")} (${review.length})</h4>
+    ${review.map(renderItem).join("")}
+    <details class="cloud-merge-additions"><summary>${cloudMergeText("Examiner les ajouts proposés", "Review proposed additions")} (${additions.length})</summary>${additions.map(renderItem).join("")}</details>
+    <p data-merge-feedback role="status" aria-live="polite"></p>
+    <label class="cloud-merge-ack"><input type="checkbox" data-merge-ack> ${cloudMergeText("J'ai vérifié les ajouts et les correspondances, et conservé mon fichier Excel de sauvegarde.", "I reviewed the additions and matches and kept my Excel backup.")}</label>
+    <button type="button" class="button primary" data-merge-confirm disabled>${cloudMergeText("Confirmer et publier la fusion", "Confirm and publish merge")}</button>
+  </div>`;
+  let working = false;
+  const refresh = () => {
+    overlay.querySelectorAll("[data-merge-choice]").forEach(select => { decisions[select.dataset.mergeChoice] = select.value; });
+    const button = overlay.querySelector("[data-merge-confirm]");
+    const feedback = overlay.querySelector("[data-merge-feedback]");
+    try {
+      const result = BUDGET_CLOUD_SYNC.resolveMerge(plan, decisions);
+      feedback.textContent = `${result.stats.added} ${cloudMergeText("ajouts", "additions")}, ${result.stats.updated} ${cloudMergeText("remplacements choisis", "chosen replacements")}, ${result.stats.matched} ${cloudMergeText("correspondances", "matches")}. ${cloudMergeText("Aucune suppression cloud.", "No cloud deletions.")}`;
+      button.disabled = working || !overlay.querySelector("[data-merge-ack]").checked;
+    } catch (error) {
+      feedback.textContent = error.message;
+      button.disabled = true;
+    }
+  };
+  overlay.addEventListener("change", refresh);
+  overlay.querySelector("[data-merge-close]").addEventListener("click", () => { if (!working) closeCloudMergeModal(); });
+  overlay.querySelector("[data-merge-settings]").addEventListener("click", () => {
+    plan.items.filter(item => item.existing && item.table !== "budget_transactions").forEach(item => {
+      overlay.querySelector(`[data-merge-choice="${item.index}"]`).value = "keep";
+    });
+    refresh();
+  });
+  overlay.querySelector("[data-merge-matches]").addEventListener("click", () => {
+    const originalIds = new Set(plan.local.budget_transactions.map(row => row.id));
+    plan.items.filter(item => item.candidates.length === 1).forEach(item => {
+      const candidate = item.candidates[0];
+      const count = plan.items.filter(other => other.candidates.some(row => row.id === candidate.id)).length;
+      if (count === 1 && !originalIds.has(candidate.id) && item.row.funding_source === candidate.funding_source) {
+        overlay.querySelector(`[data-merge-choice="${item.index}"]`).value = `match:${candidate.id}`;
+      }
+    });
+    refresh();
+  });
+  overlay.querySelector("[data-merge-confirm]").addEventListener("click", async () => {
+    if (working || !overlay.querySelector("[data-merge-ack]").checked) return;
+    working = true;
+    overlay.querySelectorAll("button, input, select").forEach(node => { node.disabled = true; });
+    try {
+      await stageCloudMerge(preview, decisions);
+      closeCloudMergeModal();
+      await enqueueCloudSync(() => publishLocalBudgetToSupabase());
+      startSupabaseRealtime(preview.spaceId);
+    } catch (error) {
+      if (cloudMergeModal === overlay) {
+        overlay.querySelector("[data-merge-feedback]").textContent = error?.message || "Fusion annulee.";
+      }
+      setCloudStatus(error?.message || "Fusion non confirmee. Copie locale conservee.");
+    } finally {
+      working = false;
+      overlay.querySelectorAll("button, input, select").forEach(node => { node.disabled = false; });
+      renderAll();
+    }
+  });
+  overlay.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !working) { event.preventDefault(); closeCloudMergeModal(); }
+    if (event.key === "Tab") {
+      const focusable = [...overlay.querySelectorAll("button, input, select, summary")].filter(node => !node.disabled && !node.closest("details:not([open])") || node.tagName === "SUMMARY" && !node.parentElement.parentElement.closest("details:not([open])"));
+      const first = focusable[0], last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+  });
+  document.body.appendChild(overlay);
+  cloudMergeModal = overlay;
+  refresh();
+  overlay.querySelector("[data-merge-close]").focus();
+}
+
+async function stageCloudMerge(preview, decisions) {
+  const { spaceId, plan } = preview;
+  const checkUnchanged = () => {
+    if (state.cloud.writeInFlight || state.cloud.pendingDeletedIds?.length || spaceId !== state.cloud.space.id ||
+        BUDGET_CLOUD_SYNC.hasChanges(plan.local, buildCloudSnapshot(spaceId))) {
+      throw new Error("Les donnees locales ont change. Annulez puis reouvrez l'apercu.");
+    }
+  };
+  checkUnchanged();
+  const { snapshot: merged } = BUDGET_CLOUD_SYNC.resolveMerge(plan, decisions);
+  if (await readSafeCloudRevision(spaceId) !== preview.revision) {
+    throw new Error("Le cloud a change. Annulez puis reouvrez l'apercu pour verifier les correspondances.");
+  }
+  checkUnchanged();
+  persistDraft();
+  preserveCloudRecoveryCopy("Avant confirmation de fusion");
+  const original = readStoredDraft();
+  if (!original) throw new Error("Copie de secours indisponible. Fusion annulee.");
+  try {
+    applySafeCloudSnapshot(merged);
+    const local = buildCloudSnapshot(spaceId);
+    state.cloud.syncBaseline = { spaceId, local, remote: plan.remote };
+    // Persist the exact reviewed request for idempotent retries, including after restart.
+    state.cloud.pendingMerge = { spaceId, merged };
+    state.cloud.saveError = "";
+    persistDraft();
+  } catch (error) {
+    applyStoredDraft(original);
+    throw error;
+  }
+}
+
 function hasUnsyncedCloudChanges() {
   const baseline = state.cloud.syncBaseline;
-  if (state.cloud.saveError) return true;
+  if (state.cloud.saveError || state.cloud.pendingMerge) return true;
   if (!baseline || baseline.spaceId !== state.cloud.space.id) return false;
   return BUDGET_CLOUD_SYNC.hasChanges(baseline.local, buildCloudSnapshot(baseline.spaceId));
 }
@@ -8877,7 +9080,7 @@ function preserveCloudRecoveryCopy(reason) {
   const copies = JSON.parse(localStorage.getItem(key) || "[]");
   const signature = JSON.stringify([draft.rows, draft.recap, draft.recurringTemplates, draft.cardTracker]);
   if (copies.some(copy => JSON.stringify([copy.draft.rows, copy.draft.recap, copy.draft.recurringTemplates, copy.draft.cardTracker]) === signature)) return;
-  const recoveryDraft = { ...draft, cloud: { ...draft.cloud, syncBaseline: null } };
+  const recoveryDraft = { ...draft, cloud: { ...draft.cloud, syncBaseline: null, pendingMerge: null } };
   const next = { savedAt: new Date().toISOString(), reason, draft: recoveryDraft };
   // Always retain the richest history, as well as the most recent recovery copies.
   const richest = [...copies, next].sort((a, b) => b.draft.rows.length - a.draft.rows.length)[0];
@@ -8903,7 +9106,13 @@ function publishLocalBudgetToSupabase(options = {}) {
   const spaceId = state.cloud.space.id;
   state.cloud.pendingDeletedIds = [...new Set([...(state.cloud.pendingDeletedIds || []), ...(options.deletedTransactionIds || [])])];
   // Also serialize calls not originating from enqueueCloudSync.
-  const run = safeCloudWriteQueue.then(() => saveBudgetChangesToSupabase(spaceId, options));
+  const run = safeCloudWriteQueue.then(async () => {
+    const completingMerge = Boolean(state.cloud.pendingMerge);
+    await saveBudgetChangesToSupabase(spaceId, options);
+    if (completingMerge && !state.cloud.pendingMerge && spaceId === state.cloud.space.id && hasUnsyncedCloudChanges()) {
+      await saveBudgetChangesToSupabase(spaceId, options);
+    }
+  });
   safeCloudWriteQueue = run.catch(() => undefined);
   return run;
 }
@@ -8911,20 +9120,26 @@ function publishLocalBudgetToSupabase(options = {}) {
 async function saveBudgetChangesToSupabase(spaceId, options = {}) {
   if (!canUseSupabaseCloud()) return;
   try {
+    if (state.cloud.mergePreviewOpen) throw new Error("Fermez l'apercu de fusion avant une autre publication.");
     if (spaceId !== state.cloud.space.id) throw new Error("Espace modifie pendant la sauvegarde. Publication annulee.");
     setCloudBusy(true);
     state.cloud.writeInFlight = true;
     setCloudStatus("Synchronisation securisee en cours...");
     const baseline = state.cloud.syncBaseline;
     if (!baseline || baseline.spaceId !== spaceId) {
-      throw new Error("Publication bloquee : chargez d'abord une copie cloud verifiee. Exportez vos donnees locales avant de recharger.");
+      throw new Error("Publication bloquee : utilisez Fusionner avec le cloud pour verifier votre copie locale sans remplacer l'historique.");
     }
     await requireSafeCloudSync();
     if (spaceId !== state.cloud.space.id) throw new Error("Espace modifie. Publication annulee.");
-    const snapshot = buildCloudSnapshot(spaceId);
+    const merge = state.cloud.pendingMerge;
+    if (merge && merge.spaceId !== spaceId) throw new Error("La fusion appartient a un autre espace. Publication annulee.");
+    const snapshot = merge ? baseline.local : buildCloudSnapshot(spaceId);
     const deletedTransactionIds = [...new Set([...(state.cloud.pendingDeletedIds || []), ...(options.deletedTransactionIds || [])])];
     state.cloud.pendingDeletedIds = deletedTransactionIds;
-    const changes = BUDGET_CLOUD_SYNC.buildChanges(baseline.local, snapshot, baseline.remote, { deletedTransactionIds });
+    const changes = merge
+      ? BUDGET_CLOUD_SYNC.buildChanges(baseline.remote, merge.merged, baseline.remote)
+      : BUDGET_CLOUD_SYNC.buildChanges(baseline.local, snapshot, baseline.remote, { deletedTransactionIds });
+    if (merge && changes.some(change => !change.after)) throw new Error("Suppression interdite pendant une fusion.");
     persistDraft();
     preserveCloudRecoveryCopy("Avant sauvegarde cloud");
     if (changes.length) {
@@ -8940,7 +9155,10 @@ async function saveBudgetChangesToSupabase(spaceId, options = {}) {
       };
       state.cloud.lastPushedAt = data.saved_at || new Date().toISOString();
     }
-    state.cloud.pendingDeletedIds = [];
+    if (merge && !changes.length) state.cloud.syncBaseline = { spaceId, local: snapshot, remote: merge.merged };
+    state.cloud.pendingMerge = null;
+    // Keep deletions made while this request was in flight for the next save.
+    state.cloud.pendingDeletedIds = (state.cloud.pendingDeletedIds || []).filter(id => merge || !deletedTransactionIds.includes(id));
     state.cloud.saveError = "";
     setCloudStatus("Modifications confirmees par Supabase.");
     persistDraft();
@@ -8995,25 +9213,9 @@ async function fetchAllSupabaseRows(createQuery) {
   }
 }
 
-async function loadBudgetFromSupabase(spaceId, options = {}) {
-  if (!supabaseClient || !spaceId) {
-    return;
-  }
-
-  const generation = ++cloudLoadGeneration;
-  if (state.cloud.writeInFlight || (!options.discardLocal && !options.initializeEmpty && hasUnsyncedCloudChanges())) {
-    setCloudStatus("Rechargement suspendu : des modifications locales attendent leur synchronisation.");
-    return false;
-  }
-  const startingSnapshot = buildCloudSnapshot(spaceId);
-  try {
-    await requireSafeCloudSync();
-    const cloudRevision = await readSafeCloudRevision(spaceId);
-    if (!options.silent) {
-      setCloudStatus("Chargement des données cloud...");
-      renderAll();
-    }
-
+async function fetchSafeCloudSnapshot(spaceId) {
+  await requireSafeCloudSync();
+  const cloudRevision = await readSafeCloudRevision(spaceId);
     const [{ data: categories, error: categoriesError }, { data: categoryGroups, error: categoryGroupsError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult, cardTrackerResult] = await Promise.all([
       fetchAllSupabaseRows(() => supabaseClient
         .from("budget_categories")
@@ -9059,14 +9261,78 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     if (cloudRevision !== await readSafeCloudRevision(spaceId)) {
       throw new Error("Les donnees cloud ont change pendant le chargement. Copie locale conservee; reessayez.");
     }
-    if (generation !== cloudLoadGeneration || spaceId !== state.cloud.space.id || state.cloud.writeInFlight ||
-        BUDGET_CLOUD_SYNC.hasChanges(startingSnapshot, buildCloudSnapshot(spaceId))) return false;
     const remoteSnapshot = BUDGET_CLOUD_SYNC.canonicalSnapshot({
       budget_categories: categories, budget_category_groups: categoryGroups, budget_plan_rows: planRows,
       budget_transactions: transactions, budget_recurring_templates: recurringResult.data,
       budget_card_tracker_state: cardTrackerResult.data ? [cardTrackerResult.data] : [],
     });
     BUDGET_CLOUD_SYNC.buildChanges(remoteSnapshot, remoteSnapshot, remoteSnapshot);
+
+  return { snapshot: remoteSnapshot, revision: cloudRevision };
+}
+
+function applySafeCloudSnapshot(snapshot) {
+  const previousActivePlanId = String(state.recap?.activeBudgetPlanId || "");
+  const preservedCardTracker = sanitizeCardTrackerModel(state.cardTracker, {
+    language: getCurrentLanguage(), fallbackToDefault: true,
+  });
+  state.mode = "budget";
+  state.workbookName = state.workbookName || state.cloud.space.name || "Budget partage cloud";
+  state.workbook = null;
+  state.sourceLink = null;
+  state.sourceSafety = createEmptySourceSafety();
+  state.activeView = normalizeActiveView(state.activeView);
+  state.search = "";
+  state.editingIndex = null;
+  state.editorMode = "create";
+  state.budget = {
+    headers: ["Date", "Categories", "Value"],
+    categories: snapshot.budget_categories.map(row => String(row.name || "").trim())
+      .filter(name => name && !isSyntheticBudgetHelperCategory(name)),
+    rows: snapshot.budget_transactions.map(row => sanitizeBudgetRow({
+      __id: row.id, Date: row.entry_date, Categories: row.category,
+      Value: normalizeAmountValue(row.amount), FundingSource: row.funding_source,
+    })).filter(row => !isIgnoredBudgetTransactionRow(row)),
+    clearEndRow: START_ROW + snapshot.budget_transactions.length + 8,
+    customGroups: parseSupabaseCategoryGroupRows(snapshot.budget_category_groups),
+    categoryAssignments: parseSupabaseCategoryAssignmentsFromRows(snapshot.budget_categories),
+  };
+  state.budget.rows = reconcileSavingsFundingAdjustments(state.budget.rows);
+  sortBudgetRowsInPlace(state.budget.rows);
+  const cloudPlans = parseSupabaseBudgetPlans(snapshot.budget_plan_rows, state.cloud.space.name || buildBudgetPlanDefaultName(0));
+  const preferredPlan = cloudPlans.find(plan => plan.id === previousActivePlanId) || cloudPlans[0] || null;
+  state.recap = {
+    available: true,
+    snapshotDate: `Supabase - ${formatDraftSavedAt(new Date().toISOString())}`,
+    planTemplate: resolvePlanTemplate(preferredPlan?.rows || []),
+    budgetPlans: cloudPlans,
+    activeBudgetPlanId: preferredPlan?.id || "",
+  };
+  state.cardTracker = parseSupabaseCardTrackerStateRow(snapshot.budget_card_tracker_state[0] || null, preservedCardTracker);
+  recurringSupabaseSchemaReady = true;
+  categorySupabaseSchemaReady = true;
+  budgetPlanSupabaseSchemaReady = true;
+  cardTrackerSupabaseSchemaReady = true;
+  state.recurringTemplates = parseSupabaseRecurringTemplateRows(snapshot.budget_recurring_templates);
+  persistRecurringTemplatesIfPossible();
+}
+
+async function loadBudgetFromSupabase(spaceId, options = {}) {
+  if (!supabaseClient || !spaceId) return;
+  const generation = ++cloudLoadGeneration;
+  if (state.cloud.mergePreviewOpen || state.cloud.writeInFlight || (!options.discardLocal && !options.initializeEmpty && hasUnsyncedCloudChanges())) {
+    setCloudStatus("Rechargement suspendu : des modifications locales attendent leur synchronisation.");
+    return false;
+  }
+  const startingSnapshot = buildCloudSnapshot(spaceId);
+  try {
+    if (!options.silent) {
+      setCloudStatus("Chargement des données cloud...");
+      renderAll();
+    }
+    const { snapshot: remoteSnapshot } = await fetchSafeCloudSnapshot(spaceId);
+    if (generation !== cloudLoadGeneration || spaceId !== state.cloud.space.id || state.cloud.writeInFlight || state.cloud.mergePreviewOpen ||
+        BUDGET_CLOUD_SYNC.hasChanges(startingSnapshot, buildCloudSnapshot(spaceId))) return false;
     if (options.initializeEmpty) {
       if (Object.values(remoteSnapshot).some(rows => rows.length)) throw new Error("L'espace n'est pas vide. Initialisation annulee.");
       state.cloud.syncBaseline = { spaceId, remote: remoteSnapshot, local: BUDGET_CLOUD_SYNC.canonicalSnapshot() };
@@ -9079,134 +9345,14 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       }
     }
     preserveCloudRecoveryCopy("Avant rechargement cloud");
-    let recurringSchemaOutdated = false;
-    let categorySchemaOutdated = false;
-    let budgetPlanSchemaOutdated = false;
-    let cardTrackerSchemaOutdated = false;
-
-    if (categoriesError) {
-      throw categoriesError;
-    }
-
-    if (categoryGroupsError) {
-      if (isSupabaseCategorySchemaMissing(categoryGroupsError)) {
-        categorySchemaOutdated = true;
-      } else {
-        throw categoryGroupsError;
-      }
-    }
-
-    if (planError) {
-      if (isSupabaseBudgetPlanSchemaMissing(planError)) {
-        budgetPlanSchemaOutdated = true;
-      } else {
-        throw planError;
-      }
-    }
-
-    if (transactionsError) {
-      throw transactionsError;
-    }
-
-    if (recurringResult?.error) {
-      if (isSupabaseRecurringSchemaMissing(recurringResult.error)) {
-        recurringSchemaOutdated = true;
-      } else {
-        throw recurringResult.error;
-      }
-    }
-
-    if (cardTrackerResult?.error) {
-      if (isSupabaseCardTrackerSchemaMissing(cardTrackerResult.error)) {
-        cardTrackerSchemaOutdated = true;
-      } else {
-        throw cardTrackerResult.error;
-      }
-    }
-
-    state.mode = "budget";
-    state.workbookName = state.workbookName || state.cloud.space.name || "Budget partage cloud";
-    state.workbook = null;
-    state.sourceLink = null;
-    state.sourceSafety = createEmptySourceSafety();
-    state.activeView = normalizeActiveView(state.activeView);
-    state.search = "";
-    state.editingIndex = null;
-    state.editorMode = "create";
-    const previousActivePlanId = String(state.recap?.activeBudgetPlanId || "").trim();
-    const preservedCustomGroups = getBudgetCustomGroups();
-    const preservedCategoryAssignments = getBudgetCategoryAssignments();
-    const preservedPlans = cloneBudgetPlanDefinitions(state.recap?.budgetPlans || []);
-    const preservedCardTracker = sanitizeCardTrackerModel(state.cardTracker, {
-      language: getCurrentLanguage(),
-      fallbackToDefault: true,
-    });
-    const cloudCustomGroups = parseSupabaseCategoryGroupRows(categoryGroups || []);
-    const cloudCategoryAssignments = parseSupabaseCategoryAssignmentsFromRows(categories || []);
-    state.budget = {
-      headers: ["Date", "Categories", "Value"],
-      categories: (categories || []).map((row) => String(row.name || "").trim()).filter((name) => name && !isSyntheticBudgetHelperCategory(name)),
-      rows: (transactions || [])
-        .map((row) => sanitizeBudgetRow({
-          __id: row.id,
-          Date: row.entry_date,
-          Categories: row.category,
-          Value: normalizeAmountValue(row.amount),
-          FundingSource: row.funding_source,
-      }))
-        .filter((row) => !isIgnoredBudgetTransactionRow(row)),
-      clearEndRow: START_ROW + (transactions?.length || 0) + 8,
-      customGroups: categorySchemaOutdated ? preservedCustomGroups : cloudCustomGroups,
-      categoryAssignments: categorySchemaOutdated ? preservedCategoryAssignments : cloudCategoryAssignments,
-    };
-    state.budget.rows = reconcileSavingsFundingAdjustments(state.budget.rows);
-    sortBudgetRowsInPlace(state.budget.rows);
-    const cloudPlans = budgetPlanSchemaOutdated
-      ? (preservedPlans.length
-        ? preservedPlans
-        : parseSupabaseBudgetPlans(planRows || [], state.cloud.space.name || buildBudgetPlanDefaultName(0)))
-      : parseSupabaseBudgetPlans(planRows || [], state.cloud.space.name || buildBudgetPlanDefaultName(0));
-    const preferredPlan = cloudPlans.find((plan) => plan.id === previousActivePlanId) || cloudPlans[0] || null;
-
-    state.recap = {
-      available: true,
-      snapshotDate: `Supabase - ${formatDraftSavedAt(new Date().toISOString())}`,
-      planTemplate: resolvePlanTemplate(preferredPlan?.rows || []),
-      budgetPlans: cloudPlans,
-      activeBudgetPlanId: preferredPlan?.id || "",
-    };
-    state.cardTracker = cardTrackerSchemaOutdated
-      ? preservedCardTracker
-      : parseSupabaseCardTrackerStateRow(cardTrackerResult?.data, preservedCardTracker);
-    recurringSupabaseSchemaReady = !recurringSchemaOutdated;
-    categorySupabaseSchemaReady = !categorySchemaOutdated;
-    budgetPlanSupabaseSchemaReady = !budgetPlanSchemaOutdated;
-    cardTrackerSupabaseSchemaReady = !cardTrackerSchemaOutdated;
-    if (!recurringSchemaOutdated) {
-      state.recurringTemplates = parseSupabaseRecurringTemplateRows(recurringResult?.data || []);
-      persistRecurringTemplatesIfPossible();
-    }
+    applySafeCloudSnapshot(remoteSnapshot);
     state.cloud.lastPulledAt = new Date().toISOString();
     state.cloud.syncBaseline = { spaceId, remote: remoteSnapshot, local: buildCloudSnapshot(spaceId) };
     state.cloud.saveError = "";
     state.cloud.pendingDeletedIds = [];
-
-    if (!options.preserveLastAction) {
-      setLastAction(`Budget charge depuis ${state.cloud.space.name || "Supabase"}`);
-    }
-
-    const cloudWarnings = [
-      categorySchemaOutdated ? buildCategorySchemaWarningMessage() : "",
-      recurringSchemaOutdated ? buildRecurringSchemaWarningMessage() : "",
-      budgetPlanSchemaOutdated ? buildBudgetPlanSchemaWarningMessage() : "",
-      cardTrackerSchemaOutdated ? buildCardTrackerSchemaWarningMessage() : "",
-    ].filter(Boolean).join(" ");
-
-    setCloudStatus(
-      cloudWarnings
-        ? `Espace partage actif: ${state.cloud.space.name || "budget partagé"}. ${cloudWarnings}`
-        : `Espace partage actif: ${state.cloud.space.name || "budget partagé"}.`
-    );
+    state.cloud.pendingMerge = null;
+    if (!options.preserveLastAction) setLastAction(`Budget charge depuis ${state.cloud.space.name || "Supabase"}`);
+    setCloudStatus(`Espace partage actif: ${state.cloud.space.name || "budget partagé"}.`);
     persistDraft();
     startSupabaseRealtime(spaceId);
     renderAll();
@@ -9674,6 +9820,7 @@ function persistDraft() {
       syncBaseline: state.cloud.syncBaseline,
       saveError: state.cloud.saveError,
       pendingDeletedIds: state.cloud.pendingDeletedIds,
+      pendingMerge: state.cloud.pendingMerge || null,
     },
     recurringTemplates: state.recurringTemplates,
     recapFilters: state.recapFilters,
@@ -9748,6 +9895,7 @@ function applyStoredDraft(draft) {
   state.cloud.lastPulledAt = String(draft.cloud?.lastPulledAt || state.cloud.lastPulledAt || "");
   state.cloud.lastPushedAt = String(draft.cloud?.lastPushedAt || state.cloud.lastPushedAt || "");
   state.cloud.syncBaseline = draft.cloud?.syncBaseline || null;
+  state.cloud.pendingMerge = draft.cloud?.pendingMerge || null;
   state.cloud.saveError = String(draft.cloud?.saveError || "");
   state.cloud.pendingDeletedIds = Array.isArray(draft.cloud?.pendingDeletedIds) ? draft.cloud.pendingDeletedIds : [];
   state.recurringTemplates = Array.isArray(draft.recurringTemplates)
@@ -10457,6 +10605,10 @@ function buildImportedWorkbookPayload(workbook, fileName = "") {
 }
 
 async function importWorkbookBuffer(buffer, fileName, options = {}) {
+  if (state.cloud.pendingMerge) throw new Error("Une fusion attend sa confirmation cloud. Reessayez Publier local avant un nouvel import.");
+  if (state.cloud.mergePreviewOpen || state.cloud.writeInFlight) throw new Error("Attendez la fin de la synchronisation ou fermez l'apercu avant un import.");
+  persistDraftIfPossible();
+  preserveCloudRecoveryCopy("Avant import Excel");
   const previousBudgetPlans = cloneBudgetPlanDefinitions(state.recap?.budgetPlans);
   const previousCustomGroups = getBudgetCustomGroups();
   const previousCategoryAssignments = getBudgetCategoryAssignments();
@@ -10539,6 +10691,9 @@ async function importWorkbookBuffer(buffer, fileName, options = {}) {
   refs.fileInput.value = "";
 
   persistDraft();
+  if (canUseSupabaseCloud()) {
+    setCloudStatus(cloudMergeText("Excel restauré localement. Utilisez Fusionner avec le cloud pour vérifier puis partager les données.", "Excel restored locally. Use Merge with cloud to review and share the data."));
+  }
   setLastAction(
     state.sourceSafety.allowDirectWrite
       ? successMessage
@@ -15003,6 +15158,8 @@ function renderCloudPanel() {
   refs.cloudCreateSpaceButton.disabled = !cloudReady || busy || !signedIn;
   refs.cloudJoinSpaceButton.disabled = !cloudReady || busy || !signedIn || !typedJoinCode;
   refs.cloudPushButton.disabled = !canPublish || busy;
+  refs.cloudMergeButton.disabled = !canPublish || busy || state.cloud.mergePreviewOpen;
+  refs.cloudMergeButton.textContent = isEnglishUi() ? "Merge with cloud" : "Fusionner avec le cloud";
   refs.cloudPullButton.disabled = !canUseSupabaseCloud() || busy;
 
   refs.cloudCodeInput.placeholder = signedIn

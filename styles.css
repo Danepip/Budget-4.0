@@ -3250,6 +3250,52 @@ textarea {
   width: min(1080px, 100%);
 }
 
+.cloud-merge-item {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid rgba(128, 150, 154, 0.3);
+  border-radius: 18px;
+  overflow-wrap: anywhere;
+}
+
+.cloud-merge-item pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+.cloud-merge-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cloud-merge-item select {
+  width: 100%;
+  min-width: 0;
+}
+
+.cloud-merge-additions > summary {
+  padding: 16px 0;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.cloud-merge-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.cloud-merge-ack input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
 .recurring-occurrence-head {
   display: flex;
   align-items: flex-start;

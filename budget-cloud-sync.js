@@ -68,7 +68,7 @@
         if (table === "budget_transactions") {
           if (next && !uuidPattern.test(next.id)) throw new Error("Identifiant de transaction invalide. Aucune donnee cloud n'a ete modifiee.");
           if (!next && !allowedDeletes.has(previous.id)) {
-            throw new Error("Remplacement de l'historique bloque. Les transactions absentes de cette copie locale ne seront pas supprimees du cloud.");
+            throw new Error("Remplacement de l'historique bloque. Les transactions absentes de cette copie locale ne seront pas supprimees du cloud. Utilisez Fusionner avec le cloud pour verifier la restauration.");
           }
         }
         changes.push({ table, key: JSON.parse(key), before: remoteRows.get(key) || null, after: next });
@@ -97,7 +97,78 @@
     });
   }
 
-  const api = { schemas, uuidPattern, canonicalRow, canonicalSnapshot, buildChanges, applyChanges, hasChanges, stableStringify };
+  function transactionSignature(row) {
+    // A possible correspondence, never proof that two purchases are the same.
+    return stableStringify([row.entry_date, row.category, row.amount]);
+  }
+
+  function planMerge(localSnapshot, remoteSnapshot) {
+    const local = canonicalSnapshot(localSnapshot);
+    const remote = canonicalSnapshot(remoteSnapshot);
+    const items = [];
+    let identical = 0;
+    const candidates = new Map();
+    remote.budget_transactions.forEach(row => {
+      const signature = transactionSignature(row);
+      candidates.set(signature, [...(candidates.get(signature) || []), row]);
+    });
+    Object.keys(schemas).forEach(table => {
+      indexRows(table, local[table]);
+      const remoteIndex = indexRows(table, remote[table]);
+      local[table].forEach(row => {
+        if (table === 'budget_transactions' && !uuidPattern.test(row.id)) {
+          throw new Error('Identifiant local invalide. Fusion annulee.');
+        }
+        const existing = remoteIndex.get(rowKey(table, row));
+        if (existing && stableStringify(existing) === stableStringify(row)) {
+          identical++;
+          return;
+        }
+        items.push({
+          index: items.length, table, row, existing: existing || null,
+          kind: existing ? 'conflict' : 'new',
+          candidates: !existing && table === 'budget_transactions'
+            ? clone(candidates.get(transactionSignature(row)) || []) : [],
+        });
+      });
+    });
+    return { local, remote, items, identical };
+  }
+
+  function resolveMerge(plan, decisions = {}) {
+    const merged = canonicalSnapshot(plan.remote);
+    const matchedIds = new Set();
+    // Already-identified rows cannot also absorb a different imported transaction.
+    const originalIds = new Set(plan.local.budget_transactions.map(row => row.id));
+    const stats = { added: 0, updated: 0, kept: plan.identical, matched: 0, ignored: 0 };
+    plan.items.forEach(item => {
+      const choice = decisions[item.index] || (item.kind === 'new' && !item.candidates.length ? 'local' : '');
+      if (!choice) throw new Error('Choisissez une action pour chaque correspondance ou difference.');
+      if (choice === 'keep') {
+        if (item.existing) stats.kept++; else stats.ignored++;
+        return;
+      }
+      if (choice.startsWith('match:')) {
+        const id = choice.slice(6);
+        if (!item.candidates.some(row => row.id === id) || matchedIds.has(id) || originalIds.has(id)) {
+          throw new Error('Une transaction cloud ne peut correspondre qu\'a une seule ligne importee.');
+        }
+        matchedIds.add(id);
+        stats.matched++;
+        return;
+      }
+      if (choice !== 'local') throw new Error('Choix de fusion invalide.');
+      const key = rowKey(item.table, item.row);
+      merged[item.table] = merged[item.table].filter(row => rowKey(item.table, row) !== key);
+      merged[item.table].push(clone(item.row));
+      if (item.existing) stats.updated++; else stats.added++;
+    });
+    const changes = buildChanges(plan.remote, merged, plan.remote);
+    if (changes.some(change => !change.after)) throw new Error('Une fusion ne doit jamais supprimer de ligne cloud.');
+    return { snapshot: merged, changes, stats };
+  }
+
+  const api = { schemas, uuidPattern, canonicalRow, canonicalSnapshot, buildChanges, applyChanges, hasChanges, stableStringify, planMerge, resolveMerge };
   scope.BUDGET_CLOUD_SYNC = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
