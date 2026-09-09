@@ -168,7 +168,32 @@
     return { snapshot: merged, changes, stats };
   }
 
-  const api = { schemas, uuidPattern, canonicalRow, canonicalSnapshot, buildChanges, applyChanges, hasChanges, stableStringify, planMerge, resolveMerge };
+  function classifyError(error) {
+    const code = String(error?.code || '');
+    if (code === '40001') return 'conflict';
+    if (['42501', '28000', '28P01', 'PGRST301'].includes(code)) return 'access';
+    const status = Number(error?.status || error?.statusCode || 0);
+    const message = String(error?.message || error || '');
+    if (status === 408 || status === 429 || status >= 500 ||
+        /failed to fetch|fetch failed|network|connection lost|timeout|timed out|offline|r[eé]seau|change pendant le chargement/i.test(message)) return 'retry';
+    return 'blocked';
+  }
+
+  function summarizeSnapshot(snapshot) {
+    const canonical = canonicalSnapshot(snapshot);
+    const months = {};
+    canonical.budget_transactions.forEach(row => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(row.entry_date || '')) return;
+      const month = row.entry_date.slice(0, 7);
+      months[month] = (months[month] || 0) + 1;
+    });
+    return {
+      counts: Object.fromEntries(Object.entries(canonical).map(([table, rows]) => [table, rows.length])),
+      months: Object.fromEntries(Object.keys(months).sort().map(month => [month, months[month]])),
+    };
+  }
+
+  const api = { schemas, uuidPattern, canonicalRow, canonicalSnapshot, buildChanges, applyChanges, hasChanges, stableStringify, planMerge, resolveMerge, classifyError, summarizeSnapshot };
   scope.BUDGET_CLOUD_SYNC = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

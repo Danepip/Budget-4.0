@@ -1,6 +1,5 @@
-const VERSION = "budget-card-view-v124";
+const VERSION = "budget-card-view-v125";
 const SHELL_CACHE = `${VERSION}-shell`;
-const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -28,28 +27,12 @@ const APP_SHELL = [
   "./icon-192.svg",
   "./icon-512.svg",
 ];
-const RUNTIME_ASSETS = [];
-
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    for (const assetPath of APP_SHELL) {
-      try {
-        await cache.add(assetPath);
-      } catch (error) {
-        console.error("Shell cache warmup failed:", assetPath, error);
-      }
-    }
-
-    for (const url of RUNTIME_ASSETS) {
-      try {
-        await cache.add(new Request(url, { mode: "no-cors" }));
-      } catch (error) {
-        console.error("Runtime cache warmup failed:", error);
-      }
-    }
-
-    await self.skipWaiting();
+    // A failed file rejects the entire install. Never activate a partial app shell.
+    await cache.addAll(APP_SHELL.map(path => new Request(new URL(path, self.location.href), { cache: "reload" })));
+    // Wait for existing tabs to close rather than mixing versions during editing.
   })());
 });
 
@@ -59,11 +42,10 @@ self.addEventListener("activate", (event) => {
 
     await Promise.all(
       cacheNames
-        .filter((cacheName) => ![SHELL_CACHE, RUNTIME_CACHE].includes(cacheName))
+        .filter((cacheName) => cacheName.startsWith("budget-card-view-") && cacheName !== SHELL_CACHE)
         .map((cacheName) => caches.delete(cacheName))
     );
 
-    await self.clients.claim();
   })());
 });
 
@@ -74,45 +56,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
   if (request.mode === "navigate") {
     event.respondWith(handleNavigation(request));
     return;
   }
-
-  const url = new URL(request.url);
-  if (url.origin === self.location.origin || RUNTIME_ASSETS.includes(url.href)) {
-    event.respondWith(staleWhileRevalidate(request));
+  if (APP_SHELL.some(path => new URL(path, self.location.href).pathname === url.pathname)) {
+    event.respondWith(readShellAsset(request));
   }
 });
 
 async function handleNavigation(request) {
-  try {
-    const response = await fetch(request);
-    const cache = await caches.open(RUNTIME_CACHE);
-    await cache.put("./index.html", response.clone());
-    return response;
-  } catch (error) {
-    return (
-      (await caches.match(request, { ignoreSearch: true })) ||
-      (await caches.match("./index.html")) ||
-      (await caches.match("./offline.html"))
-    );
-  }
+  const cache = await caches.open(SHELL_CACHE);
+  return (await cache.match("./index.html")) || fetch(request);
 }
 
-async function staleWhileRevalidate(request) {
-  const cachedResponse = await caches.match(request, { ignoreSearch: true });
-
-  const networkResponsePromise = fetch(request)
-    .then(async (response) => {
-      if (response && (response.ok || response.type === "opaque")) {
-        const cache = await caches.open(RUNTIME_CACHE);
-        await cache.put(request, response.clone());
-      }
-
-      return response;
-    })
-    .catch(() => null);
-
-  return cachedResponse || (await networkResponsePromise) || Response.error();
+async function readShellAsset(request) {
+  const cache = await caches.open(SHELL_CACHE);
+  // Do not serve a newer network script alongside an older cached app.
+  return (await cache.match(request, { ignoreSearch: true })) || Response.error();
 }

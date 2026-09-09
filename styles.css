@@ -6740,3 +6740,15 @@ body[data-theme="dark"] .card-ledger-balance {
     align-items: flex-start;
   }
 }
+.cloud-integrity {
+  grid-column: 1 / -1;
+  border: 1px solid var(--field-border);
+  border-radius: 16px;
+  padding: 14px 18px;
+  overflow-wrap: anywhere;
+}
+
+.cloud-integrity summary { cursor: pointer; font-weight: 700; }
+.cloud-integrity small { font-weight: 400; margin-inline-start: 12px; }
+.cloud-integrity p { font-size: 0.85rem; }
+.cloud-month-inventory { display: flex; flex-wrap: wrap; gap: 8px 18px; }

@@ -124,7 +124,7 @@ const UI_STRINGS = {
     "toolbar.month": "Mois",
     "toolbar.period": "Période",
     "toolbar.search": "Recherche",
-    "toolbar.monthHint": "Tous les mois par défaut",
+    "toolbar.monthHint": "Tous les mois par défaut. Faites défiler la liste pour voir les suivants.",
     "toolbar.searchPlaceholderJournal": "Catégorie, date, valeur...",
     "toolbar.searchPlaceholderRecap": "Chercher un poste ou une catégorie du récap...",
     "toolbar.searchPlaceholderAnalysis": "Période, indicateur, valeur...",
@@ -632,7 +632,7 @@ const UI_STRINGS = {
     "toolbar.month": "Month",
     "toolbar.period": "Period",
     "toolbar.search": "Search",
-    "toolbar.monthHint": "All months by default",
+    "toolbar.monthHint": "All months by default. Scroll the list to see more.",
     "toolbar.searchPlaceholderJournal": "Category, date, value...",
     "toolbar.searchPlaceholderRecap": "Search a recap item or category...",
     "toolbar.searchPlaceholderAnalysis": "Period, metric, value...",
@@ -1538,10 +1538,18 @@ let sharePlugin = null;
 let supabaseClient = null;
 let supabaseAuthSubscription = null;
 let supabaseRealtimeChannel = null;
+let supabaseRealtimeSpaceId = "";
+let supabaseRealtimeUserId = "";
 let cloudRefreshTimer = null;
 let cloudSyncQueue = Promise.resolve();
 let safeCloudWriteQueue = Promise.resolve();
 let cloudLoadGeneration = 0;
+let cloudCatchupPromise = null;
+let cloudCatchupAgain = false;
+let cloudCatchupTimer = null;
+let cloudLifecycleBound = false;
+let cloudAuthGeneration = 0;
+const CLOUD_RECHECK_MS = 30000;
 let recurringSupabaseSchemaReady = true;
 let categorySupabaseSchemaReady = true;
 let budgetPlanSupabaseSchemaReady = true;
@@ -5736,6 +5744,11 @@ function createEmptyCloudState() {
     lastPushedAt: "",
     syncBaseline: null,
     saveError: "",
+    saveErrorKind: "",
+    readError: "",
+    verifiedCloud: null,
+    verifiedThisSession: false,
+    catchupNeeded: true,
     pendingDeletedIds: [],
     pendingMerge: null,
     mergePreviewOpen: false,
@@ -5878,6 +5891,7 @@ function setAppTab(nextTab) {
   persistDraftIfPossible();
   renderAll();
   void updateCloudPresenceTrack();
+  queueCloudRefresh();
 }
 
 function cacheDom() {
@@ -5916,6 +5930,7 @@ function cacheDom() {
   refs.cloudMergeButton = document.getElementById("cloud-merge");
   refs.cloudPullButton = document.getElementById("cloud-pull");
   refs.cloudSpaceHint = document.getElementById("cloud-space-hint");
+  refs.cloudIntegrity = document.getElementById("cloud-integrity");
   refs.cloudPanel = document.getElementById("workspace-cloud");
   refs.cloudCollaborationPanel = document.getElementById("cloud-collaboration-panel");
   refs.cloudCollaborationStatus = document.getElementById("cloud-collaboration-status");
@@ -6147,6 +6162,7 @@ function syncLibraryState() {
 function setupAppShell() {
   renderAppShellState();
   syncAndroidViewportProfile();
+  bindCloudLifecycle();
 
   window.addEventListener("online", renderAppShellState);
   window.addEventListener("offline", renderAppShellState);
@@ -6209,7 +6225,7 @@ async function registerAppShell() {
   }
 
   try {
-    await navigator.serviceWorker.register("service-worker.js");
+    await navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" });
     await navigator.serviceWorker.ready;
     appShellReady = true;
   } catch (error) {
@@ -8338,18 +8354,117 @@ function clearCloudRefreshTimer() {
 
 function queueCloudRefresh() {
   clearCloudRefreshTimer();
-
   if (!canUseSupabaseCloud()) {
     return;
   }
-
   cloudRefreshTimer = window.setTimeout(() => {
     cloudRefreshTimer = null;
-    void loadBudgetFromSupabase(state.cloud.space.id, {
-      silent: true,
-      preserveLastAction: true,
-    }).catch(() => undefined);
+    void runCloudCatchup();
   }, 700);
+}
+
+function isCloudEditorActive() {
+  return state.planEditing || state.appTab === APP_TAB_FORM || Boolean(document.querySelector('[aria-modal="true"]'));
+}
+
+function renderCloudSyncFeedback() {
+  if (refs.cloudStatus) refs.cloudStatus.textContent = state.cloud.status;
+  renderDraftStatus();
+  renderCloudIntegrity();
+}
+
+function scheduleCloudCatchup() {
+  if (cloudCatchupTimer) window.clearTimeout(cloudCatchupTimer);
+  cloudCatchupTimer = null;
+  if (!canUseSupabaseCloud() || document.visibilityState === "hidden" || navigator.onLine === false) return;
+  cloudCatchupTimer = window.setTimeout(() => {
+    cloudCatchupTimer = null;
+    void runCloudCatchup();
+  }, CLOUD_RECHECK_MS);
+}
+
+function bindCloudLifecycle() {
+  if (cloudLifecycleBound) return;
+  cloudLifecycleBound = true;
+  const resume = () => {
+    if (document.visibilityState === "hidden") return;
+    queueCloudRefresh();
+  };
+  window.addEventListener("online", resume);
+  window.addEventListener("focus", resume);
+  window.addEventListener("pageshow", resume);
+  window.addEventListener("budget-app-resume", resume);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      if (cloudCatchupTimer) window.clearTimeout(cloudCatchupTimer);
+      cloudCatchupTimer = null;
+      clearCloudRefreshTimer();
+    } else resume();
+  });
+  window.addEventListener("offline", () => {
+    if (cloudCatchupTimer) window.clearTimeout(cloudCatchupTimer);
+    cloudCatchupTimer = null;
+    if (canUseSupabaseCloud()) {
+      setCloudStatus("Hors ligne : copie locale conservee. Rattrapage au retour du reseau.");
+      renderCloudSyncFeedback();
+    }
+  });
+}
+
+function runCloudCatchup() {
+  if (cloudCatchupPromise) {
+    cloudCatchupAgain = true;
+    return cloudCatchupPromise;
+  }
+  cloudCatchupPromise = performCloudCatchup().finally(() => {
+    cloudCatchupPromise = null;
+    if (cloudCatchupAgain) {
+      cloudCatchupAgain = false;
+      queueCloudRefresh();
+    }
+    scheduleCloudCatchup();
+  });
+  return cloudCatchupPromise;
+}
+
+async function performCloudCatchup() {
+  if (!canUseSupabaseCloud() || navigator.onLine === false || document.visibilityState === "hidden") return false;
+  const spaceId = state.cloud.space.id;
+  const userId = state.cloud.user?.id;
+  try {
+    if (state.cloud.syncBusy || state.cloud.writeInFlight || state.cloud.mergePreviewOpen || isCloudEditorActive()) {
+      state.cloud.catchupNeeded = true;
+      return false;
+    }
+    if (hasUnsyncedCloudChanges()) {
+      const baseline = state.cloud.syncBaseline;
+      if (!baseline || baseline.spaceId !== spaceId || (state.cloud.saveError && state.cloud.saveErrorKind !== "retry")) {
+        setCloudStatus(state.cloud.saveError || "Donnees locales en attente : une verification est necessaire avant de remplacer cette copie.");
+        renderCloudSyncFeedback();
+        return false;
+      }
+      await publishLocalBudgetToSupabase();
+      if (hasUnsyncedCloudChanges()) return false;
+    }
+    const revision = await readSafeCloudRevision(spaceId);
+    if (spaceId !== state.cloud.space.id || userId !== state.cloud.user?.id || !canUseSupabaseCloud()) return false;
+    const known = state.cloud.verifiedCloud;
+    if (!state.cloud.verifiedThisSession || state.cloud.catchupNeeded || known?.spaceId !== spaceId || known.revision !== revision) {
+      const loaded = await loadBudgetFromSupabase(spaceId, { silent: true, preserveLastAction: true, automatic: true });
+      if (!loaded) return false;
+    }
+    state.cloud.readError = "";
+    setCloudStatus(`Cloud verifie : ${state.cloud.verifiedCloud?.counts.budget_transactions || 0} transactions. Espace : ${state.cloud.space.name}.`);
+    renderCloudSyncFeedback();
+    return true;
+  } catch (error) {
+    if (spaceId === state.cloud.space.id && userId === state.cloud.user?.id) {
+      state.cloud.readError = error?.message || "Verification cloud indisponible.";
+      setCloudStatus(`Synchronisation non confirmee : ${state.cloud.readError}`);
+      renderCloudSyncFeedback();
+    }
+    return false;
+  }
 }
 
 async function initSupabaseIntegration() {
@@ -8381,31 +8496,7 @@ async function initSupabaseIntegration() {
       supabaseAuthSubscription.data.subscription.unsubscribe();
     }
 
-    supabaseAuthSubscription = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      state.cloud.session = session || null;
-      state.cloud.user = session?.user || null;
-      if (session?.user?.email) {
-        state.cloud.email = session.user.email;
-      }
-
-      if (!state.cloud.user) {
-        stopSupabaseRealtime();
-        setCloudStatus("Supabase configuré. Connectez-vous pour partager le budget.");
-        persistDraftIfPossible();
-        renderAll();
-        return;
-      }
-
-      setCloudStatus(hasCloudSpaceSelected()
-        ? `Connecté à Supabase. Espace actif : ${state.cloud.space.name || state.cloud.space.joinCode || "budget partagé"}.`
-        : "Connecté à Supabase. Créez ou rejoignez un espace partagé.");
-      persistDraftIfPossible();
-      renderAll();
-
-      if (hasCloudSpaceSelected()) {
-        void attachToCurrentCloudSpace({ silent: true, preserveLastAction: true });
-      }
-    });
+    supabaseAuthSubscription = supabaseClient.auth.onAuthStateChange(onSupabaseAuthStateChanged);
 
     await consumeSupabaseAuthCallback();
     await consumePendingNativeSupabaseRedirect();
@@ -8417,6 +8508,30 @@ async function initSupabaseIntegration() {
     setCloudStatus("Supabase n'a pas pu être initialisé.");
     renderAll();
   }
+}
+
+function onSupabaseAuthStateChanged(_event, session) {
+  const userChanged = state.cloud.user?.id !== session?.user?.id;
+  state.cloud.session = session || null;
+  state.cloud.user = session?.user || null;
+  if (session?.user?.email) state.cloud.email = session.user.email;
+  if (userChanged || !session?.user) {
+    ++cloudAuthGeneration;
+    ++cloudLoadGeneration;
+    state.cloud.verifiedThisSession = false;
+    state.cloud.catchupNeeded = true;
+    stopSupabaseRealtime();
+  }
+  if (!state.cloud.user) {
+    setCloudStatus("Supabase configure. Connectez-vous pour partager le budget.");
+  } else if (!hasCloudSpaceSelected()) {
+    setCloudStatus("Connecte a Supabase. Rejoignez votre espace partage pour charger ses donnees.");
+  } else {
+    // Never start auth-dependent requests while the SDK auth callback owns its lock.
+    queueCloudRefresh();
+  }
+  renderCloudPanel();
+  renderDraftStatus();
 }
 
 async function syncSupabaseSession() {
@@ -8432,11 +8547,7 @@ async function syncSupabaseSession() {
     return;
   }
 
-  state.cloud.session = data.session || null;
-  state.cloud.user = data.session?.user || null;
-  if (data.session?.user?.email) {
-    state.cloud.email = data.session.user.email;
-  }
+  onSupabaseAuthStateChanged("INITIAL_SESSION", data.session);
 
     if (state.cloud.user) {
       setCloudStatus(hasCloudSpaceSelected()
@@ -8722,19 +8833,20 @@ async function attachToCurrentCloudSpace(options = {}) {
     return;
   }
 
-  const shouldLoadBudget = options.loadBudget === true;
-  await loadCloudSpaceMetadata(state.cloud.space.id, options);
+  const spaceId = state.cloud.space.id;
+  const shouldLoadBudget = options.loadBudget !== false;
+  if (!await loadCloudSpaceMetadata(spaceId, options)) return;
   if (shouldLoadBudget) {
     try {
-      await loadBudgetFromSupabase(state.cloud.space.id, options);
+      await loadBudgetFromSupabase(spaceId, { ...options, automatic: true });
     } catch (error) {
-      startSupabaseRealtime(state.cloud.space.id);
+      startSupabaseRealtime(spaceId);
+      scheduleCloudCatchup();
       throw error;
     }
-    return;
   }
-
-  startSupabaseRealtime(state.cloud.space.id);
+  startSupabaseRealtime(spaceId);
+  scheduleCloudCatchup();
 }
 
 async function loadCloudSpaceMetadata(spaceId, options = {}) {
@@ -8742,19 +8854,21 @@ async function loadCloudSpaceMetadata(spaceId, options = {}) {
     return;
   }
 
+  const authGeneration = cloudAuthGeneration;
   const { data, error } = await supabaseClient
     .from("budget_spaces")
     .select("id, name, join_code")
     .eq("id", spaceId)
     .maybeSingle();
 
+  if (authGeneration !== cloudAuthGeneration || spaceId !== state.cloud.space.id || !hasSupabaseSession()) return false;
+
   if (error) {
     console.error(error);
     if (!options.silent) {
       setCloudStatus("Impossible de lire les informations de l'espace Supabase.");
     }
-    renderAll();
-    return;
+    throw error;
   }
 
   if (data) {
@@ -8763,22 +8877,26 @@ async function loadCloudSpaceMetadata(spaceId, options = {}) {
       setCloudStatus(`Espace partage actif: ${state.cloud.space.name}.`);
     }
     persistDraftIfPossible();
-    renderAll();
+    renderCloudSyncFeedback();
+    return true;
   }
+  throw new Error("Cet espace n'est pas accessible a cette session. Verifiez le code de l'espace et ses membres.");
 }
 
 function startSupabaseRealtime(spaceId) {
-  if (!supabaseClient || !spaceId) {
+  if (!canUseSupabaseCloud() || !spaceId || spaceId !== state.cloud.space.id) {
     return;
   }
 
   const currentTopic = `budget-space-${spaceId}`;
-  if (supabaseRealtimeChannel?.topic === currentTopic) {
+  if (supabaseRealtimeChannel && supabaseRealtimeSpaceId === spaceId && supabaseRealtimeUserId === state.cloud.user?.id) {
     void updateCloudPresenceTrack();
     return;
   }
 
   stopSupabaseRealtime();
+  supabaseRealtimeSpaceId = spaceId;
+  supabaseRealtimeUserId = state.cloud.user?.id;
 
   let channel = supabaseClient
     .channel(currentTopic, {
@@ -8841,12 +8959,20 @@ function startSupabaseRealtime(spaceId) {
   supabaseRealtimeChannel = channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void updateCloudPresenceTrack();
+        queueCloudRefresh();
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        scheduleCloudCatchup();
       }
     });
+  scheduleCloudCatchup();
 }
 
 function stopSupabaseRealtime() {
   clearCloudRefreshTimer();
+  if (cloudCatchupTimer) window.clearTimeout(cloudCatchupTimer);
+  cloudCatchupTimer = null;
+  supabaseRealtimeSpaceId = "";
+  supabaseRealtimeUserId = "";
   resetCloudCollaborationState();
 
   if (!supabaseRealtimeChannel || !supabaseClient) {
@@ -9104,12 +9230,14 @@ async function readSafeCloudRevision(spaceId) {
 
 function publishLocalBudgetToSupabase(options = {}) {
   const spaceId = state.cloud.space.id;
+  const authGeneration = cloudAuthGeneration;
   state.cloud.pendingDeletedIds = [...new Set([...(state.cloud.pendingDeletedIds || []), ...(options.deletedTransactionIds || [])])];
   // Also serialize calls not originating from enqueueCloudSync.
   const run = safeCloudWriteQueue.then(async () => {
+    if (authGeneration !== cloudAuthGeneration || spaceId !== state.cloud.space.id) return;
     const completingMerge = Boolean(state.cloud.pendingMerge);
     await saveBudgetChangesToSupabase(spaceId, options);
-    if (completingMerge && !state.cloud.pendingMerge && spaceId === state.cloud.space.id && hasUnsyncedCloudChanges()) {
+    if (authGeneration === cloudAuthGeneration && completingMerge && !state.cloud.pendingMerge && spaceId === state.cloud.space.id && hasUnsyncedCloudChanges()) {
       await saveBudgetChangesToSupabase(spaceId, options);
     }
   });
@@ -9119,6 +9247,7 @@ function publishLocalBudgetToSupabase(options = {}) {
 
 async function saveBudgetChangesToSupabase(spaceId, options = {}) {
   if (!canUseSupabaseCloud()) return;
+  const authGeneration = cloudAuthGeneration;
   try {
     if (state.cloud.mergePreviewOpen) throw new Error("Fermez l'apercu de fusion avant une autre publication.");
     if (spaceId !== state.cloud.space.id) throw new Error("Espace modifie pendant la sauvegarde. Publication annulee.");
@@ -9130,7 +9259,7 @@ async function saveBudgetChangesToSupabase(spaceId, options = {}) {
       throw new Error("Publication bloquee : utilisez Fusionner avec le cloud pour verifier votre copie locale sans remplacer l'historique.");
     }
     await requireSafeCloudSync();
-    if (spaceId !== state.cloud.space.id) throw new Error("Espace modifie. Publication annulee.");
+    if (spaceId !== state.cloud.space.id || authGeneration !== cloudAuthGeneration) throw new Error("Session ou espace modifie. Publication annulee.");
     const merge = state.cloud.pendingMerge;
     if (merge && merge.spaceId !== spaceId) throw new Error("La fusion appartient a un autre espace. Publication annulee.");
     const snapshot = merge ? baseline.local : buildCloudSnapshot(spaceId);
@@ -9148,7 +9277,7 @@ async function saveBudgetChangesToSupabase(spaceId, options = {}) {
       if (data?.version !== 1 || !Array.isArray(data.changes) || data.changes.length !== changes.length) {
         throw new Error("Reponse de sauvegarde invalide. Copie locale conservee; reessayez la synchronisation.");
       }
-      if (spaceId !== state.cloud.space.id) return;
+      if (spaceId !== state.cloud.space.id || authGeneration !== cloudAuthGeneration) return;
       state.cloud.syncBaseline = {
         spaceId, local: snapshot,
         remote: BUDGET_CLOUD_SYNC.applyChanges(baseline.remote, data.changes),
@@ -9160,11 +9289,15 @@ async function saveBudgetChangesToSupabase(spaceId, options = {}) {
     // Keep deletions made while this request was in flight for the next save.
     state.cloud.pendingDeletedIds = (state.cloud.pendingDeletedIds || []).filter(id => merge || !deletedTransactionIds.includes(id));
     state.cloud.saveError = "";
+    state.cloud.saveErrorKind = "";
+    state.cloud.catchupNeeded = true;
     setCloudStatus("Modifications confirmees par Supabase.");
     persistDraft();
   } catch (error) {
     console.error(error);
+    if (authGeneration !== cloudAuthGeneration || spaceId !== state.cloud.space.id) return;
     state.cloud.saveError = error?.message || "Synchronisation echouee. Copie locale conservee.";
+    state.cloud.saveErrorKind = BUDGET_CLOUD_SYNC.classifyError(error);
     setCloudStatus(state.cloud.saveError);
     setLastAction(state.cloud.saveError);
     persistDraftIfPossible();
@@ -9173,6 +9306,8 @@ async function saveBudgetChangesToSupabase(spaceId, options = {}) {
     state.cloud.writeInFlight = false;
     setCloudBusy(false);
     renderAll();
+    if (!state.cloud.saveError) queueCloudRefresh();
+    else scheduleCloudCatchup();
   }
 }
 
@@ -9320,6 +9455,11 @@ function applySafeCloudSnapshot(snapshot) {
 async function loadBudgetFromSupabase(spaceId, options = {}) {
   if (!supabaseClient || !spaceId) return;
   const generation = ++cloudLoadGeneration;
+  const authGeneration = cloudAuthGeneration;
+  if (options.automatic && isCloudEditorActive()) {
+    state.cloud.catchupNeeded = true;
+    return false;
+  }
   if (state.cloud.mergePreviewOpen || state.cloud.writeInFlight || (!options.discardLocal && !options.initializeEmpty && hasUnsyncedCloudChanges())) {
     setCloudStatus("Rechargement suspendu : des modifications locales attendent leur synchronisation.");
     return false;
@@ -9330,8 +9470,8 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
       setCloudStatus("Chargement des données cloud...");
       renderAll();
     }
-    const { snapshot: remoteSnapshot } = await fetchSafeCloudSnapshot(spaceId);
-    if (generation !== cloudLoadGeneration || spaceId !== state.cloud.space.id || state.cloud.writeInFlight || state.cloud.mergePreviewOpen ||
+    const { snapshot: remoteSnapshot, revision } = await fetchSafeCloudSnapshot(spaceId);
+    if (generation !== cloudLoadGeneration || authGeneration !== cloudAuthGeneration || spaceId !== state.cloud.space.id || state.cloud.writeInFlight || state.cloud.mergePreviewOpen || (options.automatic && isCloudEditorActive()) ||
         BUDGET_CLOUD_SYNC.hasChanges(startingSnapshot, buildCloudSnapshot(spaceId))) return false;
     if (options.initializeEmpty) {
       if (Object.values(remoteSnapshot).some(rows => rows.length)) throw new Error("L'espace n'est pas vide. Initialisation annulee.");
@@ -9349,8 +9489,13 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     state.cloud.lastPulledAt = new Date().toISOString();
     state.cloud.syncBaseline = { spaceId, remote: remoteSnapshot, local: buildCloudSnapshot(spaceId) };
     state.cloud.saveError = "";
+    state.cloud.saveErrorKind = "";
+    state.cloud.readError = "";
     state.cloud.pendingDeletedIds = [];
     state.cloud.pendingMerge = null;
+    state.cloud.verifiedCloud = { spaceId, revision, ...BUDGET_CLOUD_SYNC.summarizeSnapshot(remoteSnapshot), checkedAt: state.cloud.lastPulledAt };
+    state.cloud.verifiedThisSession = true;
+    state.cloud.catchupNeeded = false;
     if (!options.preserveLastAction) setLastAction(`Budget charge depuis ${state.cloud.space.name || "Supabase"}`);
     setCloudStatus(`Espace partage actif: ${state.cloud.space.name || "budget partagé"}.`);
     persistDraft();
@@ -9359,8 +9504,11 @@ async function loadBudgetFromSupabase(spaceId, options = {}) {
     return true;
   } catch (error) {
     console.error(error);
+    if (generation !== cloudLoadGeneration || authGeneration !== cloudAuthGeneration || spaceId !== state.cloud.space.id) return false;
+    state.cloud.readError = error?.message || "Chargement cloud incomplet.";
     setCloudStatus(error?.message || "Le chargement des donnees cloud a echoue. Copie locale conservee.");
-    renderAll();
+    if (options.automatic) renderCloudSyncFeedback();
+    else renderAll();
     throw error;
   }
 }
@@ -9819,6 +9967,8 @@ function persistDraft() {
       lastPushedAt: state.cloud.lastPushedAt,
       syncBaseline: state.cloud.syncBaseline,
       saveError: state.cloud.saveError,
+      saveErrorKind: state.cloud.saveErrorKind,
+      verifiedCloud: state.cloud.verifiedCloud,
       pendingDeletedIds: state.cloud.pendingDeletedIds,
       pendingMerge: state.cloud.pendingMerge || null,
     },
@@ -9895,8 +10045,12 @@ function applyStoredDraft(draft) {
   state.cloud.lastPulledAt = String(draft.cloud?.lastPulledAt || state.cloud.lastPulledAt || "");
   state.cloud.lastPushedAt = String(draft.cloud?.lastPushedAt || state.cloud.lastPushedAt || "");
   state.cloud.syncBaseline = draft.cloud?.syncBaseline || null;
+  state.cloud.verifiedCloud = draft.cloud?.verifiedCloud || null;
+  state.cloud.verifiedThisSession = false;
+  state.cloud.catchupNeeded = true;
   state.cloud.pendingMerge = draft.cloud?.pendingMerge || null;
   state.cloud.saveError = String(draft.cloud?.saveError || "");
+  state.cloud.saveErrorKind = draft.cloud?.saveErrorKind || (state.cloud.saveError ? BUDGET_CLOUD_SYNC.classifyError(state.cloud.saveError) : "");
   state.cloud.pendingDeletedIds = Array.isArray(draft.cloud?.pendingDeletedIds) ? draft.cloud.pendingDeletedIds : [];
   state.recurringTemplates = Array.isArray(draft.recurringTemplates)
     ? draft.recurringTemplates.map((template) => sanitizeRecurringTemplate(template)).filter(Boolean)
@@ -15126,7 +15280,25 @@ function getCurrentProjectionMonthKey() {
   return fallbackMonth;
 }
 
+function renderCloudIntegrity() {
+  if (!refs.cloudIntegrity) return;
+  const summary = state.cloud.verifiedCloud;
+  const known = summary?.spaceId === state.cloud.space.id;
+  const verified = known && canUseSupabaseCloud() && navigator.onLine !== false &&
+    state.cloud.verifiedThisSession && !state.cloud.catchupNeeded && !state.cloud.readError && !hasUnsyncedCloudChanges();
+  const title = isEnglishUi() ? "Cloud check" : "Verification cloud";
+  const status = verified
+    ? (isEnglishUi() ? "Loaded and verified" : "Copie chargee et verifiee")
+    : (isEnglishUi() ? "Verification pending" : "Verification en attente");
+  const entries = known ? Object.entries(summary.months || {}) : [];
+  refs.cloudIntegrity.innerHTML = `<summary>${title} : ${status} <small>web v125</small></summary>
+    <p>${known ? `${escapeHtml(String(summary.counts?.budget_transactions || 0))} transactions | revision ${escapeHtml(String(summary.revision))} | ${escapeHtml(formatDraftSavedAt(summary.checkedAt))}` : (isEnglishUi() ? "No verified snapshot for this space yet." : "Aucune copie verifiee pour cet espace dans cette session.")}</p>
+    <div class="cloud-month-inventory">${entries.map(([month, count]) => `<span>${escapeHtml(month)} : <strong>${escapeHtml(String(count))}</strong></span>`).join("")}</div>
+    <p>${isEnglishUi() ? "Counts cover records currently stored in this cloud space, not history that may have been lost before recovery." : "Ces nombres concernent les donnees actuellement presentes dans cet espace cloud, pas un historique perdu avant restauration."}</p>`;
+}
+
 function renderCloudPanel() {
+  renderCloudIntegrity();
   const cloudReady = state.cloud.ready;
   const signedIn = hasSupabaseSession();
   const spaceSelected = hasCloudSpaceSelected();
@@ -15304,22 +15476,28 @@ function renderDraftStatus() {
   const draft = readStoredDraft();
   const hasStoredDraft = Boolean(draft && draft.mode === "budget" && Array.isArray(draft.rows));
 
-  if (!hasStoredDraft) {
-    refs.draftStatus.textContent = t("draft.none");
-    return;
-  }
-
-  const savedAtLabel = formatDraftSavedAt(draft.savedAt);
+  const savedAtLabel = formatDraftSavedAt(draft?.savedAt);
   const suffix = savedAtLabel
     ? (getCurrentLanguage() === "en" ? ` Last saved ${savedAtLabel}.` : ` Dernière sauvegarde ${savedAtLabel}.`)
     : "";
 
   if (canUseSupabaseCloud()) {
-    refs.draftStatus.textContent = state.cloud.saveError
+    refs.draftStatus.textContent = navigator.onLine === false
+      ? "Hors ligne : copie locale conservee. Synchronisation au retour du reseau."
+      : state.cloud.saveError
       ? `Sauvegarde cloud non confirmee : ${state.cloud.saveError}`
       : hasUnsyncedCloudChanges() || !state.cloud.syncBaseline
         ? "Copie locale conservee. Synchronisation cloud en attente."
-        : `Copie cloud chargee ou sauvegardee : ${formatDraftSavedAt([state.cloud.lastPushedAt, state.cloud.lastPulledAt].filter(Boolean).sort().pop())}.`;
+        : state.cloud.readError
+          ? `Verification cloud non confirmee : ${state.cloud.readError}`
+          : !state.cloud.verifiedThisSession || state.cloud.catchupNeeded
+            ? "Copie locale conservee. Verification des donnees cloud en attente."
+            : `${state.cloud.verifiedCloud?.counts.budget_transactions || 0} transactions cloud chargees et verifiees. ${formatDraftSavedAt(state.cloud.verifiedCloud?.checkedAt)}.`;
+    return;
+  }
+
+  if (!hasStoredDraft) {
+    refs.draftStatus.textContent = t("draft.none");
     return;
   }
 
