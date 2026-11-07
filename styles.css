@@ -6749,6 +6749,7 @@ body[data-theme="dark"] .card-ledger-balance {
 }
 
 .cloud-integrity summary { cursor: pointer; font-weight: 700; }
+#cloud-merge-notice:empty { display: none; }
 .cloud-integrity small { font-weight: 400; margin-inline-start: 12px; }
 .cloud-integrity p { font-size: 0.85rem; }
 .cloud-month-inventory { display: flex; flex-wrap: wrap; gap: 8px 18px; }
