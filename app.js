@@ -9107,7 +9107,7 @@ function openCloudMergeModal(preview) {
         ...item.candidates.map(row => [`match:${row.id}`, `${cloudMergeText("Même transaction : garder le cloud", "Same transaction: keep cloud")} | ${describeCloudMergeRow(item.table, row)} | ID ${row.id}`]),
       ];
     return `<article class="cloud-merge-item">
-      <strong>${escapeHtml(describeCloudMergeRow(item.table, item.row))}</strong>
+      <strong>${item.candidates.length ? `#${item.index + 1} · ` : ""}${escapeHtml(describeCloudMergeRow(item.table, item.row))}</strong>
       ${item.candidates.length ? `<p>${escapeHtml(cloudMergeText("Date, catégorie et montant similaires ne prouvent pas un doublon. Une correspondance conserve aussi le choix Cash/Épargne du cloud.", "Similar date, category and amount do not prove a duplicate. A match also keeps the cloud funding source."))}</p>` : ""}
       <details><summary>${escapeHtml(cloudMergeText("Détails à comparer", "Details to compare"))}</summary>
         <p>${escapeHtml(cloudMergeText("Copie locale", "Local copy"))}</p><pre>${escapeHtml(JSON.stringify(item.row, null, 2))}</pre>
@@ -9115,7 +9115,7 @@ function openCloudMergeModal(preview) {
       </details>
       <label class="control-field"><span>${escapeHtml(cloudMergeText("Action", "Action"))}</span>
         <select data-merge-choice="${item.index}">${options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("")}</select>
-      </label></article>`;
+      </label>${item.candidates.length ? `<p id="merge-issue-${item.index}" class="cloud-merge-issue" hidden></p>` : ""}</article>`;
   };
   const review = plan.items.filter(item => item.existing || item.candidates.length);
   const additions = plan.items.filter(item => !item.existing && !item.candidates.length);
@@ -9138,7 +9138,10 @@ function openCloudMergeModal(preview) {
       <div class="cloud-merge-tools">
         <strong data-merge-count role="status"></strong>
         <button type="button" class="button ghost" data-merge-filter aria-pressed="false"></button>
+        <button type="button" class="button secondary" data-merge-conflicts aria-pressed="false" hidden></button>
       </div>
+      <p id="merge-local-scope"><strong data-merge-local-count></strong> ${cloudMergeText("Seules les différences identifiées des deux côtés sont remplacées dans l’aperçu. Les correspondances possibles restent à vérifier.", "Only differences identified on both sides are replaced in the preview. Possible matches still need review.")}</p>
+      <button type="button" class="button secondary" data-merge-local-pending aria-describedby="merge-local-scope" disabled>${cloudMergeText("Utiliser la version locale pour les lignes sans choix", "Use the local version for undecided rows")}</button>
       <label class="cloud-merge-ack"><input type="checkbox" data-merge-select-pending> ${cloudMergeText("Sélectionner toutes les lignes sans choix", "Select all undecided rows")}</label>
       <p>${cloudMergeText("Les différences garderont leur version cloud. En cas de correspondance possible, la ligne locale ne sera pas importée. Les ajouts proposés et les choix déjà faits ne changent pas.", "For differences, the cloud version is kept. For possible matches, the local row will not be imported. Proposed additions and previous choices stay unchanged.")}</p>
       <button type="button" class="button secondary" data-merge-keep-pending disabled>${cloudMergeText("Garder le cloud pour la sélection", "Keep cloud for selected rows")}</button>
@@ -9147,35 +9150,75 @@ function openCloudMergeModal(preview) {
     <button type="button" class="button primary" data-merge-confirm disabled>${cloudMergeText("Confirmer et publier la fusion", "Confirm and publish merge")}</button>
   </div>`;
   let working = false;
-  let onlyPending = false;
+  let view = "all";
   const reviewSelects = [...overlay.querySelectorAll("[data-merge-review] select")];
+  const identifiedSelects = reviewSelects.filter(select => plan.items[Number(select.dataset.mergeChoice)].existing);
+  const selects = [...overlay.querySelectorAll("[data-merge-choice]")];
+  const matchOptions = [...overlay.querySelectorAll('option[value^="match:"]')].map(option => ({
+    option, label: option.textContent, id: option.value.slice(6), index: Number(option.parentElement.dataset.mergeChoice)
+  }));
   const additionsList = overlay.querySelector(".cloud-merge-additions");
   const selectPending = overlay.querySelector("[data-merge-select-pending]");
   const keepPending = overlay.querySelector("[data-merge-keep-pending]");
+  const localPending = overlay.querySelector("[data-merge-local-pending]");
   const filter = overlay.querySelector("[data-merge-filter]");
+  const conflictFilter = overlay.querySelector("[data-merge-conflicts]");
   const ack = overlay.querySelector("[data-merge-ack]");
   const refresh = () => {
+    selects.forEach(select => { decisions[select.dataset.mergeChoice] = select.value; });
+    const { issues, owners, reserved } = BUDGET_CLOUD_SYNC.inspectMergeMatches(plan, decisions);
     const pending = reviewSelects.filter(select => !select.value).length;
-    if (!pending) {
-      onlyPending = false;
-      selectPending.checked = false;
-    }
+    if (!pending) selectPending.checked = false;
+    if ((view === "pending" && !pending) || (view === "conflicts" && !issues.size)) view = "all";
+    const onlyPending = view === "pending";
     filter.setAttribute("aria-pressed", String(onlyPending));
     filter.textContent = onlyPending ? cloudMergeText("Afficher toutes les lignes", "Show all rows") : cloudMergeText("Afficher les lignes sans choix", "Show undecided rows");
     filter.disabled = !pending;
     selectPending.disabled = !pending;
     keepPending.disabled = !pending || !selectPending.checked;
-    reviewSelects.forEach(select => { select.closest("article").hidden = onlyPending && Boolean(select.value); });
-    additionsList.hidden = onlyPending;
+    const localCount = identifiedSelects.filter(select => !select.value).length;
+    overlay.querySelector("[data-merge-local-count]").textContent = cloudMergeText(`Remplacements locaux possibles : ${localCount}.`, `Available local replacements: ${localCount}.`);
+    localPending.disabled = working || !localCount;
+    conflictFilter.hidden = !issues.size;
+    conflictFilter.setAttribute("aria-pressed", String(view === "conflicts"));
+    conflictFilter.textContent = view === "conflicts" ? cloudMergeText("Afficher toutes les lignes", "Show all rows") :
+      cloudMergeText(`Afficher les lignes en conflit (${issues.size})`, `Show conflicting rows (${issues.size})`);
+    matchOptions.forEach(({ option, label, id, index }) => {
+      const owner = owners.get(id);
+      const reason = reserved.has(id) ? cloudMergeText("Déjà liée par identifiant", "Already linked by ID") :
+        owner !== undefined && owner !== index ? cloudMergeText(`Déjà choisie : #${owner + 1}`, `Already selected: #${owner + 1}`) : "";
+      option.disabled = Boolean(reason) && !option.selected;
+      const next = reason ? `${reason} | ${label}` : label;
+      if (option.textContent !== next) option.textContent = next;
+    });
+    reviewSelects.forEach(select => {
+      const index = Number(select.dataset.mergeChoice);
+      const issue = issues.get(index);
+      const article = select.closest("article");
+      article.hidden = (onlyPending && Boolean(select.value)) || (view === "conflicts" && !issue);
+      const hint = article.querySelector(".cloud-merge-issue");
+      if (!hint) return;
+      hint.hidden = !issue;
+      if (issue) {
+        hint.textContent = issue === "shared" ? cloudMergeText("Une autre ligne a choisi cette même transaction cloud.", "Another row selected this same cloud transaction.") :
+          issue === "reserved" ? cloudMergeText("Cette transaction est déjà liée par son identifiant.", "This transaction is already linked by its ID.") :
+          cloudMergeText("Cette correspondance n’est pas disponible.", "This match is unavailable.");
+        select.setAttribute("aria-invalid", "true");
+        select.setAttribute("aria-describedby", hint.id);
+      } else {
+        select.removeAttribute("aria-invalid");
+        select.removeAttribute("aria-describedby");
+      }
+    });
+    additionsList.hidden = view !== "all";
     overlay.querySelector("[data-merge-count]").textContent = cloudMergeText(`Lignes sans choix : ${pending}`, `Undecided rows: ${pending}`);
     const button = overlay.querySelector("[data-merge-confirm]");
     const feedback = overlay.querySelector("[data-merge-feedback]");
-    if (pending) {
-      feedback.textContent = "";
+    if (pending || issues.size) {
+      feedback.textContent = issues.size ? cloudMergeText("Correspondance en conflit. Choisissez une autre transaction, ignorez la ligne si c’est un doublon, ou ajoutez-la comme élément distinct si ce sont deux opérations réelles.", "Match conflict. Choose another transaction, skip the row if it is a duplicate, or add it separately if both transactions really occurred.") : "";
       button.disabled = true;
       return;
     }
-    overlay.querySelectorAll("[data-merge-choice]").forEach(select => { decisions[select.dataset.mergeChoice] = select.value; });
     try {
       const result = BUDGET_CLOUD_SYNC.resolveMerge(plan, decisions);
       feedback.textContent = `${result.stats.added} ${cloudMergeText("ajouts", "additions")}, ${result.stats.updated} ${cloudMergeText("remplacements choisis", "chosen replacements")}, ${result.stats.matched} ${cloudMergeText("correspondances", "matches")}, ${result.stats.ignored} ${cloudMergeText("lignes locales ignorées", "local rows skipped")}. ${cloudMergeText("Aucune suppression cloud.", "No cloud deletions.")}`;
@@ -9187,25 +9230,38 @@ function openCloudMergeModal(preview) {
   };
   overlay.addEventListener("change", event => {
     const changedChoice = event.target.matches("[data-merge-choice]");
-    const advance = changedChoice && onlyPending && event.target.value;
+    const previousView = view;
     if (changedChoice) {
       ack.checked = false;
       selectPending.checked = false;
     }
     refresh();
-    if (advance) (reviewSelects.find(select => !select.value) || ack).focus();
+    if (changedChoice && previousView !== "all" && event.target.value) {
+      (view !== "all" && reviewSelects.find(select => !select.closest("article").hidden) ||
+        (!conflictFilter.hidden && conflictFilter) || (!filter.disabled && filter) || ack).focus();
+    }
   });
   filter.addEventListener("click", () => {
-    onlyPending = !onlyPending;
+    view = view === "pending" ? "all" : "pending";
     refresh();
-    if (onlyPending) reviewSelects.find(select => !select.value)?.focus();
+    if (view === "pending") reviewSelects.find(select => !select.value)?.focus();
   });
-  keepPending.addEventListener("click", () => {
-    if (working || !selectPending.checked) return;
-    reviewSelects.filter(select => !select.value).forEach(select => { select.value = "keep"; });
-    ack.checked = false;
+  conflictFilter.addEventListener("click", () => {
+    view = view === "conflicts" ? "all" : "conflicts";
     refresh();
-    ack.focus();
+    if (view === "conflicts") reviewSelects.find(select => select.hasAttribute("aria-invalid"))?.focus();
+  });
+  const applyPendingChoice = (targets, choice) => {
+    const pending = targets.filter(select => !select.value);
+    if (working || !pending.length) return;
+    pending.forEach(select => { select.value = choice; });
+    ack.checked = selectPending.checked = false;
+    refresh();
+    (!filter.disabled ? filter : !conflictFilter.hidden ? conflictFilter : ack).focus();
+  };
+  localPending.addEventListener("click", () => applyPendingChoice(identifiedSelects, "local"));
+  keepPending.addEventListener("click", () => {
+    if (selectPending.checked) applyPendingChoice(reviewSelects, "keep");
   });
   overlay.querySelector("[data-merge-close]").addEventListener("click", () => { if (!working) closeCloudMergeModal(); });
   overlay.querySelector("[data-merge-settings]").addEventListener("click", () => {
@@ -15410,7 +15466,7 @@ function renderCloudIntegrity() {
     ? (isEnglishUi() ? "Loaded and verified" : "Copie chargee et verifiee")
     : (isEnglishUi() ? "Verification pending" : "Verification en attente");
   const entries = known ? Object.entries(summary.months || {}) : [];
-  refs.cloudIntegrity.innerHTML = `<summary>${title} : ${status} <small>web v127</small></summary>
+  refs.cloudIntegrity.innerHTML = `<summary>${title} : ${status} <small>web v129</small></summary>
     <p>${known ? `${escapeHtml(String(summary.counts?.budget_transactions || 0))} transactions | revision ${escapeHtml(String(summary.revision))} | ${escapeHtml(formatDraftSavedAt(summary.checkedAt))}` : (isEnglishUi() ? "No verified snapshot for this space yet." : "Aucune copie verifiee pour cet espace dans cette session.")}</p>
     <div class="cloud-month-inventory">${entries.map(([month, count]) => `<span>${escapeHtml(month)} : <strong>${escapeHtml(String(count))}</strong></span>`).join("")}</div>
     <p>${isEnglishUi() ? "Counts cover records currently stored in this cloud space, not history that may have been lost before recovery." : "Ces nombres concernent les donnees actuellement presentes dans cet espace cloud, pas un historique perdu avant restauration."}</p>`;

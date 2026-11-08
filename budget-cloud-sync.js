@@ -135,11 +135,29 @@
     return { local, remote, items, identical };
   }
 
+  function inspectMergeMatches(plan, decisions) {
+    const reserved = new Set(plan.local.budget_transactions.map(row => row.id));
+    const owners = new Map();
+    const issues = new Map();
+    for (const item of plan.items) {
+      const choice = decisions[item.index];
+      if (!choice?.startsWith('match:')) continue;
+      const id = choice.slice(6);
+      if (!item.candidates.some(row => row.id === id)) issues.set(item.index, 'unknown');
+      else if (reserved.has(id)) issues.set(item.index, 'reserved');
+      else if (owners.has(id)) {
+        issues.set(owners.get(id), 'shared');
+        issues.set(item.index, 'shared');
+      } else owners.set(id, item.index);
+    }
+    return { reserved, owners, issues };
+  }
+
   function resolveMerge(plan, decisions = {}) {
+    if (inspectMergeMatches(plan, decisions).issues.size) {
+      throw new Error("Une transaction cloud ne peut correspondre qu'a une seule ligne importee.");
+    }
     const merged = canonicalSnapshot(plan.remote);
-    const matchedIds = new Set();
-    // Already-identified rows cannot also absorb a different imported transaction.
-    const originalIds = new Set(plan.local.budget_transactions.map(row => row.id));
     const stats = { added: 0, updated: 0, kept: plan.identical, matched: 0, ignored: 0 };
     plan.items.forEach(item => {
       const choice = decisions[item.index] || (item.kind === 'new' && !item.candidates.length ? 'local' : '');
@@ -149,11 +167,6 @@
         return;
       }
       if (choice.startsWith('match:')) {
-        const id = choice.slice(6);
-        if (!item.candidates.some(row => row.id === id) || matchedIds.has(id) || originalIds.has(id)) {
-          throw new Error('Une transaction cloud ne peut correspondre qu\'a une seule ligne importee.');
-        }
-        matchedIds.add(id);
         stats.matched++;
         return;
       }
@@ -193,7 +206,7 @@
     };
   }
 
-  const api = { schemas, uuidPattern, canonicalRow, canonicalSnapshot, buildChanges, applyChanges, hasChanges, stableStringify, planMerge, resolveMerge, classifyError, summarizeSnapshot };
+  const api = { schemas, uuidPattern, canonicalRow, canonicalSnapshot, buildChanges, applyChanges, hasChanges, stableStringify, planMerge, inspectMergeMatches, resolveMerge, classifyError, summarizeSnapshot };
   scope.BUDGET_CLOUD_SYNC = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

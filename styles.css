@@ -3268,6 +3268,12 @@ textarea {
 
 .cloud-merge-modal [hidden] { display: none; }
 
+.cloud-merge-issue {
+  border-inline-start: 3px solid currentColor;
+  padding-inline-start: 10px;
+  font-weight: 650;
+}
+
 .cloud-merge-review-tools {
   margin: 16px 0;
   padding: 16px;
