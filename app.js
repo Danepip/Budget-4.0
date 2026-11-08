@@ -9131,31 +9131,90 @@ function openCloudMergeModal(preview) {
       <button type="button" class="button ghost" data-merge-settings>${cloudMergeText("Conserver les réglages cloud en conflit", "Keep conflicting cloud settings")}</button>
     </div>
     <h4>${cloudMergeText("Correspondances et différences", "Matches and differences")} (${review.length})</h4>
-    ${review.map(renderItem).join("")}
+    <div data-merge-review>${review.map(renderItem).join("")}</div>
     <details class="cloud-merge-additions"><summary>${cloudMergeText("Examiner les ajouts proposés", "Review proposed additions")} (${additions.length})</summary>${additions.map(renderItem).join("")}</details>
     <p data-merge-feedback role="status" aria-live="polite"></p>
+    <div class="cloud-merge-review-tools">
+      <div class="cloud-merge-tools">
+        <strong data-merge-count role="status"></strong>
+        <button type="button" class="button ghost" data-merge-filter aria-pressed="false"></button>
+      </div>
+      <label class="cloud-merge-ack"><input type="checkbox" data-merge-select-pending> ${cloudMergeText("Sélectionner toutes les lignes sans choix", "Select all undecided rows")}</label>
+      <p>${cloudMergeText("Les différences garderont leur version cloud. En cas de correspondance possible, la ligne locale ne sera pas importée. Les ajouts proposés et les choix déjà faits ne changent pas.", "For differences, the cloud version is kept. For possible matches, the local row will not be imported. Proposed additions and previous choices stay unchanged.")}</p>
+      <button type="button" class="button secondary" data-merge-keep-pending disabled>${cloudMergeText("Garder le cloud pour la sélection", "Keep cloud for selected rows")}</button>
+    </div>
     <label class="cloud-merge-ack"><input type="checkbox" data-merge-ack> ${cloudMergeText("J'ai vérifié les ajouts et les correspondances, et conservé mon fichier Excel de sauvegarde.", "I reviewed the additions and matches and kept my Excel backup.")}</label>
     <button type="button" class="button primary" data-merge-confirm disabled>${cloudMergeText("Confirmer et publier la fusion", "Confirm and publish merge")}</button>
   </div>`;
   let working = false;
+  let onlyPending = false;
+  const reviewSelects = [...overlay.querySelectorAll("[data-merge-review] select")];
+  const additionsList = overlay.querySelector(".cloud-merge-additions");
+  const selectPending = overlay.querySelector("[data-merge-select-pending]");
+  const keepPending = overlay.querySelector("[data-merge-keep-pending]");
+  const filter = overlay.querySelector("[data-merge-filter]");
+  const ack = overlay.querySelector("[data-merge-ack]");
   const refresh = () => {
-    overlay.querySelectorAll("[data-merge-choice]").forEach(select => { decisions[select.dataset.mergeChoice] = select.value; });
+    const pending = reviewSelects.filter(select => !select.value).length;
+    if (!pending) {
+      onlyPending = false;
+      selectPending.checked = false;
+    }
+    filter.setAttribute("aria-pressed", String(onlyPending));
+    filter.textContent = onlyPending ? cloudMergeText("Afficher toutes les lignes", "Show all rows") : cloudMergeText("Afficher les lignes sans choix", "Show undecided rows");
+    filter.disabled = !pending;
+    selectPending.disabled = !pending;
+    keepPending.disabled = !pending || !selectPending.checked;
+    reviewSelects.forEach(select => { select.closest("article").hidden = onlyPending && Boolean(select.value); });
+    additionsList.hidden = onlyPending;
+    overlay.querySelector("[data-merge-count]").textContent = cloudMergeText(`Lignes sans choix : ${pending}`, `Undecided rows: ${pending}`);
     const button = overlay.querySelector("[data-merge-confirm]");
     const feedback = overlay.querySelector("[data-merge-feedback]");
+    if (pending) {
+      feedback.textContent = "";
+      button.disabled = true;
+      return;
+    }
+    overlay.querySelectorAll("[data-merge-choice]").forEach(select => { decisions[select.dataset.mergeChoice] = select.value; });
     try {
       const result = BUDGET_CLOUD_SYNC.resolveMerge(plan, decisions);
-      feedback.textContent = `${result.stats.added} ${cloudMergeText("ajouts", "additions")}, ${result.stats.updated} ${cloudMergeText("remplacements choisis", "chosen replacements")}, ${result.stats.matched} ${cloudMergeText("correspondances", "matches")}. ${cloudMergeText("Aucune suppression cloud.", "No cloud deletions.")}`;
-      button.disabled = working || !overlay.querySelector("[data-merge-ack]").checked;
+      feedback.textContent = `${result.stats.added} ${cloudMergeText("ajouts", "additions")}, ${result.stats.updated} ${cloudMergeText("remplacements choisis", "chosen replacements")}, ${result.stats.matched} ${cloudMergeText("correspondances", "matches")}, ${result.stats.ignored} ${cloudMergeText("lignes locales ignorées", "local rows skipped")}. ${cloudMergeText("Aucune suppression cloud.", "No cloud deletions.")}`;
+      button.disabled = working || !ack.checked;
     } catch (error) {
       feedback.textContent = error.message;
       button.disabled = true;
     }
   };
-  overlay.addEventListener("change", refresh);
+  overlay.addEventListener("change", event => {
+    const changedChoice = event.target.matches("[data-merge-choice]");
+    const advance = changedChoice && onlyPending && event.target.value;
+    if (changedChoice) {
+      ack.checked = false;
+      selectPending.checked = false;
+    }
+    refresh();
+    if (advance) (reviewSelects.find(select => !select.value) || ack).focus();
+  });
+  filter.addEventListener("click", () => {
+    onlyPending = !onlyPending;
+    refresh();
+    if (onlyPending) reviewSelects.find(select => !select.value)?.focus();
+  });
+  keepPending.addEventListener("click", () => {
+    if (working || !selectPending.checked) return;
+    reviewSelects.filter(select => !select.value).forEach(select => { select.value = "keep"; });
+    ack.checked = false;
+    refresh();
+    ack.focus();
+  });
   overlay.querySelector("[data-merge-close]").addEventListener("click", () => { if (!working) closeCloudMergeModal(); });
   overlay.querySelector("[data-merge-settings]").addEventListener("click", () => {
     plan.items.filter(item => item.existing && item.table !== "budget_transactions").forEach(item => {
-      overlay.querySelector(`[data-merge-choice="${item.index}"]`).value = "keep";
+      const select = overlay.querySelector(`[data-merge-choice="${item.index}"]`);
+      if (!select.value) {
+        select.value = "keep";
+        ack.checked = selectPending.checked = false;
+      }
     });
     refresh();
   });
@@ -9165,7 +9224,11 @@ function openCloudMergeModal(preview) {
       const candidate = item.candidates[0];
       const count = plan.items.filter(other => other.candidates.some(row => row.id === candidate.id)).length;
       if (count === 1 && !originalIds.has(candidate.id) && item.row.funding_source === candidate.funding_source) {
-        overlay.querySelector(`[data-merge-choice="${item.index}"]`).value = `match:${candidate.id}`;
+        const select = overlay.querySelector(`[data-merge-choice="${item.index}"]`);
+        if (!select.value) {
+          select.value = `match:${candidate.id}`;
+          ack.checked = selectPending.checked = false;
+        }
       }
     });
     refresh();
@@ -9187,13 +9250,19 @@ function openCloudMergeModal(preview) {
     } finally {
       working = false;
       overlay.querySelectorAll("button, input, select").forEach(node => { node.disabled = false; });
+      if (cloudMergeModal === overlay) {
+        const status = overlay.querySelector("[data-merge-feedback]");
+        const message = status.textContent;
+        refresh();
+        status.textContent = message;
+      }
       renderAll();
     }
   });
   overlay.addEventListener("keydown", event => {
     if (event.key === "Escape" && !working) { event.preventDefault(); closeCloudMergeModal(); }
     if (event.key === "Tab") {
-      const focusable = [...overlay.querySelectorAll("button, input, select, summary")].filter(node => !node.disabled && !node.closest("details:not([open])") || node.tagName === "SUMMARY" && !node.parentElement.parentElement.closest("details:not([open])"));
+      const focusable = [...overlay.querySelectorAll("button, input, select, summary")].filter(node => !node.disabled && !node.closest("[hidden]") && (!node.closest("details:not([open])") || node.tagName === "SUMMARY" && !node.parentElement.parentElement.closest("details:not([open])")));
       const first = focusable[0], last = focusable.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -15341,7 +15410,7 @@ function renderCloudIntegrity() {
     ? (isEnglishUi() ? "Loaded and verified" : "Copie chargee et verifiee")
     : (isEnglishUi() ? "Verification pending" : "Verification en attente");
   const entries = known ? Object.entries(summary.months || {}) : [];
-  refs.cloudIntegrity.innerHTML = `<summary>${title} : ${status} <small>web v126</small></summary>
+  refs.cloudIntegrity.innerHTML = `<summary>${title} : ${status} <small>web v127</small></summary>
     <p>${known ? `${escapeHtml(String(summary.counts?.budget_transactions || 0))} transactions | revision ${escapeHtml(String(summary.revision))} | ${escapeHtml(formatDraftSavedAt(summary.checkedAt))}` : (isEnglishUi() ? "No verified snapshot for this space yet." : "Aucune copie verifiee pour cet espace dans cette session.")}</p>
     <div class="cloud-month-inventory">${entries.map(([month, count]) => `<span>${escapeHtml(month)} : <strong>${escapeHtml(String(count))}</strong></span>`).join("")}</div>
     <p>${isEnglishUi() ? "Counts cover records currently stored in this cloud space, not history that may have been lost before recovery." : "Ces nombres concernent les donnees actuellement presentes dans cet espace cloud, pas un historique perdu avant restauration."}</p>`;

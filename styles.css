@@ -3266,6 +3266,17 @@ textarea {
   font-size: 0.85rem;
 }
 
+.cloud-merge-modal [hidden] { display: none; }
+
+.cloud-merge-review-tools {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid rgba(128, 150, 154, 0.3);
+  border-radius: 18px;
+}
+
+.cloud-merge-review-tools .cloud-merge-tools { align-items: center; }
+
 .cloud-merge-tools {
   display: flex;
   flex-wrap: wrap;
