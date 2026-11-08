@@ -5752,7 +5752,6 @@ function createEmptyCloudState() {
     pendingDeletedIds: [],
     pendingMerge: null,
     mergePreviewOpen: false,
-    mergeNotice: "",
     writeInFlight: false,
   };
 }
@@ -5929,7 +5928,6 @@ function cacheDom() {
   refs.cloudJoinSpaceButton = document.getElementById("cloud-join-space");
   refs.cloudPushButton = document.getElementById("cloud-push");
   refs.cloudMergeButton = document.getElementById("cloud-merge");
-  refs.cloudMergeNotice = document.getElementById("cloud-merge-notice");
   refs.cloudPullButton = document.getElementById("cloud-pull");
   refs.cloudSpaceHint = document.getElementById("cloud-space-hint");
   refs.cloudIntegrity = document.getElementById("cloud-integrity");
@@ -8519,7 +8517,6 @@ function onSupabaseAuthStateChanged(_event, session) {
   if (session?.user?.email) state.cloud.email = session.user.email;
   if (userChanged || !session?.user) {
     ++cloudAuthGeneration;
-    state.cloud.mergeNotice = "";
     ++cloudLoadGeneration;
     state.cloud.verifiedThisSession = false;
     state.cloud.catchupNeeded = true;
@@ -9025,67 +9022,25 @@ function closeCloudMergeModal() {
   refs.cloudMergeButton?.focus();
 }
 
-async function readCloudForMergePreview(spaceId) {
-  const controller = new AbortController();
-  let timer;
-  try {
-    return await new Promise((resolve, reject) => {
-      // Bound idle time rather than total duration: a large but progressing history is valid.
-      const progress = () => {
-        if (controller.signal.aborted) return;
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          reject(new Error(cloudMergeText("Délai de réponse du cloud dépassé.", "Cloud read timed out.")));
-          controller.abort();
-        }, 45000);
-      };
-      progress();
-      fetchSafeCloudSnapshot(spaceId, controller.signal, progress).then(resolve, reject);
-    });
-  } finally {
-    window.clearTimeout(timer);
-    controller.abort();
-  }
-}
-
-function cloudMergeBlockedReason() {
-  if (!canUseSupabaseCloud()) return cloudMergeText("Pour comparer les données, connectez-vous et rejoignez votre espace partagé.", "To compare data, sign in and join your shared space.");
-  if (state.cloud.syncBusy || state.cloud.writeInFlight) return cloudMergeText("Une synchronisation est déjà en cours. Réessayez après sa fin.", "A sync is already in progress. Try again when it finishes.");
-  if (!hasLocalBudgetData()) return cloudMergeText("Ouvrez d’abord le budget local à comparer.", "Open the local budget you want to compare first.");
-  if (navigator.onLine === false) return cloudMergeText("Hors ligne : reconnectez-vous avant d’ouvrir l’aperçu.", "Offline: reconnect before opening the preview.");
-  return "";
-}
-
 async function onCloudMergeRequested() {
-  if (state.cloud.mergePreviewOpen) return;
-  if (cloudMergeBlockedReason()) {
-    renderCloudPanel();
-    return;
-  }
+  if (!canUseSupabaseCloud() || state.cloud.syncBusy || state.cloud.mergePreviewOpen) return;
   const spaceId = state.cloud.space.id;
-  const generation = cloudAuthGeneration;
   try {
     if (state.cloud.pendingDeletedIds?.length) throw new Error("Publiez les suppressions en attente avant une fusion.");
-    if (state.cloud.pendingMerge) throw new Error(cloudMergeText("Une fusion déjà confirmée attend sa publication. Ne réimportez pas le fichier.", "A confirmed merge is pending publication. Do not reimport the file."));
     state.cloud.mergePreviewOpen = true;
     ++cloudLoadGeneration;
     setCloudBusy(true);
-    state.cloud.mergeNotice = cloudMergeText("Lecture du cloud pour préparer l’aperçu. Aucune donnée n’est publiée.", "Reading the cloud to prepare the preview. Nothing is being published.");
-    renderCloudPanel();
     persistDraft();
     preserveCloudRecoveryCopy("Avant apercu de fusion");
     const local = buildCloudSnapshot(spaceId);
-    const { snapshot: remote, revision } = await readCloudForMergePreview(spaceId);
-    if (generation !== cloudAuthGeneration || spaceId !== state.cloud.space.id || BUDGET_CLOUD_SYNC.hasChanges(local, buildCloudSnapshot(spaceId))) {
+    const { snapshot: remote, revision } = await fetchSafeCloudSnapshot(spaceId);
+    if (spaceId !== state.cloud.space.id || BUDGET_CLOUD_SYNC.hasChanges(local, buildCloudSnapshot(spaceId))) {
       throw new Error("La copie locale ou l'espace a change. Reouvrez l'apercu.");
     }
     openCloudMergeModal({ spaceId, revision, plan: BUDGET_CLOUD_SYNC.planMerge(local, remote) });
-    state.cloud.mergeNotice = "";
   } catch (error) {
     state.cloud.mergePreviewOpen = false;
-    const reason = error?.message || cloudMergeText("Lecture du cloud impossible.", "Cloud read failed.");
-    state.cloud.mergeNotice = cloudMergeText(`Aperçu indisponible : ${reason} Aucune donnée publiée par cet aperçu. Gardez votre copie locale et réessayez.`, `Preview unavailable: ${reason} Nothing was published by this preview. Keep your local copy and try again.`);
-    setCloudStatus(state.cloud.mergeNotice);
+    setCloudStatus(error?.message || "Apercu de fusion indisponible. Copie locale conservee.");
   } finally {
     setCloudBusy(false);
     renderAll();
@@ -9259,18 +9214,15 @@ function preserveCloudRecoveryCopy(reason) {
   localStorage.setItem(key, JSON.stringify(retained));
 }
 
-async function requireSafeCloudSync(signal) {
-  const query = supabaseClient.rpc("budget_sync_capabilities");
-  const { data, error } = await (signal ? query.abortSignal(signal) : query);
-  if (error && error.code !== "PGRST202" && error.code !== "42883") throw error;
+async function requireSafeCloudSync() {
+  const { data, error } = await supabaseClient.rpc("budget_sync_capabilities");
   if (error || data?.version !== 1 || data?.atomic !== true || data?.legacy_writes_blocked !== true) {
     throw new Error("Synchronisation bloquee : activez supabase/safe-sync-v1.sql dans Supabase. Vos modifications restent locales.");
   }
 }
 
-async function readSafeCloudRevision(spaceId, signal) {
-  const query = supabaseClient.rpc("budget_sync_revision", { target_space_id: spaceId });
-  const { data, error } = await (signal ? query.abortSignal(signal) : query);
+async function readSafeCloudRevision(spaceId) {
+  const { data, error } = await supabaseClient.rpc("budget_sync_revision", { target_space_id: spaceId });
   if (error) throw error;
   if (!/^\d+$/.test(String(data))) throw new Error("Version cloud invalide. Chargement annule.");
   return String(data);
@@ -9359,15 +9311,14 @@ async function saveBudgetChangesToSupabase(spaceId, options = {}) {
   }
 }
 
-async function fetchAllSupabaseRows(createQuery, signal, onProgress) {
+async function fetchAllSupabaseRows(createQuery) {
   const pageSize = 500;
   const rows = [];
   let expectedCount = null;
 
   while (true) {
-    const query = createQuery().range(rows.length, rows.length + pageSize - 1);
-    const { data, error, count } = await (signal ? query.abortSignal(signal) : query);
-    onProgress?.();
+    const { data, error, count } = await createQuery()
+      .range(rows.length, rows.length + pageSize - 1);
     if (error) {
       return { data: null, error };
     }
@@ -9397,33 +9348,29 @@ async function fetchAllSupabaseRows(createQuery, signal, onProgress) {
   }
 }
 
-async function fetchSafeCloudSnapshot(spaceId, signal, onProgress) {
-  await requireSafeCloudSync(signal);
-  onProgress?.();
-  const cloudRevision = await readSafeCloudRevision(spaceId, signal);
-  onProgress?.();
-  const readPages = createQuery => fetchAllSupabaseRows(createQuery, signal, onProgress);
-  const cardQuery = supabaseClient.from("budget_card_tracker_state").select("*").eq("space_id", spaceId).maybeSingle();
+async function fetchSafeCloudSnapshot(spaceId) {
+  await requireSafeCloudSync();
+  const cloudRevision = await readSafeCloudRevision(spaceId);
     const [{ data: categories, error: categoriesError }, { data: categoryGroups, error: categoryGroupsError }, { data: planRows, error: planError }, { data: transactions, error: transactionsError }, recurringResult, cardTrackerResult] = await Promise.all([
-      readPages(() => supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_categories")
         .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
         .order("name", { ascending: true })),
-      readPages(() => supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_category_groups")
         .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
         .order("label", { ascending: true }).order("group_key", { ascending: true })),
-      readPages(() => supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_plan_rows")
         .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("position", { ascending: true })
         .order("label", { ascending: true }).order("plan_id", { ascending: true })),
-      readPages(() => supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_transactions")
         .select("*", { count: "exact" })
         .eq("space_id", spaceId)
@@ -9431,19 +9378,22 @@ async function fetchSafeCloudSnapshot(spaceId, signal, onProgress) {
         .order("entry_date", { ascending: true })
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })),
-      readPages(() => supabaseClient
+      fetchAllSupabaseRows(() => supabaseClient
         .from("budget_recurring_templates")
         .select("*", { count: "exact" })
         .eq("space_id", spaceId)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }).order("template_id", { ascending: true })),
-      signal ? cardQuery.abortSignal(signal) : cardQuery,
+      supabaseClient
+        .from("budget_card_tracker_state")
+        .select("*")
+        .eq("space_id", spaceId)
+        .maybeSingle(),
     ]);
     for (const error of [categoriesError, categoryGroupsError, planError, transactionsError, recurringResult?.error, cardTrackerResult?.error]) {
       if (error) throw error;
     }
-    onProgress?.();
-    if (cloudRevision !== await readSafeCloudRevision(spaceId, signal)) {
+    if (cloudRevision !== await readSafeCloudRevision(spaceId)) {
       throw new Error("Les donnees cloud ont change pendant le chargement. Copie locale conservee; reessayez.");
     }
     const remoteSnapshot = BUDGET_CLOUD_SYNC.canonicalSnapshot({
@@ -15341,7 +15291,7 @@ function renderCloudIntegrity() {
     ? (isEnglishUi() ? "Loaded and verified" : "Copie chargee et verifiee")
     : (isEnglishUi() ? "Verification pending" : "Verification en attente");
   const entries = known ? Object.entries(summary.months || {}) : [];
-  refs.cloudIntegrity.innerHTML = `<summary>${title} : ${status} <small>web v126</small></summary>
+  refs.cloudIntegrity.innerHTML = `<summary>${title} : ${status} <small>web v125</small></summary>
     <p>${known ? `${escapeHtml(String(summary.counts?.budget_transactions || 0))} transactions | revision ${escapeHtml(String(summary.revision))} | ${escapeHtml(formatDraftSavedAt(summary.checkedAt))}` : (isEnglishUi() ? "No verified snapshot for this space yet." : "Aucune copie verifiee pour cet espace dans cette session.")}</p>
     <div class="cloud-month-inventory">${entries.map(([month, count]) => `<span>${escapeHtml(month)} : <strong>${escapeHtml(String(count))}</strong></span>`).join("")}</div>
     <p>${isEnglishUi() ? "Counts cover records currently stored in this cloud space, not history that may have been lost before recovery." : "Ces nombres concernent les donnees actuellement presentes dans cet espace cloud, pas un historique perdu avant restauration."}</p>`;
@@ -15380,11 +15330,8 @@ function renderCloudPanel() {
   refs.cloudCreateSpaceButton.disabled = !cloudReady || busy || !signedIn;
   refs.cloudJoinSpaceButton.disabled = !cloudReady || busy || !signedIn || !typedJoinCode;
   refs.cloudPushButton.disabled = !canPublish || busy;
-  refs.cloudMergeButton.disabled = !canPublish || state.cloud.mergePreviewOpen;
-  refs.cloudMergeButton.textContent = state.cloud.mergePreviewOpen && !cloudMergeModal
-    ? cloudMergeText("Préparation de l’aperçu…", "Preparing preview…")
-    : cloudMergeText("Fusionner avec le cloud", "Merge with cloud");
-  if (refs.cloudMergeNotice) refs.cloudMergeNotice.textContent = (!state.cloud.mergePreviewOpen && cloudMergeBlockedReason()) || state.cloud.mergeNotice || "";
+  refs.cloudMergeButton.disabled = !canPublish || busy || state.cloud.mergePreviewOpen;
+  refs.cloudMergeButton.textContent = isEnglishUi() ? "Merge with cloud" : "Fusionner avec le cloud";
   refs.cloudPullButton.disabled = !canUseSupabaseCloud() || busy;
 
   refs.cloudCodeInput.placeholder = signedIn
